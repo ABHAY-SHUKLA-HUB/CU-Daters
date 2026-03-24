@@ -1,7 +1,16 @@
 import nodemailer from 'nodemailer';
+import dns from 'node:dns';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// Render/container networks sometimes resolve Gmail SMTP to IPv6 first, which can
+// fail with ENETUNREACH when IPv6 routing is unavailable. Prefer IPv4 globally.
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (error) {
+  console.warn('⚠️ Unable to set DNS result order to ipv4first:', error?.message || error);
+}
 
 // Detect if running in production
 const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('netlify'));
@@ -38,6 +47,8 @@ if (!process.env.EMAIL_PASSWORD) {
     host: 'smtp.gmail.com',
     port: 587,
     secure: false, // Use TLS (not SSL)
+    requireTLS: true,
+    family: 4,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD
