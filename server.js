@@ -14,6 +14,7 @@ import dotenv from 'dotenv';
 import { Server as SocketIOServer } from 'socket.io';
 import connectDB from './config/database.js';
 import { globalErrorHandler, notFoundHandler, jsonErrorHandler } from './utils/errorHandler.js';
+import { getDbReconnectState, markDbReconnectStart, markDbReconnectEnd } from './utils/dbState.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -187,14 +188,33 @@ app.use(jsonErrorHandler);
 
 // Guard API routes when DB is unavailable, so clients get a clear 503
 // instead of long Mongoose buffering timeouts.
+// Also attempts background reconnect to self-heal transient Atlas/Render disconnects.
 app.use('/api', (req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({
-      success: false,
-      message: 'Database unavailable. Please try again in a moment.'
-    });
+  if (mongoose.connection.readyState === 1) {
+    return next();
   }
-  return next();
+
+  const { reconnectInProgress, lastReconnectAttempt } = getDbReconnectState();
+  const shouldAttemptReconnect = !reconnectInProgress && (Date.now() - lastReconnectAttempt > 10000);
+
+  if (shouldAttemptReconnect) {
+    markDbReconnectStart();
+    connectDB()
+      .then(() => {
+        console.log('✅ [DB] Background reconnect successful');
+      })
+      .catch((error) => {
+        console.warn(`⚠️ [DB] Background reconnect failed: ${error?.message || 'unknown error'}`);
+      })
+      .finally(() => {
+        markDbReconnectEnd();
+      });
+  }
+
+  return res.status(503).json({
+    success: false,
+    message: 'Database unavailable. Please try again in a moment.'
+  });
 });
 
 // ===== STATIC FILES =====
