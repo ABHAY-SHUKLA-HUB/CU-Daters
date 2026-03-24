@@ -62,6 +62,49 @@ const app = express();
 const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
+const normalizeOrigin = (origin) => {
+  if (!origin || typeof origin !== 'string') return '';
+  const trimmed = origin.trim();
+  try {
+    const parsed = new URL(trimmed);
+    return `${parsed.protocol}//${parsed.host}`.toLowerCase();
+  } catch {
+    return trimmed.replace(/\/+$/, '').toLowerCase();
+  }
+};
+
+const parseOriginList = (rawValue) => {
+  if (!rawValue || typeof rawValue !== 'string') return [];
+  return rawValue
+    .split(',')
+    .map((entry) => normalizeOrigin(entry))
+    .filter(Boolean);
+};
+
+const isAllowedOrigin = (origin, allowedOriginSet) => {
+  if (!origin) return true;
+
+  const normalized = normalizeOrigin(origin);
+  if (allowedOriginSet.has(normalized)) return true;
+
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return false;
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+
+  const hostname = parsed.hostname.toLowerCase();
+  const isLocalDevHost = /^(localhost|127\.0\.0\.1)$/.test(hostname);
+  const isNetlify = hostname.endsWith('.netlify.app');
+  const isVercel = hostname.endsWith('.vercel.app');
+  const isRender = hostname.endsWith('.onrender.com');
+
+  return isLocalDevHost || isNetlify || isVercel || isRender;
+};
+
 // ===== CONNECT DATABASE =====
 // Don't crash server if DB connection fails - log and continue
 connectDB().catch(err => {
@@ -71,7 +114,7 @@ connectDB().catch(err => {
 });
 
 // ===== MIDDLEWARE =====
-const allowedOrigins = [
+const staticAllowedOrigins = [
   // Local development
   'http://localhost:5173',
   'http://localhost:5174',
@@ -93,6 +136,7 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.FRONTEND_PUBLIC_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  process.env.CORS_ORIGIN,
   process.env.NETLIFY_URL,
   'https://cu-daters-found.netlify.app',
   'https://www.cu-daters-found.netlify.app',
@@ -101,9 +145,14 @@ const allowedOrigins = [
   // Render backend itself (for websocket)
   process.env.BACKEND_URL,
   'https://datee.onrender.com'
-].filter(Boolean);
+]
+  .filter(Boolean)
+  .map((origin) => normalizeOrigin(origin));
 
-console.log('✅ Allowed CORS Origins:', allowedOrigins);
+const envAllowedOrigins = parseOriginList(process.env.CORS_ALLOWED_ORIGINS);
+const allowedOriginSet = new Set([...staticAllowedOrigins, ...envAllowedOrigins]);
+
+console.log('✅ Allowed CORS Origins:', Array.from(allowedOriginSet));
 
 const makeCorsError = (origin) => {
   const error = new Error('Not allowed by CORS');
@@ -116,19 +165,7 @@ const makeCorsError = (origin) => {
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, health checks).
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // Allow Netlify, Vercel and Render subdomains.
-    const isNetlify = /^https:\/\/([a-z0-9-]+\.)?netlify\.app$/i.test(origin);
-    const isVercel = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i.test(origin);
-    const isRender = /^https:\/\/([a-z0-9-]+\.)?onrender\.com$/i.test(origin);
-    const isLocalDevHost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
-    if (isNetlify || isVercel || isRender || isLocalDevHost) {
+    if (isAllowedOrigin(origin, allowedOriginSet)) {
       return callback(null, true);
     }
 
@@ -210,19 +247,7 @@ app.get('/', (req, res) => {
 const io = new SocketIOServer(httpServer, {
   cors: {
     origin: (origin, callback) => {
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      const isNetlify = /^https:\/\/([a-z0-9-]+\.)?netlify\.app$/i.test(origin);
-      const isVercel = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i.test(origin);
-      const isRender = /^https:\/\/([a-z0-9-]+\.)?onrender\.com$/i.test(origin);
-      const isLocalDevHost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
-      if (isNetlify || isVercel || isRender || isLocalDevHost) {
+      if (isAllowedOrigin(origin, allowedOriginSet)) {
         return callback(null, true);
       }
 
