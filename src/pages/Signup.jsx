@@ -29,6 +29,7 @@ export default function Signup() {
   const navigate = useNavigate();
   const { setAuth } = useAuth();
   const API_URL = getApiBaseUrl();
+  const AUTH_API_BASE = API_URL.endsWith('/api') ? `${API_URL}/auth` : `${API_URL}/api/auth`;
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -158,7 +159,7 @@ export default function Signup() {
     setErrorModal(null);
 
     try {
-      const response = await axios.post(`${API_URL}/api/auth/send-otp`, {
+      const response = await axios.post(`${AUTH_API_BASE}/send-otp`, {
         name: formData.name.trim(),
         email: formData.personalEmail.toLowerCase().trim(),
         phone: formData.phone,
@@ -232,7 +233,7 @@ export default function Signup() {
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/api/auth/verify-otp`, {
+      const response = await axios.post(`${AUTH_API_BASE}/verify-otp`, {
         email: formData.personalEmail.toLowerCase().trim(),
         otp: formData.otp
       }, {
@@ -277,7 +278,7 @@ export default function Signup() {
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/api/auth/signup`, {
+      const response = await axios.post(`${AUTH_API_BASE}/signup`, {
         email: formData.personalEmail.toLowerCase().trim(),
         gender: formData.gender,
         course: formData.course,

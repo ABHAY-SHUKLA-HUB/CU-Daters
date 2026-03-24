@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 import dns from 'node:dns';
 
-const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/campus-connect';
-
 export const connectDB = async () => {
+  const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/campus-connect';
+
   try {
     console.log(`\n🔍 Attempting to connect to MongoDB...`);
     console.log(`📍 URI: ${mongoURI.includes('localhost') ? 'LOCALHOST' : 'ATLAS (Cloud)'}`);

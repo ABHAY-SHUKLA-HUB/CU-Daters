@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
+import connectDB from '../config/database.js';
 
 dotenv.config();
 
@@ -23,7 +24,7 @@ if (!email || !password) {
 
 async function run() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await connectDB();
     const emailLower = email.toLowerCase().trim();
 
     let user = await User.findOne({

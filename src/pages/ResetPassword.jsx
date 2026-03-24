@@ -13,6 +13,7 @@ export default function ResetPassword() {
   const [tokenValid, setTokenValid] = useState(false);
   const navigate = useNavigate();
   const API_URL = getApiBaseUrl();
+  const AUTH_API_BASE = API_URL.endsWith('/api') ? `${API_URL}/auth` : `${API_URL}/api/auth`;
 
   const token = searchParams.get('token');
 
@@ -35,7 +36,7 @@ export default function ResetPassword() {
       try {
         console.log('🔍 Verifying reset token...');
         const response = await axios.get(
-          `${API_URL}/api/auth/verify-reset-token/${token}`,
+          `${AUTH_API_BASE}/verify-reset-token/${token}`,
           {
             timeout: 30000,
             headers: {
@@ -71,7 +72,7 @@ export default function ResetPassword() {
     };
 
     verifyToken();
-  }, [token, API_URL]);
+  }, [token, AUTH_API_BASE]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -121,7 +122,7 @@ export default function ResetPassword() {
     try {
       console.log('🔐 Submitting password reset...');
       const response = await axios.post(
-        `${API_URL}/api/auth/reset-password`,
+        `${AUTH_API_BASE}/reset-password`,
         {
           token,
           password: formData.password,

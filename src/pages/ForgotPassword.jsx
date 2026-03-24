@@ -11,6 +11,7 @@ export default function ForgotPassword() {
   const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
   const API_URL = getApiBaseUrl();
+  const AUTH_API_BASE = API_URL.endsWith('/api') ? `${API_URL}/auth` : `${API_URL}/api/auth`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,9 +26,9 @@ export default function ForgotPassword() {
     setSuccess(false);
 
     try {
-      console.log('📧 Sending forgot password request to:', `${API_URL}/api/auth/forgot-password`);
+      console.log('📧 Sending forgot password request to:', `${AUTH_API_BASE}/forgot-password`);
       
-      const response = await axios.post(`${API_URL}/api/auth/forgot-password`, {
+      const response = await axios.post(`${AUTH_API_BASE}/forgot-password`, {
         email: email.toLowerCase().trim()
       }, {
         timeout: 30000,
