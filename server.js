@@ -7,10 +7,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-// ===== LOAD ENVIRONMENT VARIABLES FIRST (MUST BE FIRST IMPORT) =====
+// ===== LOAD ENVIRONMENT VARIABLES FIRST =====
 import './init-env.js';
 
-import dotenv from 'dotenv';
 import { Server as SocketIOServer } from 'socket.io';
 import connectDB from './config/database.js';
 import { globalErrorHandler, notFoundHandler, jsonErrorHandler } from './utils/errorHandler.js';
@@ -32,24 +31,23 @@ import { registerNotificationSocket } from './socket/notificationSocket.js';
 
 // ===== VALIDATE ENVIRONMENT VARIABLES =====
 const validateEnvVars = () => {
-  const requiredVars = [
-    'MONGODB_URI',
-    'JWT_SECRET'
-  ];
-  
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
-  
+  const requiredVars = ['MONGODB_URI', 'JWT_SECRET'];
+
+  const missingVars = requiredVars.filter((varName) => !process.env[varName]);
+
   if (missingVars.length > 0) {
     console.warn('⚠️ Missing environment variables:', missingVars.join(', '));
     console.warn('⚠️ Some features may not work without these variables');
   }
-  
-  // Check for invalid placeholder values
+
   if (process.env.FIREBASE_PRIVATE_KEY === 'YOUR_KEY_HERE') {
     console.warn('⚠️ FIREBASE_PRIVATE_KEY still has placeholder value - Firebase auth disabled');
   }
-  
-  if (process.env.JWT_SECRET === 'your-secret-key' || process.env.JWT_SECRET === 'dev-secret') {
+
+  if (
+    process.env.JWT_SECRET === 'your-secret-key' ||
+    process.env.JWT_SECRET === 'dev-secret'
+  ) {
     console.warn('⚠️ JWT_SECRET using weak default - change in production!');
   }
 };
@@ -66,6 +64,7 @@ const PORT = process.env.PORT || 5000;
 const normalizeOrigin = (origin) => {
   if (!origin || typeof origin !== 'string') return '';
   const trimmed = origin.trim();
+
   try {
     const parsed = new URL(trimmed);
     return `${parsed.protocol}//${parsed.host}`.toLowerCase();
@@ -76,6 +75,7 @@ const normalizeOrigin = (origin) => {
 
 const parseOriginList = (rawValue) => {
   if (!rawValue || typeof rawValue !== 'string') return [];
+
   return rawValue
     .split(',')
     .map((entry) => normalizeOrigin(entry))
@@ -107,8 +107,7 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
 };
 
 // ===== CONNECT DATABASE =====
-// Don't crash server if DB connection fails - log and continue
-connectDB().catch(err => {
+connectDB().catch((err) => {
   console.error('⚠️ Database connection failed:', err.message);
   console.warn('⚠️ Server will still start, but database features will not work');
   console.warn('⚠️ Set proper MONGODB_URI environment variable on Render');
@@ -133,24 +132,29 @@ const staticAllowedOrigins = [
   'http://127.0.0.1:5178',
   'http://127.0.0.1:5179',
   'http://127.0.0.1:5180',
-  // Production - From environment variables
+
+  // Production
   process.env.FRONTEND_URL,
   process.env.FRONTEND_PUBLIC_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-  process.env.CORS_ORIGIN,
   process.env.NETLIFY_URL,
   'https://cu-daters-found.netlify.app',
   'https://www.cu-daters-found.netlify.app',
   'https://cu-daters.vercel.app',
   'https://www.cu-daters.vercel.app',
-  // Render backend itself (for websocket)
+
+  // Backend URL
   process.env.BACKEND_URL,
-  'https://datee.onrender.com'
+  'https://datee.onrender.com',
 ]
   .filter(Boolean)
   .map((origin) => normalizeOrigin(origin));
 
-const envAllowedOrigins = parseOriginList(process.env.CORS_ALLOWED_ORIGINS);
+const envAllowedOrigins = [
+  ...parseOriginList(process.env.CORS_ORIGIN),
+  ...parseOriginList(process.env.CORS_ALLOWED_ORIGINS),
+];
+
 const allowedOriginSet = new Set([...staticAllowedOrigins, ...envAllowedOrigins]);
 
 console.log('✅ Allowed CORS Origins:', Array.from(allowedOriginSet));
@@ -158,9 +162,11 @@ console.log('✅ Allowed CORS Origins:', Array.from(allowedOriginSet));
 const makeCorsError = (origin) => {
   const error = new Error('Not allowed by CORS');
   error.statusCode = 403;
+
   if (process.env.NODE_ENV === 'development') {
     error.message = `Not allowed by CORS: ${origin}`;
   }
+
   return error;
 };
 
@@ -176,7 +182,7 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-pin'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400,
 };
 
 app.use(cors(corsOptions));
@@ -186,19 +192,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(jsonErrorHandler);
 
-// Guard API routes when DB is unavailable, so clients get a clear 503
-// instead of long Mongoose buffering timeouts.
-// Also attempts background reconnect to self-heal transient Atlas/Render disconnects.
+// Guard API routes when DB is unavailable
 app.use('/api', (req, res, next) => {
   if (mongoose.connection.readyState === 1) {
     return next();
   }
 
   const { reconnectInProgress, lastReconnectAttempt } = getDbReconnectState();
-  const shouldAttemptReconnect = !reconnectInProgress && (Date.now() - lastReconnectAttempt > 10000);
+  const shouldAttemptReconnect =
+    !reconnectInProgress && Date.now() - lastReconnectAttempt > 10000;
 
   if (shouldAttemptReconnect) {
     markDbReconnectStart();
+
     connectDB()
       .then(() => {
         console.log('✅ [DB] Background reconnect successful');
@@ -213,12 +219,13 @@ app.use('/api', (req, res, next) => {
 
   return res.status(503).json({
     success: false,
-    message: 'Database unavailable. Please try again in a moment.'
+    message: 'Database unavailable. Please try again in a moment.',
   });
 });
 
 // ===== STATIC FILES =====
 const uploadDir = path.join(__dirname, 'uploads');
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
   console.log('✓ Created uploads directory');
@@ -231,8 +238,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'Backend server is running',
-    database: 'mongodb',
-    timestamp: new Date().toISOString()
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -259,8 +266,8 @@ app.get('/', (req, res) => {
       admin: '/api/admin',
       chat: '/api/chat',
       likes: '/api/likes',
-      connections: '/api/connections'
-    }
+      connections: '/api/connections',
+    },
   });
 });
 
@@ -274,8 +281,8 @@ const io = new SocketIOServer(httpServer, {
       return callback(makeCorsError(origin));
     },
     methods: ['GET', 'POST'],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
 registerChatSocket(io);
@@ -284,11 +291,8 @@ registerNotificationSocket(io);
 // Attach io to app for use in routes
 app.locals.io = io;
 
-// ===== ERROR HANDLING MIDDLEWARE (Must be last) =====
-// 404 handler - must come before global error handler
+// ===== ERROR HANDLING =====
 app.use(notFoundHandler);
-
-// Global error handler - must come last
 app.use(globalErrorHandler);
 
 // ===== START SERVER =====
