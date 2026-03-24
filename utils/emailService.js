@@ -15,16 +15,89 @@ try {
 // Detect if running in production
 const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('netlify'));
 
+const sanitizedEmailUser = String(process.env.EMAIL_USER || '').trim();
+// Gmail app passwords are often copied with spaces between groups. Remove all spaces.
+const sanitizedEmailPassword = String(process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '');
+const smtpHost = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+const smtpPort = Number(process.env.SMTP_PORT || 587);
+const smtpSecure = String(process.env.SMTP_SECURE || String(smtpPort === 465)).toLowerCase() === 'true';
+
 // Create transporter based on environment
 let transporter;
+const fallbackTransporters = [];
+
+const createSmtpTransporter = ({ host, port, secure }) => nodemailer.createTransport({
+  host,
+  port,
+  secure,
+  requireTLS: !secure,
+  family: 4,
+  auth: {
+    user: sanitizedEmailUser,
+    pass: sanitizedEmailPassword
+  },
+  connectionTimeout: 15000,
+  socketTimeout: 15000,
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+const sendMailAsync = (mailTransporter, mailOptions) => new Promise((resolve, reject) => {
+  mailTransporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(info);
+    }
+  });
+});
+
+const shouldTryFallback = (error) => {
+  const code = String(error?.code || '').toUpperCase();
+  const msg = String(error?.message || '').toLowerCase();
+  return [
+    'ETIMEDOUT',
+    'ECONNECTION',
+    'ECONNRESET',
+    'ECONNREFUSED',
+    'EHOSTUNREACH',
+    'ENETUNREACH',
+    'ESOCKET'
+  ].includes(code) || msg.includes('timed out') || msg.includes('connection closed');
+};
+
+const sendMailWithFallback = async (mailOptions) => {
+  const candidates = [transporter, ...fallbackTransporters].filter(Boolean);
+  let lastError = null;
+
+  for (let i = 0; i < candidates.length; i += 1) {
+    try {
+      const info = await sendMailAsync(candidates[i], mailOptions);
+      if (i > 0) {
+        console.warn(`⚠️ Email sent via fallback SMTP candidate #${i + 1}`);
+      }
+      return info;
+    } catch (error) {
+      lastError = error;
+      const code = error?.code || 'UNKNOWN';
+      console.error(`❌ SMTP candidate #${i + 1} failed:`, code, error?.message || error);
+      if (!shouldTryFallback(error)) {
+        break;
+      }
+    }
+  }
+
+  throw lastError || new Error('All SMTP transport attempts failed');
+};
 
 console.log('\n📧 [STARTUP] Email Service Initialize');
 console.log(`   - Node Env: ${process.env.NODE_ENV}`);
-console.log(`   - Email User: ${process.env.EMAIL_USER || 'NOT SET'}`);
-console.log(`   - Email Password: ${process.env.EMAIL_PASSWORD ? '✓ SET' : '✗ NOT SET'}`);
+console.log(`   - Email User: ${sanitizedEmailUser || 'NOT SET'}`);
+console.log(`   - Email Password: ${sanitizedEmailPassword ? '✓ SET' : '✗ NOT SET'}`);
 console.log(`   - Production Mode: ${isProduction}`);
 
-if (!process.env.EMAIL_PASSWORD) {
+if (!sanitizedEmailPassword) {
   // Development mode: Show OTP in console
   console.log('📧 [DEV MODE] Emails will be shown in backend console\n');
   transporter = {
@@ -43,26 +116,23 @@ if (!process.env.EMAIL_PASSWORD) {
   // Production mode: Use Gmail with app password
   console.log('📧 [PRODUCTION MODE] Using Gmail SMTP\n');
   
-  transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Use TLS (not SSL)
-    requireTLS: true,
-    family: 4,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD
-    },
-    connectionTimeout: 15000,
-    socketTimeout: 15000,
-    tls: {
-      rejectUnauthorized: false
-    }
+  transporter = createSmtpTransporter({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure
   });
+
+  if (!(smtpHost === 'smtp.gmail.com' && smtpPort === 465 && smtpSecure === true)) {
+    fallbackTransporters.push(createSmtpTransporter({ host: 'smtp.gmail.com', port: 465, secure: true }));
+  }
+
+  if (!(smtpHost === 'smtp.gmail.com' && smtpPort === 587 && smtpSecure === false)) {
+    fallbackTransporters.push(createSmtpTransporter({ host: 'smtp.gmail.com', port: 587, secure: false }));
+  }
 }
 
 // Verify Gmail connection only in production
-if (isProduction && process.env.EMAIL_PASSWORD) {
+if (isProduction && sanitizedEmailPassword) {
   transporter.verify()
     .then((success) => {
       console.log('✅ Gmail SMTP Connection Verified!');
@@ -90,7 +160,7 @@ if (isProduction && process.env.EMAIL_PASSWORD) {
 export const sendOtpEmail = async (email, otp) => {
   try {
     // In development or if email not configured, show OTP in console
-    if (!process.env.EMAIL_PASSWORD) {
+    if (!sanitizedEmailPassword) {
       console.log('\n' + '='.repeat(80));
       console.log('📧 [DEV MODE - OTP EMAIL]');
       console.log('='.repeat(80));
@@ -192,31 +262,22 @@ export const sendOtpEmail = async (email, otp) => {
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'cudaters.verify@gmail.com',
+      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
       subject: '💖 Your CU Daters Verification Code',
       html: htmlTemplate,
       text: `CU Daters Verification Code: ${otp}\n\nThis code is valid for 5 minutes.\n\nDo not share this code with anyone.\n\nIf you didn't request this code, please ignore this email.`
     };
 
-    // Handle both callback and promise-based sendMail
-    const result = await new Promise((resolve, reject) => {
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(info);
-        }
-      });
-    });
+    const result = await sendMailWithFallback(mailOptions);
     
     console.log('✅ OTP email sent successfully:', result.messageId);
     return { success: true, messageId: result.messageId };
   } catch (error) {
     console.error('❌ Error sending OTP email:', error.message);
     console.error('📧 Debugging Info:');
-    console.error('  - Email User:', process.env.EMAIL_USER || 'NOT SET');
-    console.error('  - Email Pass Set:', !!process.env.EMAIL_PASSWORD);
+    console.error('  - Email User:', sanitizedEmailUser || 'NOT SET');
+    console.error('  - Email Pass Set:', !!sanitizedEmailPassword);
     console.error('  - Recipient:', email);
     console.error('  - Error Type:', error.code || error.name);
     console.error('  - Full Error:', error);
@@ -239,7 +300,7 @@ export const sendOtpEmail = async (email, otp) => {
 export const sendApprovalEmail = async (email, name) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'cudaters.verify@gmail.com',
+      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
       subject: '✅ Your CU Daters Profile Has Been Approved!',
       html: `
@@ -255,7 +316,7 @@ export const sendApprovalEmail = async (email, name) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendMailWithFallback(mailOptions);
     console.log('✅ Approval email sent to:', email);
     return { success: true };
   } catch (error) {
@@ -274,7 +335,7 @@ export const sendApprovalEmail = async (email, name) => {
 export const sendRejectionEmail = async (email, name, reason) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'cudaters.verify@gmail.com',
+      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
       subject: '❌ CU Daters Profile Review',
       html: `
@@ -293,7 +354,7 @@ export const sendRejectionEmail = async (email, name, reason) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendMailWithFallback(mailOptions);
     console.log('✅ Rejection email sent to:', email);
     return { success: true };
   } catch (error) {
@@ -311,7 +372,7 @@ export const sendRejectionEmail = async (email, name, reason) => {
 export const sendPasswordResetEmail = async (email, resetToken) => {
   try {
     // In development, log the reset link instead of sending
-    if (!process.env.EMAIL_PASSWORD) {
+    if (!sanitizedEmailPassword) {
       const devResetUrl = `http://localhost:5173/reset-password?token=${resetToken}`;
       console.log('\n' + '='.repeat(80));
       console.log('📧 [DEVELOPMENT MODE - PASSWORD RESET EMAIL]');
@@ -431,23 +492,14 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'cudaters.verify@gmail.com',
+      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
       subject: '🔐 CU Daters Password Reset Request',
       html: htmlTemplate,
       text: `Password Reset Request\n\nClick this link to reset your password:\n${resetUrl}\n\nThis link is valid for 1 hour.\n\nIf you didn't request this, please ignore this email.\n\nYour account is secure.`
     };
 
-    // Handle both callback and promise-based sendMail
-    const result = await new Promise((resolve, reject) => {
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(info);
-        }
-      });
-    });
+    const result = await sendMailWithFallback(mailOptions);
     
     console.log('✅ Password reset email sent successfully:', result.messageId);
     return { success: true, messageId: result.messageId };
@@ -467,7 +519,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
 export const sendRegistrationConfirmationEmail = async (email, name, college) => {
   try {
     // In development, log the email
-    if (!process.env.EMAIL_PASSWORD) {
+    if (!sanitizedEmailPassword) {
       console.log('\n' + '='.repeat(80));
       console.log('📧 [DEV MODE - REGISTRATION CONFIRMATION EMAIL]');
       console.log('='.repeat(80));
@@ -638,23 +690,14 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'cudaters.verify@gmail.com',
+      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
       subject: '✨ Your Registration is Pending Approval – CU DATERS',
       html: htmlTemplate,
       text: `Hi ${name}!\n\nThank you for registering on CU Daters! Your profile is under review and will be approved within 24-48 hours.\n\nRegistration Summary:\nName: ${name}\nEmail: ${email}\nCollege: ${college}\nStatus: Pending Approval\n\nYou'll receive an email once your profile is approved.\n\nFor support, contact: support@cudaters.com\n\nBest regards,\nCU Daters Team`
     };
 
-    // Handle both callback and promise-based sendMail
-    const result = await new Promise((resolve, reject) => {
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(info);
-        }
-      });
-    });
+    const result = await sendMailWithFallback(mailOptions);
     
     console.log('✅ Registration confirmation email sent successfully:', result.messageId);
     return { success: true, messageId: result.messageId };
