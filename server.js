@@ -91,15 +91,28 @@ const allowedOrigins = [
   'http://127.0.0.1:5180',
   // Production - From environment variables
   process.env.FRONTEND_URL,
+  process.env.FRONTEND_PUBLIC_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
   process.env.NETLIFY_URL,
   'https://cu-daters-found.netlify.app',
   'https://www.cu-daters-found.netlify.app',
+  'https://cu-daters.vercel.app',
+  'https://www.cu-daters.vercel.app',
   // Render backend itself (for websocket)
   process.env.BACKEND_URL,
   'https://datee.onrender.com'
 ].filter(Boolean);
 
 console.log('✅ Allowed CORS Origins:', allowedOrigins);
+
+const makeCorsError = (origin) => {
+  const error = new Error('Not allowed by CORS');
+  error.statusCode = 403;
+  if (process.env.NODE_ENV === 'development') {
+    error.message = `Not allowed by CORS: ${origin}`;
+  }
+  return error;
+};
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -110,16 +123,17 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // Allow Netlify and Render subdomains.
+    // Allow Netlify, Vercel and Render subdomains.
     const isNetlify = /^https:\/\/([a-z0-9-]+\.)?netlify\.app$/i.test(origin);
+    const isVercel = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i.test(origin);
     const isRender = /^https:\/\/([a-z0-9-]+\.)?onrender\.com$/i.test(origin);
     const isLocalDevHost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
-    if (isNetlify || isRender || isLocalDevHost) {
+    if (isNetlify || isVercel || isRender || isLocalDevHost) {
       return callback(null, true);
     }
 
     console.warn('⚠️ CORS blocked origin:', origin);
-    return callback(new Error('Not allowed by CORS'));
+    return callback(makeCorsError(origin));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -205,13 +219,14 @@ const io = new SocketIOServer(httpServer, {
       }
 
       const isNetlify = /^https:\/\/([a-z0-9-]+\.)?netlify\.app$/i.test(origin);
+      const isVercel = /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i.test(origin);
       const isRender = /^https:\/\/([a-z0-9-]+\.)?onrender\.com$/i.test(origin);
       const isLocalDevHost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
-      if (isNetlify || isRender || isLocalDevHost) {
+      if (isNetlify || isVercel || isRender || isLocalDevHost) {
         return callback(null, true);
       }
 
-      return callback(new Error('Not allowed by CORS'));
+      return callback(makeCorsError(origin));
     },
     methods: ['GET', 'POST'],
     credentials: true
