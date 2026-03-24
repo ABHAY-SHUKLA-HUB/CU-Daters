@@ -1,0 +1,72 @@
+name = "campus-connect-api"
+type = "service"
+account_id = "YOUR_ACCOUNT_ID"
+workers_dev = true
+route = "https://your-domain.com/api/*"
+zone_id = "YOUR_ZONE_ID"
+
+# Cloudflare Pages config
+pages_build_output_dir = "dist"
+
+# Environment variables
+env = { }
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+routes = [
+  { pattern = "your-domain.com/api/*", zone_id = "YOUR_ZONE_ID" }
+]
+
+[env.staging]
+vars = { ENVIRONMENT = "staging" }
+routes = [
+  { pattern = "staging.your-domain.com/api/*", zone_id = "YOUR_ZONE_ID" }
+]
+
+# KV Namespace bindings for caching/sessions
+[[kv_namespaces]]
+binding = "CACHE"
+id = "YOUR_KV_NAMESPACE_ID"
+preview_id = "YOUR_KV_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "YOUR_SESSIONS_NAMESPACE_ID"
+preview_id = "YOUR_SESSIONS_PREVIEW_ID"
+
+# R2 Bucket binding for file uploads
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "campus-connect-uploads"
+preview_bucket_name = "campus-connect-uploads-preview"
+
+# Durable Objects (for real-time if needed in future)
+# [[durable_objects.bindings]]
+# name = "CHAT_ROOM"
+# class_name = "ChatRoom"
+# script_name = "campus-connect-api"
+
+# Build configuration
+[build]
+command = "npm run build"
+cwd = "./dist"
+watch_paths = ["src/**/*.jsx", "src/**/*.js"]
+
+[build.upload]
+format = "service-worker"
+
+# Network config
+[limits]
+cpu_ms = 50
+
+# Triggers (future: cron jobs)
+# [triggers.crons]
+# cron = ["0 2 * * *"]
+
+# Dev/test configuration
+[development]
+ip = "127.0.0.1"
+port = 8787
+
+[observability]
+enabled = true

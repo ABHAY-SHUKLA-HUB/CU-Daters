@@ -1,0 +1,109 @@
+.admin-portal {
+  --admin-bg: #041126;
+  --admin-surface: rgba(8, 22, 45, 0.8);
+  --admin-surface-strong: rgba(6, 18, 39, 0.94);
+  --admin-border: rgba(125, 211, 252, 0.2);
+  --admin-text: #e2e8f0;
+  --admin-text-muted: #94a3b8;
+  --admin-accent: #06b6d4;
+}
+
+.admin-portal.admin-portal--light {
+  --admin-bg: #f4f8ff;
+  --admin-surface: rgba(255, 255, 255, 0.92);
+  --admin-surface-strong: rgba(255, 255, 255, 0.98);
+  --admin-border: rgba(59, 130, 246, 0.2);
+  --admin-text: #0f172a;
+  --admin-text-muted: #475569;
+  --admin-accent: #0284c7;
+}
+
+.admin-portal {
+  background: radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 48%), var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.admin-portal .admin-surface {
+  background: var(--admin-surface);
+  border-color: var(--admin-border);
+}
+
+.admin-portal .admin-surface-strong {
+  background: var(--admin-surface-strong);
+  border-color: var(--admin-border);
+}
+
+.admin-portal.admin-portal--light .text-white,
+.admin-portal.admin-portal--light .text-slate-100,
+.admin-portal.admin-portal--light .text-slate-200,
+.admin-portal.admin-portal--light .text-slate-300,
+.admin-portal.admin-portal--light .text-cyan-100,
+.admin-portal.admin-portal--light .text-cyan-200 {
+  color: #0f172a !important;
+}
+
+.admin-portal.admin-portal--light .text-slate-400,
+.admin-portal.admin-portal--light .text-slate-500,
+.admin-portal.admin-portal--light .text-cyan-100\/80,
+.admin-portal.admin-portal--light .text-cyan-100\/70,
+.admin-portal.admin-portal--light .text-cyan-200\/70,
+.admin-portal.admin-portal--light .text-cyan-200\/45 {
+  color: #475569 !important;
+}
+
+.admin-portal.admin-portal--light .bg-\[\#061227\]\/96,
+.admin-portal.admin-portal--light .bg-\[\#061227\]\/75,
+.admin-portal.admin-portal--light .bg-\[\#0a1a36\]\/55,
+.admin-portal.admin-portal--light .bg-\[\#0a1a36\]\/58,
+.admin-portal.admin-portal--light .bg-\[\#0c1a32\]\/80,
+.admin-portal.admin-portal--light .bg-black\/30,
+.admin-portal.admin-portal--light .bg-slate-950\/95 {
+  background: rgba(255, 255, 255, 0.96) !important;
+}
+
+.admin-portal.admin-portal--light .border-cyan-200\/15,
+.admin-portal.admin-portal--light .border-cyan-200\/10,
+.admin-portal.admin-portal--light .border-cyan-200\/20,
+.admin-portal.admin-portal--light .border-cyan-200\/30,
+.admin-portal.admin-portal--light .border-cyan-200\/45,
+.admin-portal.admin-portal--light .border-cyan-300\/15,
+.admin-portal.admin-portal--light .border-cyan-300\/35 {
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+.admin-portal.admin-portal--light .bg-white\/5,
+.admin-portal.admin-portal--light .bg-white\/6,
+.admin-portal.admin-portal--light .bg-white\/8,
+.admin-portal.admin-portal--light .bg-white\/10,
+.admin-portal.admin-portal--light .bg-white\/15 {
+  background: rgba(248, 250, 252, 0.9) !important;
+}
+
+.admin-portal .admin-toast-stack {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+}
+
+.admin-portal .admin-toast {
+  border-radius: 12px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-strong);
+  color: var(--admin-text);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.28);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.admin-portal .admin-toast.success {
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.admin-portal .admin-toast.error {
+  border-color: rgba(244, 63, 94, 0.45);
+}

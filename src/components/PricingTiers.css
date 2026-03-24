@@ -1,0 +1,502 @@
+/**
+ * PRICING TIERS STYLESHEET
+ * 
+ * Design principles:
+ * - Minimal, clean layout
+ * - Premium feel with gradients and shadows
+ * - Clear visual hierarchy
+ * - Free card is secondary, Premium is featured
+ * - Premium card has glow and highlight effects
+ */
+
+.pricing-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.05) 0%, rgba(221, 160, 221, 0.05) 100%);
+  border-radius: 24px;
+}
+
+.pricing-container.loading,
+.pricing-container.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 600px;
+  background: transparent;
+}
+
+.pricing-container.error {
+  color: #e74c3c;
+  font-size: 18px;
+}
+
+/* =================================================================
+   HEADER
+   ================================================================= */
+
+.pricing-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.pricing-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.pricing-subtitle {
+  font-size: 1.1rem;
+  color: #666;
+  font-weight: 400;
+}
+
+/* =================================================================
+   CARDS WRAPPER
+   ================================================================= */
+
+.pricing-cards-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 60px;
+  perspective: 1000px;
+}
+
+@media (max-width: 768px) {
+  .pricing-cards-wrapper {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .pricing-title {
+    font-size: 2rem;
+  }
+}
+
+/* =================================================================
+   PRICING CARDS
+   ================================================================= */
+
+.pricing-card {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+/* FREE CARD - Subtle styling */
+.free-card {
+  background: #fafafa;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.free-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* PREMIUM CARD - Highlighted and featured */
+.premium-card {
+  background: linear-gradient(135deg, #fff5f7 0%, #fffbfc 100%);
+  border: 2px solid rgba(255, 107, 166, 0.3);
+  box-shadow: 
+    0 20px 60px rgba(255, 107, 166, 0.15),
+    0 0 30px rgba(255, 107, 166, 0.1);
+  transform: scale(1.02);
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ff6ba6, transparent);
+}
+
+.premium-card:hover {
+  transform: scale(1.03) translateY(-6px);
+  box-shadow: 
+    0 30px 80px rgba(255, 107, 166, 0.2),
+    0 0 40px rgba(255, 107, 166, 0.15);
+}
+
+/* Featured badge */
+.featured-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #fff0f5 0%, #ffe6ec 100%);
+  border: 1px solid rgba(255, 107, 166, 0.3);
+  padding: 8px 16px;
+  border-radius: 20px;
+  width: fit-content;
+  margin-bottom: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e85b9f;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.badge-star {
+  font-size: 14px;
+}
+
+/* =================================================================
+   CARD HEADER
+   ================================================================= */
+
+.card-header {
+  margin-bottom: 30px;
+}
+
+.plan-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+  letter-spacing: -0.3px;
+}
+
+.price-section {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.price {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ff6ba6;
+  letter-spacing: -1px;
+}
+
+.period {
+  font-size: 1rem;
+  color: #999;
+  font-weight: 400;
+}
+
+.plan-description {
+  font-size: 1rem;
+  color: #666;
+  margin: 0;
+}
+
+/* =================================================================
+   FEATURES LIST
+   ================================================================= */
+
+.card-features {
+  flex: 1;
+  margin-bottom: 30px;
+}
+
+.features-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+.features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.95rem;
+  color: #555;
+  line-height: 1.4;
+}
+
+.feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.free-card .feature-icon {
+  color: #bbb;
+}
+
+.premium-feature .feature-icon {
+  color: #ff6ba6;
+}
+
+.feature-text {
+  flex: 1;
+}
+
+/* =================================================================
+   CARD FOOTER (BUTTONS)
+   ================================================================= */
+
+.card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.plan-button {
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: none;
+  letter-spacing: 0.3px;
+}
+
+.free-button {
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #dee;
+}
+
+.free-button:hover {
+  background: #efefef;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.free-button:active {
+  transform: translateY(0);
+}
+
+.premium-button {
+  background: linear-gradient(135deg, #ff6ba6 0%, #e85b9f 100%);
+  color: white;
+  font-weight: 700;
+  border: none;
+}
+
+.premium-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(255, 107, 166, 0.4);
+  background: linear-gradient(135deg, #ff7bb5 0%, #f06aae 100%);
+}
+
+.premium-button:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 20px rgba(255, 107, 166, 0.3);
+}
+
+.plan-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.no-credit-needed,
+.payment-secure {
+  font-size: 0.85rem;
+  color: #999;
+  text-align: center;
+  margin: 0;
+  font-weight: 500;
+}
+
+.payment-secure {
+  color: #666;
+}
+
+/* =================================================================
+   FAQ SECTION
+   ================================================================= */
+
+.pricing-faq {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.pricing-faq h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.faq-item {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.faq-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.faq-item h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.faq-item p {
+  font-size: 0.95rem;
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* =================================================================
+   LOADING STATE
+   ================================================================= */
+
+.skeleton-card {
+  width: 100%;
+  height: 500px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 16px;
+}
+
+.skeleton-card.featured {
+  transform: scale(1.02);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* =================================================================
+   DARK MODE SUPPORT
+   ================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .pricing-container {
+    background: linear-gradient(135deg, rgba(255, 182, 193, 0.03) 0%, rgba(221, 160, 221, 0.03) 100%);
+  }
+
+  .pricing-title,
+  .plan-name {
+    color: #f5f5f5;
+  }
+
+  .pricing-subtitle,
+  .plan-description {
+    color: #aaa;
+  }
+
+  .pricing-card {
+    background: #1a1a1a;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .free-card {
+    background: #222;
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .premium-card {
+    background: linear-gradient(135deg, #2d1f26 0%, #341f2c 100%);
+  }
+
+  .free-button {
+    background: #333;
+    color: #f5f5f5;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .free-button:hover {
+    background: #444;
+  }
+
+  .feature-text,
+  .faq-item h4 {
+    color: #ddd;
+  }
+
+  .faq-item p {
+    color: #aaa;
+  }
+
+  .pricing-faq {
+    background: #1a1a1a;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* =================================================================
+   MOBILE OPTIMIZATIONS
+   ================================================================= */
+
+@media (max-width: 480px) {
+  .pricing-container {
+    padding: 30px 16px;
+  }
+
+  .pricing-title {
+    font-size: 1.5rem;
+  }
+
+  .pricing-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .price {
+    font-size: 2rem;
+  }
+
+  .pricing-card {
+    padding: 30px;
+  }
+
+  .pricing-faq {
+    padding: 30px;
+  }
+
+  .faq-item h4 {
+    font-size: 0.95rem;
+  }
+
+  .faq-item p {
+    font-size: 0.9rem;
+  }
+}

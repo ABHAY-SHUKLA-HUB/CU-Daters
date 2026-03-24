@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: datee
+    env: node
+    plan: free
+    startCommand: node startup.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_URL
+        value: https://datee.onrender.com
+      - key: VITE_APP_URL
+        value: https://cu-daters-found.netlify.app
