@@ -6,6 +6,20 @@ import { clearStoredAuthState, getStoredToken } from '../utils/authStorage';
 
 const API_URL = getApiBaseUrl();
 
+const normalizeApiPath = (url = '', baseURL = '') => {
+  if (typeof url !== 'string') {
+    return url;
+  }
+
+  const normalizedBase = String(baseURL || '').replace(/\/+$/, '');
+  // If baseURL is /api and request starts with /api/, strip one prefix.
+  if (/\/api$/i.test(normalizedBase) && /^\/api\//i.test(url)) {
+    return url.replace(/^\/api/i, '');
+  }
+
+  return url;
+};
+
 const api = axios.create({
   baseURL: API_URL,
   timeout: 15000, // Keep UI responsive when a backend endpoint is slow/unavailable
@@ -17,6 +31,8 @@ const api = axios.create({
 // Add Bearer token to all requests
 api.interceptors.request.use((config) => {
   try {
+    config.url = normalizeApiPath(config.url, config.baseURL || API_URL);
+
     const token = getStoredToken();
     if (token && typeof token === 'string') {
       config.headers.Authorization = `Bearer ${token}`;

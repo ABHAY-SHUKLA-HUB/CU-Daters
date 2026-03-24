@@ -50,6 +50,7 @@ export default function AdminPortal() {
   const ADMIN_FULL_CHAT_VIEW_REQUESTED = String(import.meta.env.VITE_ENABLE_ADMIN_FULL_CHAT_VIEW || '').toLowerCase() === 'true';
 
   const API_BASE_URL = getApiBaseUrl();
+  const API_ROOT = String(API_BASE_URL || '').replace(/\/api$/i, '');
   const navigate = useNavigate();
   const { user, clearAuth } = useAuth();
   const { activeTheme } = useTheme();
@@ -573,7 +574,7 @@ export default function AdminPortal() {
     
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/admin/users/${deleteDialog.userId}`, {
+      const response = await fetch(`${API_ROOT}/api/admin/users/${deleteDialog.userId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -632,8 +633,8 @@ export default function AdminPortal() {
     console.log('🔐 Starting approval action:', action, 'for user:', userId);
     
     const endpoint = action === 'approve' 
-      ? `${API_BASE_URL}/api/admin/registrations/${userId}/approve`
-      : `${API_BASE_URL}/api/admin/registrations/${userId}/reject`;
+      ? `${API_ROOT}/api/admin/registrations/${userId}/approve`
+      : `${API_ROOT}/api/admin/registrations/${userId}/reject`;
 
     let reason = '';
     if (action === 'reject') {
@@ -1773,6 +1774,7 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
 
 function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSetting, settings = [], adminPin = '', onNotify }) {
   const API_BASE_URL = getApiBaseUrl();
+  const API_ROOT = String(API_BASE_URL || '').replace(/\/api$/i, '');
   const billingSetting = settings.find((item) => item.key === 'billing_config');
   const billingValue = billingSetting?.value || {};
   const [billingDraft, setBillingDraft] = React.useState({
@@ -1853,27 +1855,27 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
       });
 
       await Promise.all([
-        fetch(`${API_BASE_URL}/api/config/admin/update-price`, {
+        fetch(`${API_ROOT}/api/config/admin/update-price`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ planId: 'premium', newPrice: premiumPrice })
         }),
-        fetch(`${API_BASE_URL}/api/config/admin/update-limit`, {
+        fetch(`${API_ROOT}/api/config/admin/update-limit`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ featureKey: 'messaging', plan: 'free', limitKey: 'maxMessagesPerDay', value: maxMessagesPerDay })
         }),
-        fetch(`${API_BASE_URL}/api/config/admin/update-limit`, {
+        fetch(`${API_ROOT}/api/config/admin/update-limit`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ featureKey: 'messaging', plan: 'free', limitKey: 'maxActiveMatches', value: maxActiveMatches })
         }),
-        fetch(`${API_BASE_URL}/api/config/admin/update-limit`, {
+        fetch(`${API_ROOT}/api/config/admin/update-limit`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ featureKey: 'requests', plan: 'free', limitKey: 'maxRequestsPerDay', value: maxRequestsPerDay })
         }),
-        fetch(`${API_BASE_URL}/api/config/admin/global-override`, {
+        fetch(`${API_ROOT}/api/config/admin/global-override`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -1881,7 +1883,7 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
             disableFreeMode: Boolean(billingDraft.disableFreeMode)
           })
         }),
-        fetch(`${API_BASE_URL}/api/config/admin/payment-config`, {
+        fetch(`${API_ROOT}/api/config/admin/payment-config`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -1949,8 +1951,8 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
 
       // Call the correct endpoint
       const endpoint = action === 'approve'
-        ? `${API_BASE_URL}/api/admin/subscriptions/${paymentId}/approve`
-        : `${API_BASE_URL}/api/admin/subscriptions/${paymentId}/reject`;
+        ? `${API_ROOT}/api/admin/subscriptions/${paymentId}/approve`
+        : `${API_ROOT}/api/admin/subscriptions/${paymentId}/reject`;
 
       const response = await fetch(endpoint, {
         method: 'PUT',
