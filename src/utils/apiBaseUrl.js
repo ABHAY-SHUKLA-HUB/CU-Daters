@@ -19,6 +19,10 @@ function isLocalhost(hostname) {
   );
 }
 
+function isVercelHost(hostname) {
+  return typeof hostname === 'string' && hostname.toLowerCase().endsWith('.vercel.app');
+}
+
 export function getApiBaseUrl() {
   const envUrl = normalizeBaseUrl(import.meta.env.VITE_API_URL || '');
   const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -32,6 +36,12 @@ export function getApiBaseUrl() {
       return LOCAL_API_URL;
     }
     return normalizeBaseUrl(envUrl || LOCAL_API_URL);
+  }
+
+  // On Vercel deployments, always use same-origin /api and let vercel.json rewrite
+  // to backend. This permanently avoids browser CORS issues across preview domains.
+  if (isVercelHost(hostname)) {
+    return '/api';
   }
 
   // Never call localhost API from deployed frontend.
