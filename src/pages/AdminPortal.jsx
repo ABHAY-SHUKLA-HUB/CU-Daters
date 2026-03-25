@@ -93,6 +93,7 @@ export default function AdminPortal() {
   const [statusFilter, setStatusFilter] = React.useState('');
   const [moderationFilter, setModerationFilter] = React.useState('all');
   const [dateRange, setDateRange] = React.useState('7d');
+  const [customDateRange, setCustomDateRange] = React.useState({ from: '', to: '' });
   const isRefreshInFlightRef = React.useRef(false);
   const autoRefresh = React.useMemo(
     () => manualRefreshEnabled && !NON_REFRESHABLE_SECTIONS.has(section),
@@ -166,13 +167,27 @@ export default function AdminPortal() {
     if (!ts) {
       return false;
     }
-    const now = Date.now();
+    const nowDate = new Date();
+    const now = nowDate.getTime();
     const day = 24 * 60 * 60 * 1000;
-    if (dateRange === '24h') return now - ts <= day;
+    if (dateRange === '24h' || dateRange === 'today') return now - ts <= day;
     if (dateRange === '7d') return now - ts <= 7 * day;
     if (dateRange === '30d') return now - ts <= 30 * day;
+    if (dateRange === '90d') return now - ts <= 90 * day;
+    if (dateRange === 'this_month') {
+      const monthStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1).getTime();
+      return ts >= monthStart && ts <= now;
+    }
+    if (dateRange === 'custom') {
+      const fromTs = customDateRange.from ? new Date(`${customDateRange.from}T00:00:00`).getTime() : 0;
+      const toTs = customDateRange.to ? new Date(`${customDateRange.to}T23:59:59`).getTime() : 0;
+      if (!fromTs || !toTs) {
+        return true;
+      }
+      return ts >= fromTs && ts <= toTs;
+    }
     return true;
-  }, [dateRange, toEpoch]);
+  }, [dateRange, toEpoch, customDateRange]);
 
   const filteredUsers = React.useMemo(
     () => users.filter((item) => includesSearch(item) && (!statusFilter || item.status === statusFilter) && isWithinRange(item.updatedAt || item.createdAt || item.created_at)),
@@ -912,7 +927,7 @@ export default function AdminPortal() {
           <div className="admin-surface flex-1 overflow-auto px-6 xl:px-8 py-6">
             {/* Search + Filters */}
             <div className="mb-6 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-4 backdrop-blur-2xl shadow-[0_18px_48px_rgba(2,8,25,0.45)]">
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_160px_170px_190px] gap-3 items-center">
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_160px_170px_220px] gap-3 items-center">
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-cyan-200/20 bg-white/10">
                   <span className="text-cyan-100/80">🔍</span>
                   <input
@@ -959,12 +974,40 @@ export default function AdminPortal() {
                   onChange={(event) => setDateRange(event.target.value)}
                   className="px-3 py-2.5 bg-white/10 border border-cyan-200/20 text-slate-100 rounded-xl text-sm focus:outline-none focus:border-cyan-300"
                 >
-                  <option value="24h">Last 24h</option>
+                  <option value="today">Today</option>
                   <option value="7d">Last 7 days</option>
                   <option value="30d">Last 30 days</option>
+                  <option value="90d">Last 90 days</option>
+                  <option value="this_month">This month</option>
+                  <option value="custom">Custom range</option>
                   <option value="all">All Time</option>
                 </select>
               </div>
+
+              {dateRange === 'custom' ? (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/10">
+                    <span className="text-xs uppercase tracking-wide text-cyan-100/80">From</span>
+                    <input
+                      type="date"
+                      value={customDateRange.from}
+                      max={customDateRange.to || undefined}
+                      onChange={(event) => setCustomDateRange((prev) => ({ ...prev, from: event.target.value }))}
+                      className="ml-auto bg-transparent text-sm text-slate-100 focus:outline-none"
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/10">
+                    <span className="text-xs uppercase tracking-wide text-cyan-100/80">To</span>
+                    <input
+                      type="date"
+                      value={customDateRange.to}
+                      min={customDateRange.from || undefined}
+                      onChange={(event) => setCustomDateRange((prev) => ({ ...prev, to: event.target.value }))}
+                      className="ml-auto bg-transparent text-sm text-slate-100 focus:outline-none"
+                    />
+                  </label>
+                </div>
+              ) : null}
 
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                 <span className="px-2.5 py-1 rounded-full border border-cyan-300/30 bg-cyan-500/10 text-cyan-200">{chatVisibilityMode === 'full' ? 'Test mode: full conversation visibility ON' : 'Privacy-first moderation enabled'}</span>
@@ -1001,7 +1044,21 @@ export default function AdminPortal() {
             ) : (
               <>
                 {/* Content Panels */}
-                {!loading && section === 'overview' ? <OverviewPanel overview={overview} users={filteredUsers} reports={filteredReports} chats={filteredChats} payments={filteredPayments} approvals={filteredRegistrationApprovals} onSectionChange={setSection} /> : null}
+                {!loading && section === 'overview' ? (
+                  <OverviewPanel
+                    overview={overview}
+                    users={users}
+                    reports={reports}
+                    chats={chats}
+                    payments={payments}
+                    approvals={registrationApprovals}
+                    profileApprovals={approvals}
+                    activityLogs={activity}
+                    dateRange={dateRange}
+                    customDateRange={customDateRange}
+                    onSectionChange={setSection}
+                  />
+                ) : null}
                 {!loading && section === 'registration_approvals' ? <RegistrationApprovalsPanel registrations={filteredRegistrationApprovals} onApprove={handleRegistrationApproval} onOpenDetail={openDetailDrawer} /> : null}
                 {!loading && section === 'users' ? <UsersPanel users={filteredUsers} onModerate={handleModerationAction} onDelete={handleDeleteUser} onOpenDetail={openDetailDrawer} onViewActivity={handleViewUserActivity} onNotify={notify} /> : null}
                 {!loading && section === 'approvals' ? <ApprovalsPanel approvals={filteredApprovals} onApprove={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
@@ -1111,19 +1168,196 @@ export default function AdminPortal() {
   );
 }
 
-function OverviewPanel({ overview, users = [], reports = [], chats = [], payments = [], approvals = [], onSectionChange }) {
+function OverviewPanel({
+  overview,
+  users = [],
+  reports = [],
+  chats = [],
+  payments = [],
+  approvals = [],
+  profileApprovals = [],
+  activityLogs = [],
+  dateRange = '7d',
+  customDateRange = { from: '', to: '' },
+  onSectionChange
+}) {
+  const [growthRange, setGrowthRange] = React.useState('30d');
+
+  const toEpoch = React.useCallback((value) => {
+    if (!value) return 0;
+    const ts = new Date(value).getTime();
+    return Number.isFinite(ts) ? ts : 0;
+  }, []);
+
+  const formatCompact = React.useCallback((value) => Number(value || 0).toLocaleString('en-IN'), []);
+  const formatCurrency = React.useCallback((value) => `INR ${Number(value || 0).toLocaleString('en-IN')}`, []);
+
+  const normalizeRange = React.useCallback((value) => {
+    if (value === '24h') return 'today';
+    if (value === 'all') return '12m';
+    return value;
+  }, []);
+
+  React.useEffect(() => {
+    const mapped = normalizeRange(dateRange);
+    const next = ['7d', '30d', '90d', '12m'].includes(mapped) ? mapped : '30d';
+    setGrowthRange(next);
+  }, [dateRange, normalizeRange]);
+
+  const getWindow = React.useCallback((rangeKey, custom = customDateRange) => {
+    const now = new Date();
+    const end = now.getTime();
+    const day = 24 * 60 * 60 * 1000;
+
+    if (rangeKey === 'today') return { start: end - day, end, label: 'today' };
+    if (rangeKey === '7d') return { start: end - 7 * day, end, label: 'last 7 days' };
+    if (rangeKey === '30d') return { start: end - 30 * day, end, label: 'last 30 days' };
+    if (rangeKey === '90d') return { start: end - 90 * day, end, label: 'last 90 days' };
+    if (rangeKey === '12m') return { start: new Date(now.getFullYear(), now.getMonth() - 11, 1).getTime(), end, label: 'last 12 months' };
+    if (rangeKey === 'this_month') return { start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(), end, label: 'this month' };
+    if (rangeKey === 'custom') {
+      const from = custom?.from ? new Date(`${custom.from}T00:00:00`).getTime() : end - 7 * day;
+      const to = custom?.to ? new Date(`${custom.to}T23:59:59`).getTime() : end;
+      return { start: Math.min(from, to), end: Math.max(from, to), label: 'custom range' };
+    }
+    return { start: end - 30 * day, end, label: 'last 30 days' };
+  }, [customDateRange]);
+
+  const buildBuckets = React.useCallback((rangeKey, custom = customDateRange) => {
+    const window = getWindow(rangeKey, custom);
+    const buckets = [];
+    const day = 24 * 60 * 60 * 1000;
+
+    if (rangeKey === '12m') {
+      const now = new Date(window.end);
+      for (let i = 11; i >= 0; i -= 1) {
+        const startDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const endDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+        buckets.push({
+          start: startDate.getTime(),
+          end: endDate.getTime(),
+          label: startDate.toLocaleDateString('en-US', { month: 'short' })
+        });
+      }
+      return { buckets, label: window.label };
+    }
+
+    if (rangeKey === 'today') {
+      const endDate = new Date(window.end);
+      for (let i = 23; i >= 0; i -= 1) {
+        const startDate = new Date(endDate.getTime() - i * 60 * 60 * 1000);
+        const bucketStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), startDate.getHours(), 0, 0, 0).getTime();
+        const bucketEnd = bucketStart + 60 * 60 * 1000;
+        buckets.push({
+          start: bucketStart,
+          end: bucketEnd,
+          label: new Date(bucketStart).toLocaleTimeString('en-US', { hour: 'numeric' })
+        });
+      }
+      return { buckets, label: window.label };
+    }
+
+    if (rangeKey === '90d') {
+      for (let i = 12; i >= 0; i -= 1) {
+        const bucketStart = window.end - (i + 1) * 7 * day;
+        const bucketEnd = window.end - i * 7 * day;
+        buckets.push({
+          start: bucketStart,
+          end: bucketEnd,
+          label: `W${13 - i}`
+        });
+      }
+      return { buckets, label: window.label };
+    }
+
+    const span = Math.max(1, Math.ceil((window.end - window.start) / day));
+    const limit = Math.min(span, 31);
+    for (let i = limit - 1; i >= 0; i -= 1) {
+      const bucketStart = window.end - (i + 1) * day;
+      const bucketEnd = window.end - i * day;
+      buckets.push({
+        start: bucketStart,
+        end: bucketEnd,
+        label: new Date(bucketStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      });
+    }
+    return { buckets, label: window.label };
+  }, [customDateRange, getWindow]);
+
+  const aggregateSeries = React.useCallback((items, buckets, pickTs, predicate = () => true, mapValue = () => 1) => {
+    const values = Array.from({ length: buckets.length }, () => 0);
+    for (const item of items || []) {
+      if (!predicate(item)) continue;
+      const ts = toEpoch(pickTs(item));
+      if (!ts) continue;
+      const bucketIndex = buckets.findIndex((bucket) => ts >= bucket.start && ts < bucket.end);
+      if (bucketIndex >= 0) {
+        values[bucketIndex] += Number(mapValue(item) || 0);
+      }
+    }
+    return values;
+  }, [toEpoch]);
+
+  const countInWindow = React.useCallback((items, pickTs, window, predicate = () => true) => {
+    let count = 0;
+    for (const item of items || []) {
+      if (!predicate(item)) continue;
+      const ts = toEpoch(pickTs(item));
+      if (ts >= window.start && ts < window.end) count += 1;
+    }
+    return count;
+  }, [toEpoch]);
+
+  const sumInWindow = React.useCallback((items, pickTs, window, predicate = () => true, mapValue = () => 0) => {
+    let total = 0;
+    for (const item of items || []) {
+      if (!predicate(item)) continue;
+      const ts = toEpoch(pickTs(item));
+      if (ts >= window.start && ts < window.end) total += Number(mapValue(item) || 0);
+    }
+    return total;
+  }, [toEpoch]);
+
+  const pctDelta = React.useCallback((current, previous) => {
+    if (previous <= 0) {
+      return current > 0 ? 100 : 0;
+    }
+    return ((current - previous) / previous) * 100;
+  }, []);
+
+  const deltaLabel = React.useCallback((current, previous) => {
+    const delta = pctDelta(current, previous);
+    const sign = delta >= 0 ? '+' : '';
+    return `${sign}${delta.toFixed(1)}%`;
+  }, [pctDelta]);
+
+  const normalizedRange = normalizeRange(dateRange);
+  const globalRange = ['today', '7d', '30d', '90d', 'this_month', 'custom', '12m'].includes(normalizedRange) ? normalizedRange : '30d';
+  const globalWindow = getWindow(globalRange);
+  const previousWindow = { start: globalWindow.start - (globalWindow.end - globalWindow.start), end: globalWindow.start };
+
+  const userTimestamp = (user) => user?.createdAt || user?.created_at || user?.updatedAt;
+  const userActivityTimestamp = (user) => user?.lastSeenAt || user?.last_active_at || user?.updatedAt || user?.createdAt;
+  const registrationTimestamp = (item) => item?.createdAt || item?.created_at || item?.updatedAt;
+  const profileTimestamp = (item) => item?.updated_at || item?.updatedAt || item?.created_at || item?.createdAt;
+  const reportTimestamp = (report) => report?.createdAt || report?.created_at || report?.updatedAt;
+  const chatTimestamp = (chat) => chat?.lastMessageAt || chat?.updatedAt || chat?.createdAt;
+  const paymentTimestamp = (payment) => payment?.createdAt || payment?.created_at || payment?.updatedAt;
+  const activityTimestamp = (entry) => entry?.timestamp || entry?.updatedAt || entry?.createdAt;
+  const normalizeStatus = (value) => String(value || '').toLowerCase();
+
   const totalUsers = Number(overview?.totalUsers || users.length || 0);
-  const activeToday = Number(overview?.activeToday || overview?.activeUsers || 0);
-  const newRegistrations = Number(overview?.newRegistrations || 0);
-  const pendingRegistrationApprovals = Number(overview?.pendingRegistrationApprovals || approvals.length || 0);
-  const pendingProfileApprovals = Number(overview?.pendingProfileApprovals || overview?.pendingApprovals || 0);
-  const activeReports = Number(overview?.activeReports || reports.filter((report) => report.status !== 'resolved').length || 0);
+  const activeToday = Number(overview?.activeToday || overview?.activeUsers || countInWindow(users, userActivityTimestamp, getWindow('today')) || 0);
+  const newRegistrations = Number(overview?.newRegistrations || countInWindow(users, userTimestamp, globalWindow) || 0);
+  const pendingRegistrationApprovals = Number(overview?.pendingRegistrationApprovals || approvals.filter((item) => normalizeStatus(item?.status || item?.registration_status || item?.profile_approval_status) === 'pending').length || 0);
+  const pendingProfileApprovals = Number(overview?.pendingProfileApprovals || overview?.pendingApprovals || profileApprovals.filter((item) => normalizeStatus(item?.profile_approval_status || item?.status) === 'pending').length || 0);
+  const activeReports = Number(overview?.activeReports || reports.filter((report) => normalizeStatus(report.status) !== 'resolved').length || 0);
   const flaggedChats = Number(overview?.flaggedChats || chats.filter((chat) => Number(chat.riskScore || 0) >= 65 || Number(chat.reportCount || 0) > 0).length || 0);
-  const suspiciousUsers = Number(overview?.suspiciousUsers || users.filter((user) => Number(user.warnings_count || 0) > 1 || user.status === 'banned').length || 0);
-  const blockedAccounts = Number(overview?.blockedAccounts || users.filter((user) => ['banned', 'suspended'].includes(user.status)).length || 0);
-  const premiumUsers = Number(overview?.premiumUsers || overview?.activeSubscriptions || 0);
-  const monthlyRevenue = Number(overview?.monthlyRevenue || overview?.totalRevenue || 0);
-  const pendingPaymentReviews = Number(overview?.pendingPaymentReviews || payments.filter((payment) => payment.status === 'pending').length || 0);
+  const suspiciousUsers = Number(overview?.suspiciousUsers || users.filter((user) => Number(user.warnings_count || 0) > 1 || normalizeStatus(user.status) === 'banned').length || 0);
+  const blockedAccounts = Number(overview?.blockedAccounts || users.filter((user) => ['banned', 'suspended'].includes(normalizeStatus(user.status))).length || 0);
+  const premiumUsers = Number(overview?.premiumUsers || overview?.activeSubscriptions || users.filter((user) => ['premium', 'active', 'paid'].includes(normalizeStatus(user.subscription_status || user.membership_status))).length || 0);
+  const monthlyRevenue = Number(overview?.monthlyRevenue || overview?.totalRevenue || sumInWindow(payments, paymentTimestamp, getWindow('this_month'), (payment) => normalizeStatus(payment.status) === 'approved', (payment) => payment.amount || payment.price || payment.total || 0));
+  const pendingPaymentReviews = Number(overview?.pendingPaymentReviews || payments.filter((payment) => normalizeStatus(payment.status) === 'pending').length || 0);
 
   const systemHealth = overview?.systemHealth || {};
   const recentActivity = overview?.recentActivity || [];
@@ -1135,69 +1369,621 @@ function OverviewPanel({ overview, users = [], reports = [], chats = [], payment
     { label: 'Reports Queue', value: activeReports, section: 'reports' }
   ];
 
-  const statCards = [
-    { label: 'Total Users', value: totalUsers, icon: '👥', hint: 'All registered accounts', tone: 'info' },
-    { label: 'Active Today', value: activeToday, icon: '🟢', hint: 'Engaged in last 24h', tone: 'success' },
-    { label: 'New Registrations', value: newRegistrations, icon: '🆕', hint: 'Created in last 24h', tone: 'info' },
-    { label: 'Pending Registration', value: pendingRegistrationApprovals, icon: '📝', hint: 'Awaiting admin decision', tone: 'warning' },
-    { label: 'Pending Profile Approvals', value: pendingProfileApprovals, icon: '✅', hint: 'Verification queue', tone: 'warning' },
-    { label: 'Active Reports', value: activeReports, icon: '🚩', hint: 'Open moderation cases', tone: 'danger' },
-    { label: 'Flagged Chats', value: flaggedChats, icon: '🛡️', hint: 'Safety signal triggered', tone: 'warning' },
-    { label: 'Suspicious Users', value: suspiciousUsers, icon: '🕵️', hint: 'Marked for review', tone: 'danger' },
-    { label: 'Blocked Accounts', value: blockedAccounts, icon: '⛔', hint: 'Restricted users', tone: 'danger' },
-    { label: 'Premium Users', value: premiumUsers, icon: '⭐', hint: 'Active premium members', tone: 'success' },
-    { label: 'Monthly Revenue', value: `INR ${monthlyRevenue.toLocaleString('en-IN')}`, icon: '💰', hint: 'Current month approved', tone: 'success' },
-    { label: 'Pending Payment Reviews', value: pendingPaymentReviews, icon: '💳', hint: 'Needs finance action', tone: 'warning' }
+  const growthBucketSet = buildBuckets(growthRange);
+  const growthBuckets = growthBucketSet.buckets;
+  const growthLabels = growthBuckets.map((bucket) => bucket.label);
+
+  const newUsersSeries = aggregateSeries(users, growthBuckets, userTimestamp);
+  const activeUsersSeries = aggregateSeries(users, growthBuckets, userActivityTimestamp);
+  const approvedUsersSeries = aggregateSeries(
+    users,
+    growthBuckets,
+    (user) => user?.approvedAt || user?.updatedAt || user?.createdAt,
+    (user) => ['approved', 'active'].includes(normalizeStatus(user.profile_approval_status || user.status))
+  );
+
+  const globalBucketSet = buildBuckets(globalRange);
+  const globalBuckets = globalBucketSet.buckets;
+  const globalLabels = globalBuckets.map((bucket) => bucket.label);
+
+  const registrationTotalSeries = aggregateSeries(approvals, globalBuckets, registrationTimestamp);
+  const registrationApprovedSeries = aggregateSeries(
+    approvals,
+    globalBuckets,
+    registrationTimestamp,
+    (item) => ['approved', 'active'].includes(normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status))
+  );
+  const registrationRejectedSeries = aggregateSeries(
+    approvals,
+    globalBuckets,
+    registrationTimestamp,
+    (item) => ['rejected', 'declined'].includes(normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status))
+  );
+  const registrationPendingSeries = aggregateSeries(
+    approvals,
+    globalBuckets,
+    registrationTimestamp,
+    (item) => normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status) === 'pending'
+  );
+
+  const profileSubmittedSeries = aggregateSeries(profileApprovals, globalBuckets, profileTimestamp);
+  const profileApprovedSeries = aggregateSeries(
+    profileApprovals,
+    globalBuckets,
+    profileTimestamp,
+    (item) => normalizeStatus(item?.profile_approval_status || item?.status) === 'approved'
+  );
+  const profileRejectedSeries = aggregateSeries(
+    profileApprovals,
+    globalBuckets,
+    profileTimestamp,
+    (item) => ['rejected', 'declined'].includes(normalizeStatus(item?.profile_approval_status || item?.status))
+  );
+
+  const reportTrendSeries = aggregateSeries(
+    reports,
+    globalBuckets,
+    reportTimestamp,
+    (item) => normalizeStatus(item?.status) !== 'resolved'
+  );
+  const flaggedTrendSeries = aggregateSeries(
+    chats,
+    globalBuckets,
+    chatTimestamp,
+    (chat) => Number(chat.riskScore || 0) >= 65 || Number(chat.reportCount || 0) > 0
+  );
+  const suspiciousTrendSeries = aggregateSeries(
+    users,
+    globalBuckets,
+    userActivityTimestamp,
+    (user) => Number(user.warnings_count || 0) > 1 || normalizeStatus(user.status) === 'banned'
+  );
+  const blockedTrendSeries = aggregateSeries(
+    users,
+    globalBuckets,
+    userActivityTimestamp,
+    (user) => ['banned', 'suspended'].includes(normalizeStatus(user.status))
+  );
+
+  const premiumPurchasesSeries = aggregateSeries(
+    payments,
+    globalBuckets,
+    paymentTimestamp,
+    (payment) => normalizeStatus(payment.status) === 'approved'
+  );
+  const revenueSeries = aggregateSeries(
+    payments,
+    globalBuckets,
+    paymentTimestamp,
+    (payment) => normalizeStatus(payment.status) === 'approved',
+    (payment) => payment.amount || payment.price || payment.total || 0
+  );
+  const churnSeries = aggregateSeries(
+    payments,
+    globalBuckets,
+    paymentTimestamp,
+    (payment) => ['expired', 'cancelled', 'failed', 'rejected'].includes(normalizeStatus(payment.status))
+  );
+
+  const baselinePremium = Math.max(0, premiumUsers - premiumPurchasesSeries.reduce((acc, value) => acc + value, 0) + churnSeries.reduce((acc, value) => acc + value, 0));
+  const activePremiumSeries = premiumPurchasesSeries.reduce((acc, value, idx) => {
+    const previous = idx === 0 ? baselinePremium : acc[idx - 1];
+    acc.push(Math.max(0, previous + value - (churnSeries[idx] || 0)));
+    return acc;
+  }, []);
+
+  const now = Date.now();
+  const dailyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 24 * 60 * 60 * 1000).length;
+  const weeklyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 7 * 24 * 60 * 60 * 1000).length;
+  const monthlyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 30 * 24 * 60 * 60 * 1000).length;
+
+  const approvedRegistrationsCount = approvals.filter((item) => ['approved', 'active'].includes(normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status))).length;
+  const rejectedRegistrationsCount = approvals.filter((item) => ['rejected', 'declined'].includes(normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status))).length;
+  const approvalSuccessRate = approvedRegistrationsCount + rejectedRegistrationsCount > 0
+    ? Math.round((approvedRegistrationsCount / (approvedRegistrationsCount + rejectedRegistrationsCount)) * 100)
+    : 0;
+
+  const premiumConversionRate = totalUsers > 0 ? (premiumUsers / totalUsers) * 100 : 0;
+  const moderationRiskScore = Math.min(
+    100,
+    ((activeReports * 3) + (flaggedChats * 2) + (suspiciousUsers * 2) + blockedAccounts) / Math.max(totalUsers, 1) * 1000
+  );
+  const moderationRiskLevel = moderationRiskScore < 20 ? 'low' : moderationRiskScore < 45 ? 'medium' : 'high';
+
+  const expiredPremiumCount = users.filter((user) => normalizeStatus(user?.subscription_status || user?.membership_status) === 'expired').length + churnSeries.reduce((acc, value) => acc + value, 0);
+  const blockedUserRatio = totalUsers > 0 ? (blockedAccounts / totalUsers) * 100 : 0;
+
+  const averageApprovalTurnaroundHours = (() => {
+    const resolvedProfiles = profileApprovals.filter((item) => ['approved', 'rejected', 'declined'].includes(normalizeStatus(item?.profile_approval_status || item?.status)));
+    if (!resolvedProfiles.length) return 0;
+    const durations = resolvedProfiles
+      .map((item) => {
+        const created = toEpoch(item?.created_at || item?.createdAt);
+        const updated = toEpoch(item?.updated_at || item?.updatedAt);
+        return created && updated && updated > created ? (updated - created) / (1000 * 60 * 60) : 0;
+      })
+      .filter((value) => value > 0);
+    if (!durations.length) return 0;
+    return durations.reduce((acc, value) => acc + value, 0) / durations.length;
+  })();
+
+  const averageModerationResolutionHours = (() => {
+    const resolved = reports.filter((report) => normalizeStatus(report?.status) === 'resolved');
+    if (!resolved.length) return 0;
+    const durations = resolved
+      .map((report) => {
+        const created = toEpoch(report?.createdAt || report?.created_at);
+        const updated = toEpoch(report?.updatedAt || report?.updated_at);
+        return created && updated && updated > created ? (updated - created) / (1000 * 60 * 60) : 0;
+      })
+      .filter((value) => value > 0);
+    if (!durations.length) return 0;
+    return durations.reduce((acc, value) => acc + value, 0) / durations.length;
+  })();
+
+  const registrationCurrent = countInWindow(users, userTimestamp, globalWindow);
+  const registrationPrevious = countInWindow(users, userTimestamp, previousWindow);
+  const premiumCurrent = countInWindow(payments, paymentTimestamp, globalWindow, (payment) => normalizeStatus(payment.status) === 'approved');
+  const premiumPrevious = countInWindow(payments, paymentTimestamp, previousWindow, (payment) => normalizeStatus(payment.status) === 'approved');
+  const revenueCurrent = sumInWindow(payments, paymentTimestamp, globalWindow, (payment) => normalizeStatus(payment.status) === 'approved', (payment) => payment.amount || payment.price || payment.total || 0);
+  const revenuePrevious = sumInWindow(payments, paymentTimestamp, previousWindow, (payment) => normalizeStatus(payment.status) === 'approved', (payment) => payment.amount || payment.price || payment.total || 0);
+
+  const seriesIsEmpty = (seriesList) => seriesList.every((entry) => (entry.data || []).every((value) => Number(value || 0) === 0));
+
+  const Sparkline = ({ points = [], tone = 'info' }) => {
+    const colors = {
+      info: '#22d3ee',
+      success: '#34d399',
+      warning: '#f59e0b',
+      danger: '#fb7185'
+    };
+    const safePoints = points.length ? points : [0, 0, 0, 0, 0];
+    const width = 120;
+    const height = 34;
+    const max = Math.max(...safePoints, 1);
+    const min = Math.min(...safePoints, 0);
+    const span = Math.max(1, max - min);
+    const step = width / Math.max(1, safePoints.length - 1);
+    const path = safePoints
+      .map((value, index) => {
+        const x = index * step;
+        const y = height - ((value - min) / span) * (height - 4) - 2;
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-9" preserveAspectRatio="none" role="img" aria-label="Trend sparkline">
+        <polyline fill="none" stroke={colors[tone] || colors.info} strokeWidth="2.2" points={path} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  };
+
+  const KpiCard = ({ label, value, delta, helper, spark, tone = 'info' }) => {
+    const toneStyles = {
+      info: 'border-cyan-300/25 bg-cyan-500/10',
+      success: 'border-emerald-300/25 bg-emerald-500/10',
+      warning: 'border-amber-300/25 bg-amber-500/10',
+      danger: 'border-rose-300/25 bg-rose-500/10'
+    };
+    const deltaTone = delta >= 0 ? 'text-emerald-200' : 'text-rose-200';
+
+    return (
+      <article className={`rounded-2xl border p-4 ${toneStyles[tone] || toneStyles.info}`} title={helper}>
+        <p className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--portal-muted)]">{label}</p>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <p className="text-2xl font-bold text-[color:var(--text-light)] leading-none">{value}</p>
+          <span className={`text-xs font-semibold ${deltaTone}`}>{delta >= 0 ? '+' : ''}{delta.toFixed(1)}%</span>
+        </div>
+        <div className="mt-3">
+          <Sparkline points={spark} tone={tone} />
+        </div>
+        <p className="mt-2 text-xs text-[color:var(--portal-muted)]">{helper}</p>
+      </article>
+    );
+  };
+
+  const LineAnalyticsChart = ({ labels = [], series = [], emptyCopy = 'No trend data available for this period.' }) => {
+    const width = 900;
+    const height = 260;
+    const padding = 28;
+    const maxValue = Math.max(1, ...series.flatMap((item) => item.data || [0]));
+    const xStep = labels.length > 1 ? (width - padding * 2) / (labels.length - 1) : 0;
+    const allZero = seriesIsEmpty(series);
+
+    if (allZero) {
+      return (
+        <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-4 py-7 text-sm text-[color:var(--portal-muted)]">
+          {emptyCopy}
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-64 rounded-xl border border-cyan-200/15 bg-[linear-gradient(180deg,rgba(148,163,184,0.08)_0%,rgba(15,23,42,0.12)_100%)]" role="img" aria-label="Analytics line chart">
+          {[0, 1, 2, 3, 4].map((row) => {
+            const y = padding + (row * (height - padding * 2)) / 4;
+            return <line key={row} x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(148,163,184,0.15)" strokeWidth="1" />;
+          })}
+
+          {series.map((entry) => {
+            const points = (entry.data || []).map((value, index) => {
+              const x = padding + index * xStep;
+              const y = height - padding - ((Number(value || 0) / maxValue) * (height - padding * 2));
+              return { x, y, value };
+            });
+
+            const polyline = points.map((point) => `${point.x},${point.y}`).join(' ');
+
+            return (
+              <g key={entry.name}>
+                <polyline fill="none" stroke={entry.color} strokeWidth="2.6" points={polyline} strokeLinecap="round" strokeLinejoin="round" />
+                {points.map((point, index) => (
+                  <circle key={`${entry.name}-${index}`} cx={point.x} cy={point.y} r="2.7" fill={entry.color}>
+                    <title>{`${entry.name}: ${Number(point.value || 0).toLocaleString('en-IN')}`}</title>
+                  </circle>
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {series.map((entry) => (
+            <div key={entry.name} className="flex items-center gap-2 text-xs text-[color:var(--portal-muted)]">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span>{entry.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const StackedFlowChart = ({ labels = [], series = [], emptyCopy = 'Pipeline trend will appear once registrations start flowing.' }) => {
+    const allZero = seriesIsEmpty(series);
+    if (allZero) {
+      return <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-4 py-7 text-sm text-[color:var(--portal-muted)]">{emptyCopy}</div>;
+    }
+
+    const bucketCount = labels.length;
+    const stackedTotals = Array.from({ length: bucketCount }, (_, index) => series.reduce((acc, entry) => acc + Number(entry.data?.[index] || 0), 0));
+    const max = Math.max(1, ...stackedTotals);
+
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-8 md:grid-cols-10 gap-2 items-end h-52 rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+          {stackedTotals.map((total, index) => (
+            <div key={index} className="h-full flex items-end">
+              <div className="w-full rounded-lg overflow-hidden border border-cyan-300/15" style={{ height: `${Math.max(8, (total / max) * 100)}%` }}>
+                {series.map((entry) => {
+                  const value = Number(entry.data?.[index] || 0);
+                  const heightPct = total > 0 ? (value / total) * 100 : 0;
+                  return <div key={`${entry.name}-${index}`} style={{ height: `${heightPct}%`, background: entry.color }} title={`${entry.name}: ${value}`} />;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {series.map((entry) => (
+            <div key={entry.name} className="flex items-center gap-2 text-xs text-[color:var(--portal-muted)]">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span>{entry.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const activityHeatmap = React.useMemo(() => {
+    const matrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+    const eventPool = [
+      ...chats.map((item) => chatTimestamp(item)),
+      ...activityLogs.map((item) => activityTimestamp(item)),
+      ...users.map((item) => userActivityTimestamp(item))
+    ];
+
+    for (const value of eventPool) {
+      const ts = toEpoch(value);
+      if (!ts || ts < globalWindow.start || ts > globalWindow.end) continue;
+      const d = new Date(ts);
+      matrix[d.getDay()][d.getHours()] += 1;
+    }
+    return matrix;
+  }, [activityLogs, chats, globalWindow.end, globalWindow.start, toEpoch, users]);
+
+  const heatmapMax = Math.max(1, ...activityHeatmap.flat());
+  const hourTotals = Array.from({ length: 24 }, (_, hour) => activityHeatmap.reduce((acc, dayRow) => acc + dayRow[hour], 0));
+  const dayTotals = activityHeatmap.map((dayRow) => dayRow.reduce((acc, value) => acc + value, 0));
+  const peakHour = hourTotals.indexOf(Math.max(...hourTotals));
+  const peakDay = dayTotals.indexOf(Math.max(...dayTotals));
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const insights = [];
+  insights.push(`${registrationCurrent} users joined in ${globalWindow.label}.`);
+  insights.push(`Registrations ${deltaLabel(registrationCurrent, registrationPrevious)} vs prior period.`);
+  insights.push(`Profile approval success rate is ${approvalSuccessRate}%.`);
+  insights.push(`Moderation risk is ${moderationRiskLevel} (${moderationRiskScore.toFixed(1)} score).`);
+  insights.push(pendingPaymentReviews === 0 ? 'No urgent payment backlog detected.' : `${pendingPaymentReviews} payments currently need review.`);
+  insights.push(`Strongest activity is around ${peakHour}:00 on ${dayLabels[peakDay]}.`);
+  insights.push(pctDelta(premiumCurrent, premiumPrevious) < 0 ? 'Premium conversion softened this period; revisit upgrade nudges.' : 'Premium conversion momentum remains healthy.');
+  insights.push(pendingProfileApprovals > 0 ? `${pendingProfileApprovals} profiles need immediate review.` : 'Profile review queue is currently clear.');
+
+  const decisionBlocks = [
+    {
+      title: 'Users needing review',
+      value: suspiciousUsers,
+      helper: suspiciousUsers > 0 ? 'Prioritize warning-heavy and risk-scored accounts.' : 'No high-risk user cluster detected.',
+      action: 'users',
+      tone: suspiciousUsers > 0 ? 'danger' : 'success'
+    },
+    {
+      title: 'Profiles needing review',
+      value: pendingProfileApprovals,
+      helper: pendingProfileApprovals > 5 ? 'Approval bottleneck detected. Assign additional reviewer.' : 'Approval pipeline remains healthy.',
+      action: 'approvals',
+      tone: pendingProfileApprovals > 5 ? 'warning' : 'success'
+    },
+    {
+      title: 'Payment backlog',
+      value: pendingPaymentReviews,
+      helper: pendingPaymentReviews > 0 ? 'Finance queue requires action to protect conversion.' : 'No urgent payment backlog.',
+      action: 'payments',
+      tone: pendingPaymentReviews > 0 ? 'warning' : 'success'
+    },
+    {
+      title: 'Risk alerts',
+      value: activeReports + flaggedChats,
+      helper: activeReports + flaggedChats > 0 ? 'Review safety signals to keep trust metrics stable.' : 'No moderation spikes detected this period.',
+      action: 'reports',
+      tone: activeReports + flaggedChats > 0 ? 'danger' : 'success'
+    }
+  ];
+
+  const kpiCards = [
+    {
+      label: 'Total Users',
+      value: formatCompact(totalUsers),
+      delta: pctDelta(registrationCurrent, registrationPrevious),
+      helper: `Joined ${globalWindow.label}`,
+      spark: newUsersSeries,
+      tone: 'info'
+    },
+    {
+      label: 'DAU / WAU / MAU',
+      value: `${formatCompact(dailyActiveUsers)} / ${formatCompact(weeklyActiveUsers)} / ${formatCompact(monthlyActiveUsers)}`,
+      delta: pctDelta(dailyActiveUsers, Math.max(1, Math.round(weeklyActiveUsers / 7))),
+      helper: 'Active audience across daily, weekly, and monthly windows.',
+      spark: activeUsersSeries,
+      tone: 'success'
+    },
+    {
+      label: 'Premium Conversion',
+      value: `${premiumConversionRate.toFixed(1)}%`,
+      delta: pctDelta(premiumCurrent, premiumPrevious),
+      helper: 'Share of users on paid access.',
+      spark: activePremiumSeries,
+      tone: pctDelta(premiumCurrent, premiumPrevious) < 0 ? 'warning' : 'success'
+    },
+    {
+      label: 'Approval Success Rate',
+      value: `${approvalSuccessRate}%`,
+      delta: pctDelta(
+        registrationApprovedSeries.reduce((acc, value) => acc + value, 0),
+        Math.max(1, registrationRejectedSeries.reduce((acc, value) => acc + value, 0))
+      ),
+      helper: 'Approved vs rejected registration decisions.',
+      spark: registrationApprovedSeries,
+      tone: approvalSuccessRate >= 75 ? 'success' : 'warning'
+    },
+    {
+      label: 'Moderation Risk',
+      value: `${moderationRiskScore.toFixed(1)} (${moderationRiskLevel})`,
+      delta: pctDelta(activeReports + flaggedChats, Math.max(1, suspiciousUsers + blockedAccounts)),
+      helper: 'Composite risk from open reports, flagged chat, suspicious users.',
+      spark: reportTrendSeries,
+      tone: moderationRiskLevel === 'high' ? 'danger' : moderationRiskLevel === 'medium' ? 'warning' : 'success'
+    },
+    {
+      label: 'Revenue This Month',
+      value: formatCurrency(monthlyRevenue),
+      delta: pctDelta(revenueCurrent, revenuePrevious),
+      helper: 'Approved premium payment volume.',
+      spark: revenueSeries,
+      tone: revenueCurrent >= revenuePrevious ? 'success' : 'warning'
+    },
+    {
+      label: 'Churn / Expired Premium',
+      value: formatCompact(expiredPremiumCount),
+      delta: pctDelta(churnSeries.reduce((acc, value) => acc + value, 0), Math.max(1, premiumPurchasesSeries.reduce((acc, value) => acc + value, 0))),
+      helper: 'Premium expiries and payment falloff signals.',
+      spark: churnSeries,
+      tone: expiredPremiumCount > premiumUsers * 0.25 ? 'danger' : 'warning'
+    },
+    {
+      label: 'Blocked User Ratio',
+      value: `${blockedUserRatio.toFixed(2)}%`,
+      delta: pctDelta(blockedAccounts, Math.max(1, suspiciousUsers)),
+      helper: 'Share of users currently banned or suspended.',
+      spark: blockedTrendSeries,
+      tone: blockedUserRatio > 2 ? 'warning' : 'info'
+    }
+  ];
+
+  const growthSeries = [
+    { name: 'New users', color: '#22d3ee', data: newUsersSeries },
+    { name: 'Active users', color: '#34d399', data: activeUsersSeries },
+    { name: 'Approved users', color: '#f59e0b', data: approvedUsersSeries }
+  ];
+
+  const registrationSeries = [
+    { name: 'Registrations', color: 'linear-gradient(180deg,#38bdf8,#0ea5e9)', data: registrationTotalSeries },
+    { name: 'Approved', color: 'linear-gradient(180deg,#34d399,#10b981)', data: registrationApprovedSeries },
+    { name: 'Rejected', color: 'linear-gradient(180deg,#fb7185,#f43f5e)', data: registrationRejectedSeries },
+    { name: 'Pending', color: 'linear-gradient(180deg,#f59e0b,#d97706)', data: registrationPendingSeries }
+  ];
+
+  const moderationSeries = [
+    { name: 'Active reports', color: '#fb7185', data: reportTrendSeries },
+    { name: 'Flagged chats', color: '#f59e0b', data: flaggedTrendSeries },
+    { name: 'Suspicious users', color: '#22d3ee', data: suspiciousTrendSeries },
+    { name: 'Blocked accounts', color: '#a78bfa', data: blockedTrendSeries }
+  ];
+
+  const revenueTrendSeries = [
+    { name: 'Premium purchases', color: '#34d399', data: premiumPurchasesSeries },
+    { name: 'Revenue', color: '#22d3ee', data: revenueSeries },
+    { name: 'Active premium users', color: '#f59e0b', data: activePremiumSeries },
+    { name: 'Expiry / churn', color: '#fb7185', data: churnSeries }
   ];
 
   return (
     <div className="space-y-5">
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {statCards.map((card) => (
-          <StatCard
-            key={card.label}
-            icon={card.icon}
-            label={card.label}
-            value={card.value}
-            hint={card.hint}
-            tone={card.tone}
+        {kpiCards.map((kpi) => (
+          <KpiCard
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            delta={kpi.delta}
+            helper={kpi.helper}
+            spark={kpi.spark}
+            tone={kpi.tone}
           />
         ))}
       </div>
 
-      <div className="grid xl:grid-cols-[1.3fr_1fr] gap-4">
+      <div className="grid xl:grid-cols-[1.45fr_1fr] gap-4">
         <PremiumSurface
-          title="Operational Trend Summary"
-          subtitle="Realtime pulse of approvals, moderation, and growth"
-          rightSlot={<StatusChip tone="info">Live Snapshot</StatusChip>}
+          title="User Growth Analytics"
+          subtitle="New, active, and approved user trends"
+          rightSlot={(
+            <div className="flex items-center gap-2">
+              {[
+                { id: '7d', label: '7d' },
+                { id: '30d', label: '30d' },
+                { id: '90d', label: '90d' },
+                { id: '12m', label: '12m' }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setGrowthRange(item.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs border transition ${growthRange === item.id ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100' : 'border-cyan-200/20 bg-white/5 text-slate-300 hover:bg-white/10'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
         >
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">Verification velocity</p>
-              <p className="text-lg font-semibold text-[color:var(--text-light)] mt-1">{pendingProfileApprovals === 0 ? 'Queue clear' : `${pendingProfileApprovals} pending`}</p>
+          <LineAnalyticsChart
+            labels={growthLabels}
+            series={growthSeries}
+            emptyCopy="User growth trend will become visible as registrations accumulate."
+          />
+        </PremiumSurface>
+
+        <PremiumSurface title="Live Platform Insights" subtitle="Real-time operations intelligence" rightSlot={<StatusChip tone="info">Platform Pulse</StatusChip>}>
+          <div className="space-y-2.5">
+            {insights.map((item, index) => (
+              <div key={`${item}-${index}`} className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5 text-sm text-[color:var(--text-light)]">
+                {item}
+              </div>
+            ))}
+          </div>
+        </PremiumSurface>
+      </div>
+
+      <div className="grid xl:grid-cols-2 gap-4">
+        <PremiumSurface title="Registration + Approval Flow" subtitle={`Onboarding pipeline across ${globalBucketSet.label}`}>
+          <StackedFlowChart
+            labels={globalLabels}
+            series={registrationSeries}
+            emptyCopy="No registration flow yet. New onboarding events will populate this panel."
+          />
+        </PremiumSurface>
+
+        <PremiumSurface title="Moderation / Safety Trend" subtitle="Reports, flags, suspicious behavior and blocked users over time">
+          <LineAnalyticsChart
+            labels={globalLabels}
+            series={moderationSeries}
+            emptyCopy="No moderation spikes detected this period."
+          />
+        </PremiumSurface>
+      </div>
+
+      <div className="grid xl:grid-cols-2 gap-4">
+        <PremiumSurface title="Revenue / Premium Trend" subtitle="Purchases, revenue, active premium users, and churn">
+          <LineAnalyticsChart
+            labels={globalLabels}
+            series={revenueTrendSeries}
+            emptyCopy="Premium revenue will appear here once subscriptions begin."
+          />
+        </PremiumSurface>
+
+        <PremiumSurface title="Activity Pattern Heatmap" subtitle="Most active hours and days for engagement and admin load">
+          <div className="space-y-4">
+            <div className="grid grid-cols-[auto_repeat(24,minmax(0,1fr))] gap-1.5 overflow-x-auto">
+              <div />
+              {Array.from({ length: 24 }, (_, hour) => (
+                <div key={`hour-${hour}`} className="text-[10px] text-[color:var(--portal-muted)] text-center">{hour}</div>
+              ))}
+
+              {dayLabels.map((day, dayIndex) => (
+                <React.Fragment key={day}>
+                  <div className="text-[10px] text-[color:var(--portal-muted)] pr-1 self-center">{day}</div>
+                  {activityHeatmap[dayIndex].map((value, hourIndex) => {
+                    const intensity = value / heatmapMax;
+                    const background = `rgba(34,211,238,${0.08 + intensity * 0.75})`;
+                    return (
+                      <div
+                        key={`${day}-${hourIndex}`}
+                        className="h-4 rounded-[4px] border border-cyan-200/10"
+                        style={{ backgroundColor: background }}
+                        title={`${day} ${hourIndex}:00 - ${value} events`}
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              ))}
             </div>
-            <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">Moderation pressure</p>
-              <p className="text-lg font-semibold text-[color:var(--text-light)] mt-1">{activeReports > 0 ? `${activeReports} active cases` : 'No open incidents'}</p>
-            </div>
-            <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">Revenue momentum</p>
-              <p className="text-lg font-semibold text-[color:var(--text-light)] mt-1">INR {monthlyRevenue.toLocaleString('en-IN')}</p>
-            </div>
-            <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">Premium conversion</p>
-              <p className="text-lg font-semibold text-[color:var(--text-light)] mt-1">{totalUsers > 0 ? `${Math.round((premiumUsers / totalUsers) * 100)}%` : '0%'} premium users</p>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-3 text-sm text-[color:var(--text-light)]">
+                Most active hour: <span className="font-semibold">{peakHour}:00</span>
+              </div>
+              <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-3 text-sm text-[color:var(--text-light)]">
+                Most active day: <span className="font-semibold">{dayLabels[peakDay]}</span>
+              </div>
             </div>
           </div>
         </PremiumSurface>
+      </div>
 
-        <PremiumSurface title="System Health" subtitle="Core platform services">
+      <div className="grid xl:grid-cols-[1.2fr_1fr_1fr] gap-4">
+        <PremiumSurface title="Profile Approval Trend" subtitle="Submitted vs approved vs rejected profiles">
+          <LineAnalyticsChart
+            labels={globalLabels}
+            series={[
+              { name: 'Submitted', color: '#22d3ee', data: profileSubmittedSeries },
+              { name: 'Approved', color: '#34d399', data: profileApprovedSeries },
+              { name: 'Rejected', color: '#fb7185', data: profileRejectedSeries }
+            ]}
+            emptyCopy="Profile review trend will appear after moderation actions begin."
+          />
+        </PremiumSurface>
+
+        <PremiumSurface title="System Health" subtitle="Core platform services + response readiness">
           <div className="space-y-2">
             {[
               { label: 'API', value: systemHealth.api || 'healthy' },
               { label: 'Database', value: systemHealth.database || 'healthy' },
               { label: 'Payments', value: systemHealth.payments || 'degraded' },
-              { label: 'Storage', value: systemHealth.storage || 'healthy' }
+              { label: 'Storage', value: systemHealth.storage || 'healthy' },
+              { label: 'Safety', value: systemHealth.safety || (moderationRiskLevel === 'high' ? 'degraded' : 'healthy') }
             ].map((item) => {
               const tone = item.value === 'healthy' ? 'success' : item.value === 'degraded' ? 'warning' : 'danger';
               return (
@@ -1207,15 +1993,41 @@ function OverviewPanel({ overview, users = [], reports = [], chats = [], payment
                 </div>
               );
             })}
+
+            <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5 mt-3 text-xs text-[color:var(--portal-muted)]">
+              Avg approval turnaround: {averageApprovalTurnaroundHours > 0 ? `${averageApprovalTurnaroundHours.toFixed(1)}h` : 'N/A'}
+            </div>
+            <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5 text-xs text-[color:var(--portal-muted)]">
+              Avg moderation resolution: {averageModerationResolutionHours > 0 ? `${averageModerationResolutionHours.toFixed(1)}h` : 'N/A'}
+            </div>
+          </div>
+        </PremiumSurface>
+
+        <PremiumSurface title="Smart Decision Support" subtitle="What to act on next">
+          <div className="space-y-2.5">
+            {decisionBlocks.map((block) => (
+              <button
+                key={block.title}
+                type="button"
+                onClick={() => onSectionChange?.(block.action)}
+                className="w-full text-left rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">{block.title}</p>
+                  <StatusChip tone={block.tone}>{formatCompact(block.value)}</StatusChip>
+                </div>
+                <p className="text-sm text-[color:var(--text-light)] mt-1.5">{block.helper}</p>
+              </button>
+            ))}
           </div>
         </PremiumSurface>
       </div>
 
       <div className="grid xl:grid-cols-[1.1fr_1fr_1fr] gap-4">
         <PremiumSurface title="Recent Admin Activity" subtitle="Latest governance actions">
-          {recentActivity.length ? (
+          {(recentActivity.length || activityLogs.length) ? (
             <div className="space-y-2.5">
-              {recentActivity.slice(0, 8).map((entry, idx) => (
+              {(recentActivity.length ? recentActivity : activityLogs).slice(0, 8).map((entry, idx) => (
                 <div key={entry._id || idx} className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2.5">
                   <p className="text-sm text-[color:var(--text-light)]">{entry.description || entry.action || 'Activity update'}</p>
                   <p className="text-xs text-[color:var(--portal-muted)] mt-1">{new Date(entry.timestamp || entry.createdAt || Date.now()).toLocaleString()}</p>
@@ -1223,7 +2035,9 @@ function OverviewPanel({ overview, users = [], reports = [], chats = [], payment
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-4 text-sm text-[color:var(--portal-muted)]">No recent admin actions. Activity will appear as the team starts reviewing queues.</div>
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-4 text-sm text-[color:var(--portal-muted)]">
+              No recent admin actions. Activity will appear as the team starts reviewing queues.
+            </div>
           )}
         </PremiumSurface>
 
@@ -1235,37 +2049,44 @@ function OverviewPanel({ overview, users = [], reports = [], chats = [], payment
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-200">No critical safety alerts right now. Monitoring remains active.</div>
+            <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-200">No moderation spikes detected this period.</div>
           )}
         </PremiumSurface>
 
-        <PremiumSurface title="Quick Actions" subtitle="High-impact admin shortcuts">
-          <div className="grid grid-cols-2 gap-2.5">
-            <button onClick={() => onSectionChange?.('registration_approvals')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Open Registration Queue</button>
-            <button onClick={() => onSectionChange?.('approvals')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Review Profiles</button>
-            <button onClick={() => onSectionChange?.('reports')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Resolve Reports</button>
-            <button onClick={() => onSectionChange?.('payments')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Approve Payments</button>
-            <button onClick={() => onSectionChange?.('users')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">User Directory</button>
-            <button onClick={() => onSectionChange?.('settings')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Platform Settings</button>
+        <PremiumSurface title="Live Queue Panel" subtitle="Operational backlog and throughput">
+          <div className="space-y-2.5">
+            {liveQueue.map((queue) => (
+              <button
+                key={queue.label}
+                onClick={() => onSectionChange?.(queue.section)}
+                className="w-full text-left rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-4 py-3"
+              >
+                <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">{queue.label}</p>
+                <p className="text-2xl font-semibold text-[color:var(--text-light)] mt-1">{queue.value}</p>
+                <p className="text-xs text-cyan-200 mt-1">Open queue</p>
+              </button>
+            ))}
           </div>
         </PremiumSurface>
       </div>
 
-      <PremiumSurface title="Live Queue Panel" subtitle="Operational backlog and throughput">
-        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          {liveQueue.map((queue) => (
-            <button
-              key={queue.label}
-              onClick={() => onSectionChange?.(queue.section)}
-              className="text-left rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-4 py-3"
-            >
-              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">{queue.label}</p>
-              <p className="text-2xl font-semibold text-[color:var(--text-light)] mt-1">{queue.value}</p>
-              <p className="text-xs text-cyan-200 mt-1">Open queue</p>
-            </button>
-          ))}
-        </div>
-      </PremiumSurface>
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {[
+          { label: 'Active Today', value: activeToday, icon: '🟢', hint: 'Engaged in last 24h', tone: 'success' },
+          { label: 'New Registrations', value: newRegistrations, icon: '🆕', hint: 'Joined in selected period', tone: 'info' },
+          { label: 'Pending Profile Approvals', value: pendingProfileApprovals, icon: '✅', hint: 'Verification queue', tone: 'warning' },
+          { label: 'Pending Payment Reviews', value: pendingPaymentReviews, icon: '💳', hint: 'Needs finance action', tone: 'warning' }
+        ].map((card) => (
+          <StatCard
+            key={card.label}
+            icon={card.icon}
+            label={card.label}
+            value={card.value}
+            hint={card.hint}
+            tone={card.tone}
+          />
+        ))}
+      </div>
     </div>
   );
 }

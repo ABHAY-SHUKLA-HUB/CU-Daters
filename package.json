@@ -13,7 +13,8 @@
     "server:dev": "nodemon server.js",
     "backend": "node server.js",
     "db:setup": "node scripts/setupDatabase.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:gmail-smtp": "node test-gmail-smtp.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
