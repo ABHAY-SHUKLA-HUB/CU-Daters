@@ -57,9 +57,14 @@ export default function Header() {
         const total = response?.data?.unreadTotal ?? response?.unreadTotal ?? 0;
         setUnreadTotal(typeof total === 'number' ? total : 0);
       } catch (err) {
-        console.error('Failed to load unread count:', err);
-        if (mounted) {
-          setUnreadTotal(0);
+        const status = err?.status;
+        const msg = String(err?.message || '').toLowerCase();
+        const isTransient = status === 503 || msg.includes('timeout') || msg.includes('network');
+
+        if (!isTransient) {
+          console.error('Failed to load unread count:', err);
+        } else {
+          console.warn('Unread summary temporarily unavailable, keeping current badge state');
         }
       } finally {
         inFlight = false;

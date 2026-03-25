@@ -651,7 +651,7 @@ export default function AdminPortal() {
     }
   };
 
-  const handleRegistrationApproval = async (userId, action) => {
+  const handleRegistrationApproval = async (userId, action, options = {}) => {
     const token = localStorage.getItem('auth_token') || localStorage.getItem('authToken');
     if (!token) {
       console.error('❌ No auth token found');
@@ -665,12 +665,12 @@ export default function AdminPortal() {
       ? `${API_ROOT}/api/admin/registrations/${userId}/approve`
       : `${API_ROOT}/api/admin/registrations/${userId}/reject`;
 
-    let reason = '';
-    if (action === 'reject') {
+    let reason = String(options?.reason || '').trim();
+    if (action === 'reject' && !reason) {
       reason = window.prompt('Enter rejection reason:', 'Profile does not meet requirements') || '';
       if (!reason.trim()) {
         console.log('ℹ️ Rejection cancelled by admin');
-        return;
+        return false;
       }
     }
 
@@ -709,17 +709,29 @@ export default function AdminPortal() {
         const errorMsg = data.message || `HTTP ${response.status}: ${response.statusText}`;
         console.error('❌ API error:', response.status, errorMsg);
         notify(`Failed to ${action} user: ${errorMsg}`, 'error');
-        return;
+        return false;
       }
 
       console.log(`✅ User ${action}ed successfully!`);
       
       // Remove from pending list immediately
-      const updated = registrationApprovals.filter(u => u._id !== userId);
-      console.log(`📊 Updated pending approvals count: ${updated.length}`);
-      setRegistrationApprovals(updated);
+      const removeRow = () => {
+        setRegistrationApprovals((prev) => {
+          const updated = prev.filter((u) => u._id !== userId);
+          console.log(`📊 Updated pending approvals count: ${updated.length}`);
+          return updated;
+        });
+      };
+
+      const deferMs = Number(options?.deferRemovalMs || 0);
+      if (deferMs > 0) {
+        window.setTimeout(removeRow, deferMs);
+      } else {
+        removeRow();
+      }
       
       notify(`User ${action}ed successfully.`);
+      return true;
       
     } catch (err) {
       console.error('❌ Error during approval:', err);
@@ -727,6 +739,7 @@ export default function AdminPortal() {
       console.error('❌ Error message:', err.message);
       console.error('❌ Full error:', err);
       notify(`Network error while processing approval: ${err.message}`, 'error');
+      return false;
     }
   };
 
@@ -1059,7 +1072,17 @@ export default function AdminPortal() {
                     onSectionChange={setSection}
                   />
                 ) : null}
-                {!loading && section === 'registration_approvals' ? <RegistrationApprovalsPanel registrations={filteredRegistrationApprovals} onApprove={handleRegistrationApproval} onOpenDetail={openDetailDrawer} /> : null}
+                {!loading && section === 'registration_approvals' ? (
+                  <RegistrationApprovalsPanel
+                    registrations={filteredRegistrationApprovals}
+                    onApprove={handleRegistrationApproval}
+                    onOpenDetail={openDetailDrawer}
+                    onNotify={notify}
+                    pinEnabled={pinEnabled}
+                    pinVerified={pinVerified}
+                    adminPin={adminPin}
+                  />
+                ) : null}
                 {!loading && section === 'users' ? <UsersPanel users={filteredUsers} onModerate={handleModerationAction} onDelete={handleDeleteUser} onOpenDetail={openDetailDrawer} onViewActivity={handleViewUserActivity} onNotify={notify} /> : null}
                 {!loading && section === 'approvals' ? <ApprovalsPanel approvals={filteredApprovals} onApprove={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
                 {!loading && section === 'matches' ? <MatchesPanel matches={filteredMatches} onOpenDetail={openDetailDrawer} /> : null}
@@ -2180,73 +2203,531 @@ function UsersPanel({ users, onModerate, onDelete, onOpenDetail, onViewActivity,
   );
 }
 
-function RegistrationApprovalsPanel({ registrations, onApprove, onOpenDetail }) {
-  if (!registrations || registrations.length === 0) {
+function RegistrationApprovalsPanel({
+  registrations,
+  onApprove,
+  onOpenDetail,
+  onNotify,
+  pinEnabled = false,
+  pinVerified = false,
+  adminPin = ''
+}) {
+  const [query, setQuery] = React.useState('');
+  const [riskFilter, setRiskFilter] = React.useState('all');
+  const [statusFilter, setStatusFilter] = React.useState('pending');
+  const [selectedIds, setSelectedIds] = React.useState([]);
+  const [loadingIds, setLoadingIds] = React.useState([]);
+  const [fadingIds, setFadingIds] = React.useState([]);
+  const [shakingIds, setShakingIds] = React.useState([]);
+  const [lastUpdatedAt, setLastUpdatedAt] = React.useState(Date.now());
+  const [clockTick, setClockTick] = React.useState(Date.now());
+  const [rejectModal, setRejectModal] = React.useState({ open: false, user: null, reason: 'Profile does not meet requirements' });
+  const [bulkRejectModal, setBulkRejectModal] = React.useState({ open: false, reason: 'Bulk rejection by admin review' });
+  const [auditTrail, setAuditTrail] = React.useState([]);
+  const [page, setPage] = React.useState(1);
+  const pageSize = 8;
+
+  React.useEffect(() => {
+    setLastUpdatedAt(Date.now());
+    setSelectedIds((prev) => prev.filter((id) => (registrations || []).some((item) => item._id === id)));
+  }, [registrations]);
+
+  React.useEffect(() => {
+    const interval = window.setInterval(() => setClockTick(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const relativeTime = React.useCallback((value) => {
+    const ts = new Date(value || 0).getTime();
+    if (!Number.isFinite(ts) || ts <= 0) return 'unknown';
+    const diffMs = Math.max(0, Date.now() - ts);
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return `${min} min ago`;
+    const hrs = Math.floor(min / 60);
+    if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  }, []);
+
+  const getAvatar = React.useCallback((user) => {
+    const name = String(user?.name || 'U').trim();
+    const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+    return initials || 'U';
+  }, []);
+
+  const deriveRiskFlags = React.useCallback((user, allUsers) => {
+    const flags = [];
+    const email = String(user?.email || user?.collegeEmail || user?.personalEmail || '').toLowerCase();
+    const phone = String(user?.phone || '');
+    const duplicateEmail = allUsers.filter((item) => String(item?.email || item?.collegeEmail || item?.personalEmail || '').toLowerCase() === email).length > 1;
+    const duplicatePhone = phone && allUsers.filter((item) => String(item?.phone || '') === phone).length > 1;
+
+    if (/@(mailinator|10minutemail|tempmail|guerrillamail)\./i.test(email)) {
+      flags.push('Suspicious email');
+    }
+    if (duplicateEmail || duplicatePhone) {
+      flags.push('Duplicate account');
+    }
+    if ((user?.bio && String(user.bio).length < 8) || /test|asdf|spam/i.test(String(user?.name || ''))) {
+      flags.push('Spam risk');
+    }
+
+    return flags;
+  }, []);
+
+  const enrichedRows = React.useMemo(() => {
+    return (registrations || []).map((user) => {
+      const riskFlags = deriveRiskFlags(user, registrations || []);
+      const riskLevel = riskFlags.length >= 2 ? 'high' : riskFlags.length === 1 ? 'medium' : 'low';
+      const createdAt = user.created_at || user.createdAt;
+      const status = String(user.profile_approval_status || user.status || 'pending').toLowerCase();
+      return {
+        ...user,
+        displayEmail: user.email || user.collegeEmail || user.personalEmail || '-',
+        createdAt,
+        relativeSubmitted: relativeTime(createdAt),
+        riskFlags,
+        riskLevel,
+        status
+      };
+    });
+  }, [deriveRiskFlags, registrations, relativeTime]);
+
+  const filteredRows = React.useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return enrichedRows.filter((row) => {
+      const matchesSearch = !normalized || `${row.name || ''} ${row.displayEmail || ''} ${row.phone || ''} ${row.course || ''}`.toLowerCase().includes(normalized);
+      const matchesStatus = statusFilter === 'all' || row.status === statusFilter;
+      const matchesRisk = riskFilter === 'all' || row.riskLevel === riskFilter;
+      return matchesSearch && matchesStatus && matchesRisk;
+    });
+  }, [enrichedRows, query, riskFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+
+  React.useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const pageRows = React.useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, page]);
+
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const approvedToday = auditTrail.filter((item) => item.action === 'approve' && item.timestamp >= startOfToday).length;
+  const rejectedToday = auditTrail.filter((item) => item.action === 'reject' && item.timestamp >= startOfToday).length;
+
+  const activeFilters = [
+    query ? `Search: ${query}` : '',
+    statusFilter !== 'all' ? `Status: ${statusFilter}` : '',
+    riskFilter !== 'all' ? `Risk: ${riskFilter}` : ''
+  ].filter(Boolean);
+
+  const lastUpdatedLabel = React.useMemo(() => {
+    const sec = Math.max(0, Math.floor((clockTick - lastUpdatedAt) / 1000));
+    if (sec < 2) return 'just now';
+    if (sec < 60) return `${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    return `${min}m ago`;
+  }, [clockTick, lastUpdatedAt]);
+
+  const canRunSensitiveAction = !pinEnabled || pinVerified || Boolean(adminPin);
+
+  const pushAudit = React.useCallback((entry) => {
+    setAuditTrail((prev) => [{ ...entry, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, timestamp: Date.now() }, ...prev].slice(0, 20));
+  }, []);
+
+  const runApprove = React.useCallback(async (userId, userName) => {
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before approval actions.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, userId])]);
+    const ok = await onApprove?.(userId, 'approve', { deferRemovalMs: 260 });
+    setLoadingIds((prev) => prev.filter((id) => id !== userId));
+
+    if (ok) {
+      setFadingIds((prev) => [...new Set([...prev, userId])]);
+      window.setTimeout(() => {
+        setFadingIds((prev) => prev.filter((id) => id !== userId));
+      }, 450);
+      setSelectedIds((prev) => prev.filter((id) => id !== userId));
+      pushAudit({ action: 'approve', userId, userName, note: 'Approved from registration queue' });
+      onNotify?.('User approved successfully', 'success');
+    }
+  }, [canRunSensitiveAction, onApprove, onNotify, pushAudit]);
+
+  const confirmReject = React.useCallback(async () => {
+    const user = rejectModal.user;
+    if (!user) return;
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before rejection actions.', 'error');
+      return;
+    }
+    const reason = String(rejectModal.reason || '').trim();
+    if (reason.length < 4) {
+      onNotify?.('Please provide a stronger rejection reason.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, user._id])]);
+    const ok = await onApprove?.(user._id, 'reject', { reason, deferRemovalMs: 280 });
+    setLoadingIds((prev) => prev.filter((id) => id !== user._id));
+
+    if (ok) {
+      setShakingIds((prev) => [...new Set([...prev, user._id])]);
+      window.setTimeout(() => setShakingIds((prev) => prev.filter((id) => id !== user._id)), 380);
+      setFadingIds((prev) => [...new Set([...prev, user._id])]);
+      window.setTimeout(() => {
+        setFadingIds((prev) => prev.filter((id) => id !== user._id));
+      }, 500);
+      setSelectedIds((prev) => prev.filter((id) => id !== user._id));
+      pushAudit({ action: 'reject', userId: user._id, userName: user.name, note: reason });
+      onNotify?.('Registration rejected with confirmation', 'success');
+      setRejectModal({ open: false, user: null, reason: 'Profile does not meet requirements' });
+    }
+  }, [canRunSensitiveAction, onApprove, onNotify, pushAudit, rejectModal]);
+
+  const handleBulkApprove = React.useCallback(async () => {
+    if (!selectedIds.length) return;
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before bulk actions.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, ...selectedIds])]);
+    for (const id of selectedIds) {
+      const row = enrichedRows.find((item) => item._id === id);
+      const ok = await onApprove?.(id, 'approve', { deferRemovalMs: 220 });
+      if (ok) {
+        pushAudit({ action: 'approve', userId: id, userName: row?.name || 'User', note: 'Bulk approve' });
+      }
+    }
+    setLoadingIds((prev) => prev.filter((id) => !selectedIds.includes(id)));
+    setSelectedIds([]);
+    onNotify?.('Bulk approve completed', 'success');
+  }, [canRunSensitiveAction, enrichedRows, onApprove, onNotify, pushAudit, selectedIds]);
+
+  const handleBulkReject = React.useCallback(async () => {
+    if (!selectedIds.length) return;
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before bulk actions.', 'error');
+      return;
+    }
+    const reason = String(bulkRejectModal.reason || '').trim();
+    if (reason.length < 4) {
+      onNotify?.('Bulk reject reason is required.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, ...selectedIds])]);
+    for (const id of selectedIds) {
+      const row = enrichedRows.find((item) => item._id === id);
+      const ok = await onApprove?.(id, 'reject', { reason, deferRemovalMs: 220 });
+      if (ok) {
+        pushAudit({ action: 'reject', userId: id, userName: row?.name || 'User', note: `Bulk reject: ${reason}` });
+      }
+    }
+    setLoadingIds((prev) => prev.filter((id) => !selectedIds.includes(id)));
+    setSelectedIds([]);
+    setBulkRejectModal({ open: false, reason: 'Bulk rejection by admin review' });
+    onNotify?.('Bulk reject completed', 'success');
+  }, [bulkRejectModal.reason, canRunSensitiveAction, enrichedRows, onApprove, onNotify, pushAudit, selectedIds]);
+
+  const allVisibleSelected = pageRows.length > 0 && pageRows.every((row) => selectedIds.includes(row._id));
+
+  const toggleSelectAllVisible = () => {
+    if (allVisibleSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pageRows.some((row) => row._id === id)));
+      return;
+    }
+    setSelectedIds((prev) => [...new Set([...prev, ...pageRows.map((row) => row._id)])]);
+  };
+
+  if (!registrations) {
     return (
-      <div className="card bg-green-50 border-2 border-green-300 text-center p-8">
-        <div className="text-4xl mb-3">✅</div>
-        <h2 className="text-2xl font-bold text-green-900 mb-2">All Clear!</h2>
-        <p className="text-green-700">No pending registrations to approve.</p>
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <SkeletonBlock key={index} className="h-20" />
+        ))}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-yellow-900 mb-4 flex items-center gap-2">
-          ⏳ Pending Registrations ({registrations.length})
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-yellow-200">
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Name</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Email</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Phone</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Course</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Submitted</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrations.map((user) => (
-                <tr key={user._id} className="border-b border-yellow-100 hover:bg-yellow-100/50">
-                  <td className="py-3 px-4 font-semibold">{user.name}</td>
-                  <td className="py-3 px-4 text-sm text-gray-700">{user.email || user.collegeEmail || user.personalEmail}</td>
-                  <td className="py-3 px-4 text-sm">{user.phone}</td>
-                  <td className="py-3 px-4 text-sm">{user.course}</td>
-                  <td className="py-3 px-4 text-xs text-gray-600">
-                    {new Date(user.created_at || user.createdAt).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => onOpenDetail('Registration Detail', user)}
-                        className="text-xs px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      >
-                        Detail
-                      </button>
-                      <button
-                        onClick={() => onApprove(user._id, 'approve')}
-                        className="text-xs px-3 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 font-semibold"
-                      >
-                        ✅ Approve
-                      </button>
-                      <button
-                        onClick={() => onApprove(user._id, 'reject')}
-                        className="text-xs px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
-                      >
-                        ❌ Reject
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <PremiumSurface
+        title="Pending Registrations"
+        subtitle="Decision queue for onboarding approvals"
+        rightSlot={<StatusChip tone="info">Last updated {lastUpdatedLabel}</StatusChip>}
+      >
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-[color:var(--portal-muted)]">Total Pending</p>
+            <p className="text-2xl font-bold text-[color:var(--text-light)] mt-1">{registrations.length}</p>
+          </div>
+          <div className="rounded-xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-emerald-200">Approved Today</p>
+            <p className="text-2xl font-bold text-emerald-100 mt-1">{approvedToday}</p>
+          </div>
+          <div className="rounded-xl border border-rose-300/20 bg-rose-500/10 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-rose-200">Rejected Today</p>
+            <p className="text-2xl font-bold text-rose-100 mt-1">{rejectedToday}</p>
+          </div>
         </div>
-      </div>
+      </PremiumSurface>
+
+      <PremiumSurface title="Search & Filters" subtitle="Refine queue quickly with active filter chips">
+        <div className="space-y-3">
+          <div className="grid md:grid-cols-[1.2fr_auto_auto] gap-3 items-center">
+            <label className="flex items-center gap-2 rounded-xl border border-cyan-200/20 bg-white/8 px-3 py-2.5">
+              <span className="text-cyan-200">🔎</span>
+              <input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search name, email, phone, course"
+                className="flex-1 bg-transparent text-sm text-[color:var(--text-light)] placeholder-slate-400 focus:outline-none"
+              />
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-2.5 rounded-full border border-cyan-200/20 bg-white/8 text-sm text-[color:var(--text-light)]"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select
+              value={riskFilter}
+              onChange={(event) => {
+                setRiskFilter(event.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-2.5 rounded-full border border-cyan-200/20 bg-white/8 text-sm text-[color:var(--text-light)]"
+            >
+              <option value="all">All Risk</option>
+              <option value="high">High Risk</option>
+              <option value="medium">Medium Risk</option>
+              <option value="low">Low Risk</option>
+            </select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[color:var(--portal-muted)] uppercase tracking-wider">Active filters:</span>
+            {activeFilters.length ? activeFilters.map((label) => (
+              <span key={label} className="px-2.5 py-1 rounded-full border border-cyan-200/25 bg-cyan-500/10 text-cyan-100 text-xs">{label}</span>
+            )) : <span className="text-xs text-[color:var(--portal-muted)]">None</span>}
+          </div>
+        </div>
+      </PremiumSurface>
+
+      <PremiumSurface title="Registration Queue" subtitle="Select and process users with fast action controls">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="inline-flex items-center gap-2 text-xs text-[color:var(--portal-muted)]">
+              <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} className="accent-cyan-400" />
+              Select page ({pageRows.length})
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={!selectedIds.length || loadingIds.length > 0}
+                onClick={handleBulkApprove}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-green-500 disabled:opacity-40"
+              >
+                ✅ Bulk Approve ({selectedIds.length})
+              </button>
+              <button
+                type="button"
+                disabled={!selectedIds.length || loadingIds.length > 0}
+                onClick={() => setBulkRejectModal({ open: true, reason: bulkRejectModal.reason })}
+                className="px-3 py-2 rounded-xl text-xs font-semibold border border-rose-300/40 text-rose-200 hover:bg-rose-500/10 disabled:opacity-40"
+              >
+                ⛔ Bulk Reject ({selectedIds.length})
+              </button>
+            </div>
+          </div>
+
+          {!filteredRows.length ? (
+            <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 px-6 py-10 text-center">
+              <div className="text-4xl">🎉</div>
+              <h3 className="mt-2 text-xl font-bold text-emerald-100">No pending approvals</h3>
+              <p className="text-sm text-emerald-200/80 mt-1">All registrations are processed. New submissions will appear here automatically.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {pageRows.map((user) => {
+                const isLoadingRow = loadingIds.includes(user._id);
+                const isFading = fadingIds.includes(user._id);
+                const isShaking = shakingIds.includes(user._id);
+                const selected = selectedIds.includes(user._id);
+                const statusTone = user.status === 'approved' ? 'success' : user.status === 'rejected' ? 'danger' : 'warning';
+
+                return (
+                  <article
+                    key={user._id}
+                    onClick={() => onOpenDetail?.('Registration Detail', user)}
+                    className={`rounded-2xl border border-cyan-200/20 bg-white/5 p-3.5 transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:bg-white/10 hover:shadow-[0_20px_44px_rgba(2,8,25,0.42)] ${isFading ? 'opacity-0 scale-[0.98]' : 'opacity-100'} ${isShaking ? 'animate-[shake_0.35s_ease-in-out]' : ''}`}
+                  >
+                    <div className="grid md:grid-cols-[auto_1fr_auto] gap-3 items-start">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => setSelectedIds((prev) => selected ? prev.filter((id) => id !== user._id) : [...prev, user._id])}
+                          className="accent-cyan-400"
+                        />
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-400/35 to-blue-500/30 border border-cyan-200/30 text-cyan-100 font-bold flex items-center justify-center">
+                          {getAvatar(user)}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-[color:var(--text-light)] truncate">{user.name || 'Unnamed User'}</p>
+                          <StatusChip tone={statusTone}>{user.status || 'pending'}</StatusChip>
+                          {user.riskFlags.map((flag) => (
+                            <StatusChip key={flag} tone={flag === 'Spam risk' ? 'danger' : 'warning'}>{flag}</StatusChip>
+                          ))}
+                        </div>
+                        <p className="text-sm text-[color:var(--portal-muted)] truncate mt-1">{user.displayEmail}</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--portal-muted)] mt-1.5">
+                          <span>📞 {user.phone || 'N/A'}</span>
+                          <span>🎓 {user.course || 'N/A'}</span>
+                          <span>🕒 {user.relativeSubmitted}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2" onClick={(event) => event.stopPropagation()}>
+                        <button
+                          type="button"
+                          disabled={isLoadingRow}
+                          onClick={() => onOpenDetail?.('Registration Detail', user)}
+                          className="px-3 py-2 rounded-xl text-xs border border-cyan-200/25 bg-white/5 hover:bg-white/12 text-[color:var(--text-light)] disabled:opacity-40"
+                        >
+                          Detail
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isLoadingRow}
+                          onClick={() => runApprove(user._id, user.name)}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-green-500 hover:opacity-95 disabled:opacity-40"
+                        >
+                          {isLoadingRow ? 'Processing...' : '✅ Approve'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isLoadingRow}
+                          onClick={() => setRejectModal({ open: true, user, reason: 'Profile does not meet requirements' })}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold border border-rose-300/35 text-rose-200 hover:bg-rose-500/12 disabled:opacity-40"
+                        >
+                          ❌ Reject
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-[color:var(--portal-muted)]">Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredRows.length)} of {filteredRows.length}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-cyan-200/25 bg-white/5 text-xs disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="text-xs text-[color:var(--portal-muted)]">Page {page} / {totalPages}</span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-cyan-200/25 bg-white/5 text-xs disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      </PremiumSurface>
+
+      <PremiumSurface title="Audit Trail" subtitle="Latest approval decisions from this session">
+        {auditTrail.length ? (
+          <div className="space-y-2">
+            {auditTrail.slice(0, 8).map((item) => (
+              <div key={item.id} className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-[color:var(--text-light)]">
+                    <span className="font-semibold">{item.userName}</span> was {item.action}d
+                  </p>
+                  <StatusChip tone={item.action === 'approve' ? 'success' : 'danger'}>{item.action}</StatusChip>
+                </div>
+                <p className="text-xs text-[color:var(--portal-muted)] mt-1">{new Date(item.timestamp).toLocaleString()} • {item.note}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-4 text-sm text-[color:var(--portal-muted)]">No actions yet in this session. Approvals and rejections will be logged here.</div>
+        )}
+      </PremiumSurface>
+
+      {rejectModal.open && rejectModal.user ? (
+        <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setRejectModal({ open: false, user: null, reason: 'Profile does not meet requirements' })}>
+          <div className="w-full max-w-lg rounded-2xl border border-rose-300/35 bg-slate-950/95 p-5" onClick={(event) => event.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white">Confirm Rejection</h3>
+            <p className="text-sm text-slate-300 mt-1">You are rejecting <span className="font-semibold text-rose-200">{rejectModal.user.name}</span>. Add a clear reason for audit compliance.</p>
+            <textarea
+              value={rejectModal.reason}
+              onChange={(event) => setRejectModal((prev) => ({ ...prev, reason: event.target.value }))}
+              rows={4}
+              className="mt-3 w-full px-3 py-2 rounded-xl border border-cyan-200/25 bg-white/8 text-sm text-white placeholder-slate-400"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setRejectModal({ open: false, user: null, reason: 'Profile does not meet requirements' })} className="px-3 py-2 rounded-xl border border-cyan-200/25 bg-white/5 text-slate-100 text-sm">Cancel</button>
+              <button onClick={confirmReject} className="px-3 py-2 rounded-xl text-sm font-semibold border border-rose-300/45 text-rose-100 hover:bg-rose-500/15">Confirm Reject</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {bulkRejectModal.open ? (
+        <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setBulkRejectModal({ open: false, reason: 'Bulk rejection by admin review' })}>
+          <div className="w-full max-w-lg rounded-2xl border border-rose-300/35 bg-slate-950/95 p-5" onClick={(event) => event.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white">Bulk Reject Confirmation</h3>
+            <p className="text-sm text-slate-300 mt-1">Rejecting <span className="font-semibold text-rose-200">{selectedIds.length}</span> selected registrations. Provide reason for audit logs.</p>
+            <textarea
+              value={bulkRejectModal.reason}
+              onChange={(event) => setBulkRejectModal((prev) => ({ ...prev, reason: event.target.value }))}
+              rows={4}
+              className="mt-3 w-full px-3 py-2 rounded-xl border border-cyan-200/25 bg-white/8 text-sm text-white placeholder-slate-400"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setBulkRejectModal({ open: false, reason: 'Bulk rejection by admin review' })} className="px-3 py-2 rounded-xl border border-cyan-200/25 bg-white/5 text-slate-100 text-sm">Cancel</button>
+              <button onClick={handleBulkReject} className="px-3 py-2 rounded-xl text-sm font-semibold border border-rose-300/45 text-rose-100 hover:bg-rose-500/15">Confirm Bulk Reject</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
