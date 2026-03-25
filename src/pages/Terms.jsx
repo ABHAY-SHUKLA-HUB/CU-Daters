@@ -23,7 +23,7 @@ export default function Terms() {
             <ul className="text-softBrown space-y-2 ml-4">
               <li>• Be 18 years or older (or legal age of majority in your jurisdiction)</li>
               <li>• Be a current student or staff member of Chandigarh University</li>
-              <li>• Have a valid CU email address (@cumail.in or @cu.ac.in)</li>
+              <li>• Have a valid CU email address (@culkomail.in or @cumail.in)</li>
               <li>• Not be a registered sex offender or have violent crime convictions</li>
               <li>• Not be restricted by law from using dating services</li>
               <li>• Agree to use only one account (multiple accounts will result in permanent ban)</li>

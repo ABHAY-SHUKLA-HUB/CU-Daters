@@ -23,7 +23,7 @@ export default function TrustSection() {
               1
             </div>
             <h4 className="font-bold text-darkBrown mb-2 text-sm">CU Email Only</h4>
-            <p className="text-xs text-softBrown">@cumail.in or @cu.ac.in</p>
+            <p className="text-xs text-softBrown">@culkomail.in or @cumail.in</p>
           </div>
           
           {/* Step 2 */}

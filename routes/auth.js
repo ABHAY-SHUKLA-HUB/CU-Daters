@@ -6,6 +6,7 @@ import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
 import { asyncHandler, AppError } from '../utils/errorHandler.js';
 import {
   validateEmail,
+  validateCollegeEmailDomain,
   validatePhone,
   validatePassword,
   normalizeEnumFields,
@@ -29,6 +30,11 @@ router.post('/send-otp', asyncHandler(async (req, res, next) => {
   // Validation
   if (!email || !validateEmail(email)) {
     throw new AppError('Valid email address is required', 400);
+  }
+
+  // Validate college email domain - must be @culkomail.in or @cumail.in
+  if (!validateCollegeEmailDomain(email)) {
+    throw new AppError('Only emails from @culkomail.in & @cumail.in are accepted', 400);
   }
 
   if (!password || !validatePassword(password)) {
@@ -637,6 +643,9 @@ router.put('/profile', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, ne
     const normalizedCollegeEmail = String(collegeEmail || '').trim().toLowerCase();
     if (normalizedCollegeEmail && !validateEmail(normalizedCollegeEmail)) {
       throw new AppError('Invalid college email format', 400);
+    }
+    if (normalizedCollegeEmail && !validateCollegeEmailDomain(normalizedCollegeEmail)) {
+      throw new AppError('Only emails from @culkomail.in & @cumail.in are accepted', 400);
     }
     user.collegeEmail = normalizedCollegeEmail || undefined;
     if (normalizedCollegeEmail) {

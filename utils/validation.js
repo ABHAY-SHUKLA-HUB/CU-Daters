@@ -4,6 +4,15 @@ export const validateEmail = (email) => {
   return re.test(email);
 };
 
+// Validate college email domain - only allow specific domains
+export const validateCollegeEmailDomain = (email) => {
+  if (!email) return false;
+  const emailLower = email.toLowerCase().trim();
+  // Only allow @culkomail.in and @cumail.in domains
+  const allowedDomains = ['@culkomail.in', '@cumail.in'];
+  return allowedDomains.some(domain => emailLower.endsWith(domain));
+};
+
 // Validate phone format
 export const validatePhone = (phone) => {
   // Indian format: 10 digits
