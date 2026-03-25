@@ -1,6 +1,7 @@
 import Conversation from '../models/Conversation.js';
 import Connection from '../models/Connection.js';
 import Block from '../models/Block.js';
+import Message from '../models/Message.js';
 import User from '../models/User.js';
 import { verifyToken } from '../utils/auth.js';
 import { verifyFirebaseIdToken } from '../utils/firebaseAdmin.js';
@@ -9,56 +10,6 @@ const onlineSocketsByUser = new Map();
 
 const normalizePair = (a, b) => [a.toString(), b.toString()].sort();
 const MAX_MESSAGE_LENGTH = 2000;
-
-const normalizeMessageType = (messageType, text) => {
-  const normalized = (messageType || 'text').toString().toLowerCase();
-  if (normalized === 'text' && text && text.trim() && text.trim().length <= 2) {
-    return 'emoji';
-  }
-  return normalized;
-};
-
-const sanitizeAttachment = (attachment) => {
-  if (!attachment || typeof attachment !== 'object') {
-    return null;
-  }
-  return {
-    name: String(attachment.name || '').trim(),
-    size: Number(attachment.size || 0),
-    mimeType: String(attachment.mimeType || '').trim(),
-    url: String(attachment.url || '').trim()
-  };
-};
-
-const sanitizeVoiceNote = (voiceNote) => {
-  if (!voiceNote || typeof voiceNote !== 'object') {
-    return null;
-  }
-  return {
-    durationSec: Number(voiceNote.durationSec || 0),
-    mimeType: String(voiceNote.mimeType || 'audio/webm').trim(),
-    fileName: String(voiceNote.fileName || '').trim(),
-    url: String(voiceNote.url || '').trim()
-  };
-};
-
-const ensurePayloadByType = ({ messageType, text, attachment, voiceNote }) => {
-  if ((messageType === 'text' || messageType === 'emoji' || messageType === 'system' || messageType === 'call') && !text) {
-    throw new Error('Message text is required');
-  }
-
-  if (text && text.length > MAX_MESSAGE_LENGTH) {
-    throw new Error(`Message exceeds ${MAX_MESSAGE_LENGTH} characters`);
-  }
-
-  if ((messageType === 'image' || messageType === 'file' || messageType === 'attachment') && !attachment?.url) {
-    throw new Error('Attachment URL is required');
-  }
-
-  if (messageType === 'voice' && !voiceNote?.url) {
-    throw new Error('Voice note URL is required');
-  }
-};
 
 const addOnlineSocket = (userId, socketId) => {
   const current = onlineSocketsByUser.get(userId) || new Set();

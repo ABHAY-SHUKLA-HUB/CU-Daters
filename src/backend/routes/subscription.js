@@ -5,7 +5,7 @@ const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const subscriptionService = require('../services/subscriptionService');
 const fraudDetection = require('../services/fraudDetection');
-const { authenticate, validatePayload } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const s3Service = require('../services/s3Service');
 
 /**

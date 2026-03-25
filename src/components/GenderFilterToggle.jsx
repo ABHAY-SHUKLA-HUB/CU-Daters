@@ -3,8 +3,7 @@ import '../styles/GenderFilterToggle.css';
 
 export const GenderFilterToggle = ({ 
   currentFilter = 'both', 
-  onFilterChange = () => {},
-  userGender = null
+  onFilterChange = () => {}
 }) => {
   // Determine default labels based on user gender
   const getFilterLabel = (filter) => {

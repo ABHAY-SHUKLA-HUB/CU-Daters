@@ -82,9 +82,17 @@ const DEFAULT_PRICING_CONFIG = {
     enabled: true,
     methods: {
       upi: { enabled: true, id: '', name: 'Admin UPI' },
-      qr: { enabled: true }
+      qr: { enabled: true },
+      bank: {
+        enabled: true,
+        accountHolder: 'CU Daters Pvt Ltd',
+        bankName: 'HDFC Bank',
+        accountNumber: '1234567890123456',
+        ifscCode: 'HDFC0005678'
+      }
     },
-    offerBanner: { enabled: false, text: '' }
+    offerBanner: { enabled: false, text: '' },
+    paymentInstructions: 'Use your payment ID/UTR in submission for faster approval.'
   },
   globalOverride: { premiumFree: false, disableFreeMode: false },
   featureLocks: {},

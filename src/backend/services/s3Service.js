@@ -9,7 +9,7 @@ const s3 = new AWS.S3({
 
 class S3Service {
   constructor() {
-    this.bucketName = process.env.S3_BUCKET_NAME || 'campus-connect-payments';
+    this.bucketName = process.env.S3_BUCKET_NAME || 'cu-daters-payments';
     this.urlExpiration = 24 * 60 * 60; // 24 hours
   }
 
@@ -184,7 +184,7 @@ class S3Service {
       if (oldKey) {
         try {
           await this.deleteFile(oldKey);
-        } catch (deleteError) {
+        } catch {
           console.warn('Warning: Failed to delete old file:', oldKey);
           // Don't fail the operation if cleanup fails
         }

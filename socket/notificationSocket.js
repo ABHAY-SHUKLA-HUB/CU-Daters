@@ -4,8 +4,6 @@ import User from '../models/User.js';
 import { verifyToken } from '../utils/auth.js';
 import { verifyFirebaseIdToken } from '../utils/firebaseAdmin.js';
 
-const onlineUserSockets = new Map();
-
 const resolveSocketUser = async (token) => {
   if (!token) {
     return null;

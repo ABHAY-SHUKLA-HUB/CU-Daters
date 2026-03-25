@@ -4,7 +4,7 @@
  * View, approve, and reject subscription requests
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AdminSubscriptionPanel = () => {
@@ -19,12 +19,7 @@ const AdminSubscriptionPanel = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    fetchRequests();
-    fetchStats();
-  }, [filter]);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
@@ -44,9 +39,9 @@ const AdminSubscriptionPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const token = localStorage.getItem('authToken');
 
@@ -61,7 +56,12 @@ const AdminSubscriptionPanel = () => {
     } catch (err) {
       console.error('Error fetching stats:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchRequests();
+    void fetchStats();
+  }, [fetchRequests, fetchStats]);
 
   const handleApprove = async (requestId) => {
     if (!window.confirm('Are you sure you want to approve this request?')) return;

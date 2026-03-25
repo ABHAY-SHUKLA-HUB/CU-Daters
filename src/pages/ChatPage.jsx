@@ -93,6 +93,7 @@ export default function ChatPage() {
   const selectedConversationIdRef = React.useRef(selectedConversationId);
   const participantBootstrapRef = React.useRef('');
   const loadConversationsRef = React.useRef(null);
+  const loadMessagesRef = React.useRef(null);
   const typingExpiryTimersRef = React.useRef(new Map());
   const [loadingOlderMessages, setLoadingOlderMessages] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(false);
@@ -362,9 +363,12 @@ export default function ChatPage() {
       return;
     }
 
-    void loadConversations();
+    const loadConversationsFn = loadConversationsRef.current;
+    if (typeof loadConversationsFn === 'function') {
+      void loadConversationsFn();
+    }
     void loadMatches();
-  }, [authLoading, authToken, currentUser?._id, loadMatches]);
+  }, [authLoading, authToken, currentUser?._id, loadMatches, navigate]);
 
   React.useEffect(() => {
     const participantId = searchParams.get('participantId');
@@ -385,7 +389,10 @@ export default function ChatPage() {
         const response = await chatApi.createOrGetConversation(participantId);
         const conversationId = getConversationIdFromResponse(response);
 
-        await loadConversations({ preferredConversationId: conversationId });
+        const loadConversationsFn = loadConversationsRef.current;
+        if (typeof loadConversationsFn === 'function') {
+          await loadConversationsFn({ preferredConversationId: conversationId });
+        }
         if (conversationId) {
           navigate(`/chat?conversationId=${conversationId}`, { replace: true });
           showNotice('Conversation is ready. Say hi to start the chat.');
@@ -621,12 +628,15 @@ export default function ChatPage() {
   }, [addSystemMessage, currentUser?._id, mergeAndSortMessages, mutateConversationCache, normalizeId, normalizeIncomingMessage, resolveSenderId, stopCallMedia, updateConversationPreview]);
 
   React.useEffect(() => {
+    const messageCache = messageCacheRef.current;
+    const typingTimers = typingExpiryTimersRef.current;
+
     return () => {
       disconnectSocketClient();
       stopCallMedia();
-      messageCacheRef.current.clear();
-      typingExpiryTimersRef.current.forEach((timerId) => clearTimeout(timerId));
-      typingExpiryTimersRef.current.clear();
+      messageCache.clear();
+      typingTimers.forEach((timerId) => clearTimeout(timerId));
+      typingTimers.clear();
       loadMessagesRequestIdRef.current += 1;
     };
   }, [stopCallMedia]);
@@ -671,7 +681,10 @@ export default function ChatPage() {
       });
 
       // Refresh only the selected thread to keep joins snappy.
-      void loadMessages(selectedConversationId, { preferCache: false });
+      const loadMessagesFn = loadMessagesRef.current;
+      if (typeof loadMessagesFn === 'function') {
+        void loadMessagesFn(selectedConversationId, { preferCache: false });
+      }
     };
 
     if (socket.connected) {
@@ -723,9 +736,7 @@ export default function ChatPage() {
     }
   };
 
-  React.useEffect(() => {
-    loadConversationsRef.current = loadConversations;
-  }, [loadConversations]);
+  loadConversationsRef.current = loadConversations;
 
   const loadMessages = async (conversationId, options = {}) => {
     const { preferCache = true, page = 1, appendOlder = false } = options;
@@ -772,6 +783,8 @@ export default function ChatPage() {
     }
   };
 
+  loadMessagesRef.current = loadMessages;
+
   const loadOlderMessages = React.useCallback(async () => {
     if (!selectedConversationId || loadingOlderMessages) {
       return;
@@ -785,7 +798,11 @@ export default function ChatPage() {
 
     setLoadingOlderMessages(true);
     try {
-      await loadMessages(selectedConversationId, {
+      const loadMessagesFn = loadMessagesRef.current;
+      if (typeof loadMessagesFn !== 'function') {
+        return;
+      }
+      await loadMessagesFn(selectedConversationId, {
         preferCache: true,
         page: pagination.page + 1,
         appendOlder: true
@@ -793,7 +810,7 @@ export default function ChatPage() {
     } finally {
       setLoadingOlderMessages(false);
     }
-  }, [loadMessages, loadingOlderMessages, selectedConversationId]);
+  }, [loadingOlderMessages, selectedConversationId]);
 
   const handleSelectConversation = async (conversation) => {
     if (!conversation?._id) {
@@ -837,7 +854,10 @@ export default function ChatPage() {
       const response = await chatApi.createOrGetConversation(participantId);
       const conversationId = getConversationIdFromResponse(response);
 
-      await loadConversations({ preferredConversationId: conversationId });
+      const loadConversationsFn = loadConversationsRef.current;
+      if (typeof loadConversationsFn === 'function') {
+        await loadConversationsFn({ preferredConversationId: conversationId });
+      }
       if (conversationId) {
         navigate(`/chat?conversationId=${conversationId}`, { replace: true });
       }

@@ -1,15 +1,13 @@
 import express from 'express';
 import { randomBytes } from 'crypto';
 import User from '../models/User.js';
-import { generateToken, logActivity, getClientInfo, verifyAuth } from '../utils/auth.js';
+import { generateToken, logActivity, getClientInfo } from '../utils/auth.js';
 import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
 import { asyncHandler, AppError } from '../utils/errorHandler.js';
 import {
   validateEmail,
   validatePhone,
   validatePassword,
-  normalizeEnumFields,
-  checkDuplicateUser,
   sanitizeUser,
   errorResponse,
   successResponse
@@ -47,7 +45,7 @@ router.get('/email-health', asyncHandler(async (req, res) => {
 }));
 
 // ===== SEND OTP (Email) =====
-router.post('/send-otp', asyncHandler(async (req, res, next) => {
+router.post('/send-otp', asyncHandler(async (req, res, _next) => {
   console.log('\n========== SEND OTP REQUEST ==========');
   
   const { email, name, phone, password, college } = req.body;
@@ -327,7 +325,7 @@ router.post('/send-otp', asyncHandler(async (req, res, next) => {
 }));
 
 // ===== VERIFY OTP =====
-router.post('/verify-otp', asyncHandler(async (req, res, next) => {
+router.post('/verify-otp', asyncHandler(async (req, res, _next) => {
   console.log('\n========== VERIFY OTP REQUEST ==========');
   
   const { email, otp } = req.body;
@@ -384,7 +382,7 @@ router.post('/verify-otp', asyncHandler(async (req, res, next) => {
 }));
 
 // ===== SIGNUP (After OTP Verification) =====
-router.post('/signup', asyncHandler(async (req, res, next) => {
+router.post('/signup', asyncHandler(async (req, res, _next) => {
   console.log('\n========== SIGNUP REQUEST (Complete Profile) ==========');
   
   const {
@@ -478,7 +476,7 @@ router.post('/signup', asyncHandler(async (req, res, next) => {
 }));
 
 // ===== LOGIN =====
-router.post('/login', asyncHandler(async (req, res, next) => {
+router.post('/login', asyncHandler(async (req, res, _next) => {
   console.log('\n========== LOGIN REQUEST ==========');
   
   const { email, password } = req.body;
@@ -569,7 +567,7 @@ router.post('/login', asyncHandler(async (req, res, next) => {
 }));
 
 // ===== ADMIN LOGIN (Backend-validated) =====
-router.post('/admin-login', asyncHandler(async (req, res, next) => {
+router.post('/admin-login', asyncHandler(async (req, res, _next) => {
   console.log('\n========== ADMIN LOGIN REQUEST ==========');
   
   const { email, password } = req.body;
@@ -649,7 +647,7 @@ router.post('/admin-login', asyncHandler(async (req, res, next) => {
 }));
 
 // ===== GET CURRENT USER =====
-router.get('/me', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, next) => {
+router.get('/me', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, _next) => {
   if (!req.user) {
     throw new AppError('User not found', 404);
   }
@@ -658,7 +656,7 @@ router.get('/me', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, next) =
 }));
 
 // ===== UPDATE PROFILE =====
-router.put('/profile', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, next) => {
+router.put('/profile', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, _next) => {
   const userId = req.userId;
 
   if (!userId) {
@@ -766,7 +764,7 @@ router.put('/profile', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, ne
 }));
 
 // ===== FORGOT PASSWORD =====
-router.post('/forgot-password', asyncHandler(async (req, res, next) => {
+router.post('/forgot-password', asyncHandler(async (req, res, _next) => {
   console.log('\n========== FORGOT PASSWORD REQUEST ==========');
   
   const { email } = req.body;
@@ -916,7 +914,7 @@ router.post('/forgot-password', asyncHandler(async (req, res, next) => {
 }));
 
 // ===== VERIFY RESET TOKEN =====
-router.get('/verify-reset-token/:token', asyncHandler(async (req, res, next) => {
+router.get('/verify-reset-token/:token', asyncHandler(async (req, res, _next) => {
   console.log('\n========== VERIFY RESET TOKEN REQUEST ==========');
   
   const { token } = req.params;
@@ -955,7 +953,7 @@ router.get('/verify-reset-token/:token', asyncHandler(async (req, res, next) => 
 }));
 
 // ===== RESET PASSWORD =====
-router.post('/reset-password', asyncHandler(async (req, res, next) => {
+router.post('/reset-password', asyncHandler(async (req, res, _next) => {
   console.log('\n========== RESET PASSWORD REQUEST ==========');
   
   const { token, password, confirmPassword } = req.body;
@@ -1023,7 +1021,7 @@ router.post('/reset-password', asyncHandler(async (req, res, next) => {
 }));
 
 // ===== UPDATE DISCOVERING PREFERENCE (Gender Filter) =====
-router.put('/discovering-preference', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, next) => {
+router.put('/discovering-preference', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, _next) => {
   const { discoveringPreference } = req.body;
   const userId = req.userId;
 

@@ -1802,7 +1802,7 @@ router.get('/export/users', verifyAdmin, verifyAdminRole(SUPER_ROLES), async (re
     worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
 
     // Generate file
-    const filename = `campus-connect-users-${Date.now()}.xlsx`;
+    const filename = `cu-daters-users-${Date.now()}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
@@ -1878,7 +1878,7 @@ router.get('/export/subscriptions', verifyAdmin, verifyAdminRole(FINANCE_ROLES),
     worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
 
     // Generate file
-    const filename = `campus-connect-subscriptions-${Date.now()}.xlsx`;
+    const filename = `cu-daters-subscriptions-${Date.now()}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 

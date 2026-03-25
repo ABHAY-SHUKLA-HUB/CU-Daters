@@ -11,6 +11,7 @@ import pricingConfig from '../config/pricingConfig.js';
 import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
 import { asyncHandler, AppError } from '../utils/errorHandler.js';
 import User from '../models/User.js';
+import AppSetting from '../models/AppSetting.js';
 
 const router = express.Router();
 
@@ -27,20 +28,116 @@ const router = express.Router();
  */
 router.get('/pricing', asyncHandler(async (req, res) => {
   const { plans, features, payment, globalOverride, featureLocks, coupons } = pricingConfig;
+  const setting = await AppSetting.findOne({ key: 'billing_config' }).lean();
+  const rawValue = setting?.value;
+  let billing = {};
+
+  if (typeof rawValue === 'string') {
+    try {
+      billing = JSON.parse(rawValue);
+    } catch {
+      billing = {};
+    }
+  } else if (rawValue && typeof rawValue === 'object') {
+    billing = rawValue;
+  }
+
+  const premiumPrice = Number(billing.premiumPrice || billing.monthlyPrice || plans.premium?.price || 99);
+  const freeEnabled = !(billing.disableFreeMode ?? globalOverride.disableFreeMode);
+  const premiumFree = billing.premiumFree ?? globalOverride.premiumFree;
+  const maxMessagesPerDay = Math.max(1, Number(billing.maxMessagesPerDay || features.messaging?.free?.maxMessagesPerDay || 50));
+  const maxActiveMatches = Math.max(1, Number(billing.maxActiveMatches || features.messaging?.free?.maxActiveMatches || 1));
+  const maxRequestsPerDay = Math.max(1, Number(billing.maxRequestsPerDay || features.requests?.free?.maxRequestsPerDay || 5));
+
+  const effectivePlans = {
+    ...plans,
+    free: {
+      ...plans.free,
+      enabled: freeEnabled
+    },
+    premium: {
+      ...plans.premium,
+      price: premiumPrice
+    }
+  };
+
+  const effectiveFeatures = {
+    ...features,
+    messaging: {
+      ...features.messaging,
+      free: {
+        ...features.messaging?.free,
+        maxMessagesPerDay,
+        maxActiveMatches,
+        label: `${maxMessagesPerDay} messages/day - ${maxActiveMatches} active match`
+      }
+    },
+    requests: {
+      ...features.requests,
+      free: {
+        ...features.requests?.free,
+        maxRequestsPerDay,
+        label: `Send ${maxRequestsPerDay} requests/day`
+      }
+    }
+  };
+
+  const effectivePayment = {
+    ...payment,
+    enabled: Boolean(billing.upiEnabled ?? payment.enabled) || Boolean(billing.qrEnabled ?? payment.methods?.qr?.enabled),
+    methods: {
+      ...payment.methods,
+      upi: {
+        ...payment.methods?.upi,
+        enabled: billing.upiEnabled !== false,
+        id: String(billing.upiId || payment.methods?.upi?.id || ''),
+        name: payment.methods?.upi?.name || 'Admin UPI'
+      },
+      qr: {
+        ...payment.methods?.qr,
+        enabled: billing.qrEnabled !== false
+      },
+      bank: {
+        enabled: billing.bankEnabled !== false,
+        accountHolder: String(billing.accountHolder || ''),
+        bankName: String(billing.bankName || ''),
+        accountNumber: String(billing.accountNumber || ''),
+        ifscCode: String(billing.ifscCode || '')
+      }
+    },
+    offerBanner: {
+      ...payment.offerBanner,
+      enabled: Boolean(billing.offerText || payment.offerBanner?.enabled),
+      text: String(billing.offerText || payment.offerBanner?.text || '')
+    },
+    paymentInstructions: String(billing.paymentInstructions || '')
+  };
+
+  const effectiveCoupons = billing.couponsEnabled
+    ? [{
+        code: String(billing.couponCode || '').trim().toUpperCase(),
+        discountPct: Math.max(0, Math.min(95, Number(billing.couponDiscountPct) || 0))
+      }].filter((item) => item.code)
+    : (coupons.enabled ? coupons.list : []);
 
   res.json({
     success: true,
     data: {
-      plans,
-      features,
+      plans: effectivePlans,
+      features: effectiveFeatures,
       payment: {
-        enabled: payment.enabled,
-        methods: payment.methods,
-        offerBanner: payment.offerBanner
+        enabled: effectivePayment.enabled,
+        methods: effectivePayment.methods,
+        offerBanner: effectivePayment.offerBanner,
+        paymentInstructions: effectivePayment.paymentInstructions
       },
-      globalOverride,
+      globalOverride: {
+        ...globalOverride,
+        premiumFree,
+        disableFreeMode: !freeEnabled
+      },
       featureLocks,
-      coupons: coupons.enabled ? coupons.list : []
+      coupons: effectiveCoupons
     }
   });
 }));
@@ -120,6 +217,111 @@ router.get('/plan/:planId', asyncHandler(async (req, res) => {
     data: {
       plan,
       features: planFeatures
+    }
+  });
+}));
+
+/**
+ * GET /api/config/support-contact
+ *
+ * Public support/contact details managed from admin portal settings.
+ */
+router.get('/support-contact', asyncHandler(async (req, res) => {
+  const defaults = {
+    supportEmail: 'support@cudaters.in',
+    escalationEmail: 'escalations@cudaters.in',
+    supportPhone: '',
+    whatsapp: '',
+    instagramId: '',
+    telegramId: '',
+    supportHandle: 'CU-Daters Support',
+    helpCenterUrl: '',
+    officeHours: 'Mon-Sat, 9:00 AM - 8:00 PM',
+    responseSlaHours: '24'
+  };
+
+  const setting = await AppSetting.findOne({ key: 'support_contact_config' }).lean();
+  const rawValue = setting?.value;
+  let parsed = {};
+
+  if (typeof rawValue === 'string') {
+    try {
+      parsed = JSON.parse(rawValue);
+    } catch {
+      parsed = {};
+    }
+  } else if (rawValue && typeof rawValue === 'object') {
+    parsed = rawValue;
+  }
+
+  return res.json({
+    success: true,
+    data: {
+      ...defaults,
+      ...parsed
+    }
+  });
+}));
+
+/**
+ * GET /api/config/legal-content
+ *
+ * Public legal metadata managed from admin settings.
+ */
+router.get('/legal-content', asyncHandler(async (req, res) => {
+  const defaults = {
+    appName: 'CU-Daters',
+    companyName: 'CU-Daters',
+    termsLastUpdated: 'March 2026',
+    privacyLastUpdated: 'March 2026',
+    legalEmail: 'legal@cudaters.in',
+    privacyEmail: 'privacy@cudaters.in',
+    supportEmail: 'support@cudaters.in',
+    disputeResponseDays: '7',
+    arbitrationCity: 'Chandigarh, India',
+    governingLaw: 'Laws of India',
+    mailingAddress: 'Chandigarh University, Chandigarh, India',
+    termsBlocks: [
+      {
+        title: 'Acceptance of Terms',
+        body: 'By using the app, users agree to these terms and any future updates announced by the platform.'
+      },
+      {
+        title: 'User Conduct',
+        body: 'Users must behave respectfully and must not engage in harassment, fraud, abuse, impersonation, or illegal activity.'
+      }
+    ],
+    privacyBlocks: [
+      {
+        title: 'Information We Collect',
+        body: 'We collect account, profile, and usage information required to provide the service and keep the community safe.'
+      },
+      {
+        title: 'How We Use Information',
+        body: 'Information is used for account management, feature delivery, moderation, support, and legal compliance.'
+      }
+    ]
+  };
+
+  const setting = await AppSetting.findOne({ key: 'legal_content_config' }).lean();
+  const rawValue = setting?.value;
+  let parsed = {};
+
+  if (typeof rawValue === 'string') {
+    try {
+      parsed = JSON.parse(rawValue);
+    } catch {
+      parsed = {};
+    }
+  } else if (rawValue && typeof rawValue === 'object') {
+    parsed = rawValue;
+  }
+
+  return res.json({
+    success: true,
+    data: {
+      ...defaults,
+      ...parsed
     }
   });
 }));
@@ -249,11 +451,40 @@ router.post('/admin/global-override', asyncHandler(async (req, res) => {
  * POST /api/config/admin/payment-config
  */
 router.post('/admin/payment-config', asyncHandler(async (req, res) => {
-  const { upiId, offerText, enabled } = req.body;
+  const {
+    upiId,
+    offerText,
+    enabled,
+    upiEnabled,
+    qrEnabled,
+    bankEnabled,
+    accountHolder,
+    bankName,
+    accountNumber,
+    ifscCode,
+    paymentInstructions
+  } = req.body;
 
-  if (upiId) pricingConfig.payment.methods.upi.id = upiId;
-  if (offerText) pricingConfig.payment.offerBanner.text = offerText;
+  if (typeof upiId === 'string') pricingConfig.payment.methods.upi.id = upiId;
+  if (typeof offerText === 'string') pricingConfig.payment.offerBanner.text = offerText;
   if (typeof enabled === 'boolean') pricingConfig.payment.enabled = enabled;
+  if (typeof upiEnabled === 'boolean') pricingConfig.payment.methods.upi.enabled = upiEnabled;
+  if (typeof qrEnabled === 'boolean') pricingConfig.payment.methods.qr.enabled = qrEnabled;
+  if (!pricingConfig.payment.methods.bank) {
+    pricingConfig.payment.methods.bank = {
+      enabled: true,
+      accountHolder: '',
+      bankName: '',
+      accountNumber: '',
+      ifscCode: ''
+    };
+  }
+  if (typeof bankEnabled === 'boolean') pricingConfig.payment.methods.bank.enabled = bankEnabled;
+  if (typeof accountHolder === 'string') pricingConfig.payment.methods.bank.accountHolder = accountHolder;
+  if (typeof bankName === 'string') pricingConfig.payment.methods.bank.bankName = bankName;
+  if (typeof accountNumber === 'string') pricingConfig.payment.methods.bank.accountNumber = accountNumber;
+  if (typeof ifscCode === 'string') pricingConfig.payment.methods.bank.ifscCode = ifscCode;
+  if (typeof paymentInstructions === 'string') pricingConfig.payment.paymentInstructions = paymentInstructions;
 
   console.log(`✅ [ADMIN] Payment config updated`);
 

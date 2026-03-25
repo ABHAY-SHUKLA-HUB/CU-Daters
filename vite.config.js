@@ -36,6 +36,9 @@ export default defineConfig({
           if (id.includes('node_modules/axios')) {
             return 'http';
           }
+          if (id.includes('/src/pages/Admin') || id.includes('src/pages/AdminPortal.jsx')) {
+            return 'admin';
+          }
           return undefined;
         }
       }

@@ -6,7 +6,6 @@
 
 const SubscriptionModel = require('../models/SubscriptionModel');
 const UserModel = require('../models/User');
-const path = require('path');
 const fs = require('fs');
 const sendEmail = require('../utils/emailService');
 
@@ -112,7 +111,9 @@ exports.createRequest = async (req, res) => {
     if (req.file) {
       try {
         fs.unlinkSync(req.file.path);
-      } catch (e) {}
+      } catch {
+        // Ignore cleanup failures during error handling.
+      }
     }
 
     res.status(500).json({

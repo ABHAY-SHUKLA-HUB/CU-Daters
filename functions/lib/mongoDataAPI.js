@@ -161,7 +161,7 @@ export class MongoDataAPI {
    * Simple aggregation (limited support)
    * NOTE: Data API aggregation is NOT full MongoDB aggregation
    */
-  async aggregate(collection, pipeline) {
+  async aggregate(_collection, _pipeline) {
     console.warn('[MongoDB API] Aggregation pipeline may be limited');
     // Data API doesn't have full aggregation support
     // For complex aggregations, fetch data and process in code

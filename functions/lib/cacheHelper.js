@@ -73,7 +73,7 @@ export class CacheHelper {
    * Invalidate cache pattern (e.g., "user:*")
    * Note: KV doesn't support pattern deletion, so this lists and deletes
    */
-  async invalidatePattern(pattern) {
+  async invalidatePattern(_pattern) {
     try {
       console.warn('[Cache] Pattern invalidation not yet implemented');
       // This would require listing all keys and filtering by pattern

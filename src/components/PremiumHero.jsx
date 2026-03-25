@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import DualMockupPreview from './DualMockupPreview';
+import heroImage from '../assets/hero.png';
 
 /**
  * PREMIUM HERO COMPONENT - SERIES A LEVEL
@@ -143,7 +144,17 @@ export default function PremiumHero() {
 
             {/* RIGHT: DUAL MOCKUP PREVIEW */}
             <div className="flex justify-center items-center animate-fade-in-right" style={{ animationDelay: '0.2s' }}>
-              <DualMockupPreview />
+              <div className="relative">
+                <img
+                  src={heroImage}
+                  alt="CU-Daters hero visual"
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                  className="hidden xl:block absolute -left-20 -top-16 w-56 h-auto opacity-80 pointer-events-none"
+                />
+                <DualMockupPreview />
+              </div>
             </div>
           </div>
 

@@ -8,7 +8,6 @@ class FraudDetectionService {
    */
   async calculateFraudScore(data) {
     const {
-      user_id,
       payment_id,
       amount,
       expected_amount,

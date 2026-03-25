@@ -1,6 +1,11 @@
 import React from 'react';
+import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function About() {
+  const contactConfig = useSupportContactConfig();
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.in';
+  const escalationEmail = contactConfig.escalationEmail || supportEmail;
+
   const team = [
     { name: 'Aakash', role: 'Founder & CEO', emoji: '👨‍💼' },
     { name: 'Priya', role: 'CTO', emoji: '👩‍💻' },
@@ -165,6 +170,27 @@ export default function About() {
                 </ul>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="section-title text-center">Support and Contact</h2>
+          <p className="section-subtitle text-center">Need help or want to report an issue? Our support ops team is here for you.</p>
+
+          <div className="mt-10 grid md:grid-cols-2 gap-5">
+            <div className="card">
+              <p className="text-xs uppercase tracking-[0.12em] text-softBrown">Primary Support</p>
+              <a href={`mailto:${supportEmail}`} className="text-lg font-bold text-blushPink hover:underline mt-2 inline-block">{supportEmail}</a>
+              <p className="text-softBrown text-sm mt-3">Office Hours: {contactConfig.officeHours || 'Mon-Sat, 9:00 AM - 8:00 PM'}</p>
+            </div>
+
+            <div className="card">
+              <p className="text-xs uppercase tracking-[0.12em] text-softBrown">Escalation Contact</p>
+              <a href={`mailto:${escalationEmail}`} className="text-lg font-bold text-blushPink hover:underline mt-2 inline-block">{escalationEmail}</a>
+              <p className="text-softBrown text-sm mt-3">Target Response SLA: {contactConfig.responseSlaHours || '24'} hours</p>
+            </div>
           </div>
         </div>
       </section>

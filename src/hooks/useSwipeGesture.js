@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 
 export function useSwipeGesture(onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown) {
   const [isSwiping, setIsSwiping] = useState(false);

@@ -22,7 +22,7 @@ export function getBearerToken(request) {
  * Simple JWT verification (basic implementation)
  * For production, use a library like jsonwebtoken or jose
  */
-export async function verifyJWT(token, secret) {
+export async function verifyJWT(token, _secret) {
   try {
     // NOTE: This is a simplified verification
     // In production, use proper JWT library (jose.js)

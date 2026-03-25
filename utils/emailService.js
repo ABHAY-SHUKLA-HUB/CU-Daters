@@ -232,7 +232,7 @@ if (!sanitizedEmailPassword) {
 // Verify Gmail connection only in production
 if (isProduction && sanitizedEmailPassword) {
   transporter.verify()
-    .then((success) => {
+    .then(() => {
       console.log('✅ Gmail SMTP Connection Verified!');
       console.log('   OTP emails will be sent via Gmail SMTP\n');
     })

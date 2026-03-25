@@ -23,7 +23,7 @@ const EMAILS_TO_DELETE = [
   'adminringgoodall9@typingsquirrel.com',
   'krishnamdwivedi96@gmail.com',
   'test@example.com',
-  'admin@campusconnect.com'
+  'admin@cudaters.in'
 ];
 
 async function cleanupUsers() {
@@ -72,7 +72,7 @@ async function cleanupUsers() {
         console.log(`   ✓ Deleted ${reportDelete.deletedCount} reports`);
 
         // Delete user
-        const userDelete = await User.deleteOne({ _id: userId });
+        await User.deleteOne({ _id: userId });
         console.log(`   ✓ Deleted user account`);
 
         console.log(`   ✅ ${emailLower} completely removed`);

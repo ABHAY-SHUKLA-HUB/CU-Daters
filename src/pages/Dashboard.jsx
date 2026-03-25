@@ -50,7 +50,7 @@ export default function Dashboard() {
   const { user: currentUser, clearAuth } = useAuth();
   const { themes, activeTheme, setTheme } = useTheme();
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
-  const [profilePage, setProfilePage] = useState(1);
+  const [, setProfilePage] = useState(1);
   const [showThemeOptions, setShowThemeOptions] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'discover');
   const [likedProfiles, setLikedProfiles] = useState([]);
@@ -58,11 +58,11 @@ export default function Dashboard() {
   const [connections, setConnections] = useState([]);
   const [connectionsSearch, setConnectionsSearch] = useState('');
   const [allProfiles, setAllProfiles] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [error, setError] = useState('');
   const [pendingLikes, setPendingLikes] = useState([]);
   const [likeNotification, setLikeNotification] = useState(null);
-  const [loadingLikes, setLoadingLikes] = useState(false);
+  const [, setLoadingLikes] = useState(false);
   const [loadingConnections, setLoadingConnections] = useState(false);
   const [activeConversationCount, setActiveConversationCount] = useState(0);
   const [emotionCue, setEmotionCue] = useState(null);
@@ -70,7 +70,7 @@ export default function Dashboard() {
   
   // Premium discover experience enhancements
   const [genderFilter, setGenderFilter] = useState('both');
-  const [userPreferredGender, setUserPreferredGender] = useState('both');
+  const [, setUserPreferredGender] = useState('both');
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const [profileLoadError, setProfileLoadError] = useState(null);
   
@@ -181,7 +181,7 @@ export default function Dashboard() {
           });
           setLikeNotification('Recovered on quick mode. Showing a lighter discover queue.');
           window.setTimeout(() => setLikeNotification(null), 2600);
-        } catch (fallbackError) {
+        } catch {
           throw primaryError;
         }
 
@@ -237,7 +237,7 @@ export default function Dashboard() {
     if (activeTab === 'discover' && allProfiles.length === 0 && !loading) {
       void fetchProfiles(genderFilter);
     }
-  }, [activeTab]);
+  }, [activeTab, allProfiles.length, fetchProfiles, genderFilter, loading]);
 
   React.useEffect(() => {
     const fetchMatches = async () => {
@@ -395,14 +395,6 @@ export default function Dashboard() {
     .map((m) => m.participant)
     .filter(Boolean)
     .slice(0, 12);
-  const matchedProfileIds = React.useMemo(() => {
-    return new Set(
-      (serverMatches || [])
-        .map((item) => item?.participant?._id || item?.participant?.id)
-        .filter(Boolean)
-        .map((item) => String(item))
-    );
-  }, [serverMatches]);
   const filteredConnections = React.useMemo(() => {
     const query = connectionsSearch.trim().toLowerCase();
     if (!query) {
@@ -454,8 +446,6 @@ export default function Dashboard() {
       setCurrentProfileIndex(nextIndex);
     }
   };
-
-  const currentProfileConnected = connectedProfileIds.has(String(currentProfile?._id || currentProfile?.id || ''));
 
   const handleLike = async () => {
     const profileId = currentProfile._id || currentProfile.id;

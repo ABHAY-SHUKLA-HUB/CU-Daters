@@ -9,7 +9,7 @@ class SubscriptionService {
   /**
    * Create new subscription request
    */
-  async createSubscriptionRequest(user_id, plan_type, user_info) {
+  async createSubscriptionRequest(user_id, plan_type, _user_info) {
     try {
       // Check if user already has pending/active subscription
       const existingPending = await SubscriptionRequest.getPendingForUser(user_id);
@@ -121,7 +121,7 @@ class SubscriptionService {
         expected_amount: planDetails.amount,
         payment_timestamp: new Date(),
         screenshot_info,
-        user_history,
+        user_history: userHistory,
         device_info: {
           device_id: 'temp_device_id', // Will come from frontend
           location: { country: 'IN' } // Will come from frontend

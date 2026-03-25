@@ -6,7 +6,6 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, clearAuth } = useAuth();
   const [admin, setAdmin] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) {

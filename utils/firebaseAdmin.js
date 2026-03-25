@@ -39,7 +39,7 @@ export const verifyFirebaseIdToken = async (token) => {
 
   try {
     return await admin.auth().verifyIdToken(token);
-  } catch (error) {
+  } catch {
     return null;
   }
 };

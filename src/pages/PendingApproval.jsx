@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function PendingApproval() {
+  const contactConfig = useSupportContactConfig();
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.in';
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const navigate = useNavigate();
   const { user: authUser, loading: authLoading, clearAuth } = useAuth();
 
@@ -156,7 +159,7 @@ export default function PendingApproval() {
           <div className="bg-green-50 border-2 border-green-200 p-4 rounded-lg mb-8">
             <p className="text-sm text-green-900">
               <span className="font-bold">Need help?</span><br />
-              Email: <a href="mailto:support@cudaters.in" className="text-green-700 hover:underline font-semibold">support@cudaters.in</a>
+              Email: <a href={`mailto:${supportEmail}`} className="text-green-700 hover:underline font-semibold">{supportEmail}</a>
             </p>
           </div>
 

@@ -63,6 +63,12 @@ router.get('/pricing-config', async (req, res) => {
     const maxRequestsPerDay = Number(billing.maxRequestsPerDay) || 5;
     const premiumFree = Boolean(billing.premiumFree);
     const disableFreeMode = Boolean(billing.disableFreeMode);
+    const bankEnabled = billing.bankEnabled !== false;
+    const accountHolder = String(billing.accountHolder || 'CU Daters Pvt Ltd');
+    const bankName = String(billing.bankName || 'HDFC Bank');
+    const accountNumber = String(billing.accountNumber || '1234567890123456');
+    const ifscCode = String(billing.ifscCode || 'HDFC0005678');
+    const paymentInstructions = String(billing.paymentInstructions || 'Use your payment ID/UTR in submission for faster approval.');
 
     return res.json(successResponse('Pricing configuration fetched', {
       plans: {
@@ -150,12 +156,20 @@ router.get('/pricing-config', async (req, res) => {
           },
           qr: {
             enabled: billing.qrEnabled !== false
+          },
+          bank: {
+            enabled: bankEnabled,
+            accountHolder,
+            bankName,
+            accountNumber,
+            ifscCode
           }
         },
         offerBanner: {
           enabled: Boolean(billing.offerText),
           text: billing.offerText || ''
-        }
+        },
+        paymentInstructions
       },
       globalOverride: {
         premiumFree,

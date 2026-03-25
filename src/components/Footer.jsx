@@ -1,7 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function Footer() {
+  const contactConfig = useSupportContactConfig();
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.in';
+  const instagramHref = contactConfig.instagramId ? `https://instagram.com/${String(contactConfig.instagramId).replace(/^@/, '')}` : '#';
+  const telegramHref = contactConfig.telegramId ? `https://t.me/${String(contactConfig.telegramId).replace(/^@/, '')}` : '#';
+  const helpCenterHref = contactConfig.helpCenterUrl || '#';
+
   return (
     <footer className="bg-gradient-to-b from-darkBrown to-black text-white py-16 md:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -42,7 +49,7 @@ export default function Footer() {
             <h4 className="font-bold mb-6 text-white">Company</h4>
             <ul className="space-y-3 text-sm text-gray-300">
               <li><Link to="/about" className="hover:text-blushPink transition">About Us</Link></li>
-              <li><a href="#" className="hover:text-blushPink transition">Blog</a></li>
+              <li><a href={helpCenterHref} target={helpCenterHref === '#' ? undefined : '_blank'} rel={helpCenterHref === '#' ? undefined : 'noreferrer'} className="hover:text-blushPink transition">Help Center</a></li>
               <li><Link to="/contact" className="hover:text-blushPink transition">Contact</Link></li>
               <li><a href="#" className="hover:text-blushPink transition">Careers</a></li>
             </ul>
@@ -63,10 +70,10 @@ export default function Footer() {
           <div>
             <h4 className="font-bold mb-6 text-white">Follow Us</h4>
             <ul className="space-y-3 text-sm text-gray-300">
-              <li><a href="#" className="hover:text-blushPink transition">Instagram</a></li>
-              <li><a href="#" className="hover:text-blushPink transition">TikTok</a></li>
-              <li><a href="#" className="hover:text-blushPink transition">Twitter</a></li>
-              <li><a href="#" className="hover:text-blushPink transition">LinkedIn</a></li>
+              <li><a href={instagramHref} target={instagramHref === '#' ? undefined : '_blank'} rel={instagramHref === '#' ? undefined : 'noreferrer'} className="hover:text-blushPink transition">Instagram</a></li>
+              <li><a href={telegramHref} target={telegramHref === '#' ? undefined : '_blank'} rel={telegramHref === '#' ? undefined : 'noreferrer'} className="hover:text-blushPink transition">Telegram</a></li>
+              <li><a href={`mailto:${supportEmail}`} className="hover:text-blushPink transition">{supportEmail}</a></li>
+              <li><a href={helpCenterHref} target={helpCenterHref === '#' ? undefined : '_blank'} rel={helpCenterHref === '#' ? undefined : 'noreferrer'} className="hover:text-blushPink transition">Support Portal</a></li>
             </ul>
           </div>
         </div>

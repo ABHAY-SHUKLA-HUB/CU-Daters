@@ -51,7 +51,6 @@ export default function Profile() {
     hair: 'short',
     outfit: 'casual'
   });
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [privacyLoading, setPrivacyLoading] = useState(false);
   const [incomingProfileRequests, setIncomingProfileRequests] = useState([]);
@@ -151,7 +150,6 @@ export default function Profile() {
       hair: user?.avatarConfig?.hair || 'short',
       outfit: user?.avatarConfig?.outfit || 'casual'
     });
-    setLoading(false);
   }, [authLoading, navigate, user]);
 
   // Handle form input changes
@@ -249,7 +247,7 @@ export default function Profile() {
         unlockTimerRef.current = null;
       }
     };
-  }, [authLoading, isViewingAnotherProfile, user, viewUserId]);
+  }, [authLoading, fallbackViewerProfile, isViewingAnotherProfile, user, viewUserId]);
 
   const handleRequestFullProfileFromView = async () => {
     try {
@@ -453,23 +451,6 @@ export default function Profile() {
     } catch (err) {
       console.error('Error updating profile:', err);
       setMessage(err.message || 'Error updating profile. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleRequestCollegeVerification = async () => {
-    try {
-      setSaving(true);
-      setMessage('');
-      if (!formData.collegeEmail || !formData.collegeEmail.includes('@')) {
-        setMessage('Please provide a valid college email first.');
-        return;
-      }
-      await safetyApi.requestCollegeVerification(formData.collegeEmail);
-      setMessage('College verification request submitted. Awaiting review. ✅');
-    } catch (err) {
-      setMessage(err.message || 'Unable to submit college verification request');
     } finally {
       setSaving(false);
     }

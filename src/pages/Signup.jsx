@@ -9,7 +9,6 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [errorModal, setErrorModal] = useState(null); // For OTP limit modal
-  const [otpRequestsRemaining, setOtpRequestsRemaining] = useState(5); // Track remaining attempts
   const [formData, setFormData] = useState({
     name: '',
     personalEmail: '',

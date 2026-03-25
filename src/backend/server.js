@@ -17,7 +17,6 @@ const rateLimit = require('express-rate-limit');
 
 // Import routes
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
-const adminSubscriptionRoutes = require('./routes/admin/subscription');
 
 // Initialize Express app
 const app = express();
@@ -124,7 +123,7 @@ app.use((req, res) => {
 });
 
 // Global error handler
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error('❌ Error:', err);
 
   // Mongoose validation error

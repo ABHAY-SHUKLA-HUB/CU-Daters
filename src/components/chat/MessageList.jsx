@@ -116,7 +116,7 @@ export default function MessageList({
         scrollToBottom(behavior);
       });
     });
-  }, []);
+  }, [scrollToBottom]);
 
   const normalizeSenderId = React.useCallback((message) => resolveSenderId(message), []);
 

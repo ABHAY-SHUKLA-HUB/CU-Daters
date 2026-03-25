@@ -7,26 +7,25 @@ import StickyCTA from './components/StickyCTA';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
-// Import core pages only
-import Home from './pages/Home';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import ChatPage from './pages/ChatPage';
-import RequestsPage from './pages/RequestsPage';
-import ConnectionsPage from './pages/ConnectionsPage';
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminPortal from './pages/AdminPortal';
-import Features from './pages/Features';
-import Pricing from './pages/Pricing';
-import About from './pages/About';
-import Contact from './pages/Contact';
-import PaymentCheckoutFinal from './pages/PaymentCheckoutFinal';
-import PendingApproval from './pages/PendingApproval';
+const Home = React.lazy(() => import('./pages/Home'));
+const Login = React.lazy(() => import('./pages/Login'));
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
+const Signup = React.lazy(() => import('./pages/Signup'));
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const ChatPage = React.lazy(() => import('./pages/ChatPage'));
+const RequestsPage = React.lazy(() => import('./pages/RequestsPage'));
+const ConnectionsPage = React.lazy(() => import('./pages/ConnectionsPage'));
+const AdminLogin = React.lazy(() => import('./pages/AdminLogin'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const AdminPortal = React.lazy(() => import('./pages/AdminPortal'));
+const Features = React.lazy(() => import('./pages/Features'));
+const Pricing = React.lazy(() => import('./pages/Pricing'));
+const About = React.lazy(() => import('./pages/About'));
+const Contact = React.lazy(() => import('./pages/Contact'));
+const PaymentCheckoutFinal = React.lazy(() => import('./pages/PaymentCheckoutFinal'));
+const PendingApproval = React.lazy(() => import('./pages/PendingApproval'));
 import AdminRouteGuard from './components/admin/AdminRouteGuard';
 import UserStatusGuard from './components/UserStatusGuard';
 import './index.css';
@@ -86,6 +85,13 @@ function AppContent() {
     <div className="app-shell">
       {!hideHeader && <Header />}
       <main className={`app-main min-h-screen ${immersiveSurface ? 'bg-transparent' : 'bg-creamyWhite'}`}>
+        <React.Suspense
+          fallback={
+            <div className="min-h-[60vh] flex items-center justify-center text-softBrown">
+              Loading CU-Daters...
+            </div>
+          }
+        >
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
@@ -116,6 +122,7 @@ function AppContent() {
           {/* Fallback */}
           <Route path="*" element={<Home />} />
         </Routes>
+        </React.Suspense>
       </main>
       {!hideGlobalChrome && <Footer />}
       {!hideGlobalChrome && <StickyCTA />}

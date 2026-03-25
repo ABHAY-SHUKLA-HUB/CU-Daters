@@ -4,7 +4,7 @@ import Match from '../models/Match.js';
 import Conversation from '../models/Conversation.js';
 import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
 import { asyncHandler, AppError } from '../utils/errorHandler.js';
-import { successResponse, errorResponse, sanitizeUser } from '../utils/validation.js';
+import { successResponse, errorResponse } from '../utils/validation.js';
 import { logActivity, getClientInfo } from '../utils/auth.js';
 
 const router = express.Router();

@@ -1,8 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import useSupportContactConfig from '../hooks/useSupportContactConfig';
+import pricingApi from '../services/pricingApi';
 
 const PaymentCheckoutFinal = () => {
+  const contactConfig = useSupportContactConfig();
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.in';
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -23,13 +27,52 @@ const PaymentCheckoutFinal = () => {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [configLoading, setConfigLoading] = useState(true);
   const [error, setError] = useState('');
+  const [paymentConfig, setPaymentConfig] = useState(null);
   const [paymentId, setPaymentId] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState('');
   const [senderName, setSenderName] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadPricing = async () => {
+      try {
+        const config = await pricingApi.getPricingConfig();
+        if (mounted) {
+          setPaymentConfig(config?.payment || null);
+        }
+      } catch (err) {
+        console.error('Failed to load pricing config:', err);
+      } finally {
+        if (mounted) {
+          setConfigLoading(false);
+        }
+      }
+    };
+
+    loadPricing();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const paymentMethods = paymentConfig?.methods || {};
+  const bankMethod = paymentMethods.bank || {};
+  const upiMethod = paymentMethods.upi || {};
+  const qrMethod = paymentMethods.qr || {};
+  const isBankEnabled = bankMethod.enabled !== false;
+  const isUpiEnabled = upiMethod.enabled !== false;
+  const isQrEnabled = qrMethod.enabled !== false;
+  const upiId = upiMethod.id || 'campusconnect@upi';
+  const accountHolder = bankMethod.accountHolder || 'CU Daters Pvt Ltd';
+  const bankName = bankMethod.bankName || 'HDFC Bank';
+  const accountNumber = bankMethod.accountNumber || '1234567890123456';
+  const ifscCode = bankMethod.ifscCode || 'HDFC0005678';
+  const paymentInstructions = paymentConfig?.paymentInstructions || 'Use your payment ID/UTR while submitting your proof for faster review.';
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -185,27 +228,33 @@ const PaymentCheckoutFinal = () => {
 
             {/* Bank Details */}
             <div className="mb-8">
-              <h2 className="text-xl font-bold mb-4">Bank Transfer Details</h2>
+              <h2 className="text-xl font-bold mb-4">Payment Details</h2>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {isUpiEnabled ? <span className="inline-flex rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">UPI Enabled</span> : null}
+                {isBankEnabled ? <span className="inline-flex rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Bank Transfer Enabled</span> : null}
+                {isQrEnabled ? <span className="inline-flex rounded-full border border-purple-300 bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">QR Enabled</span> : null}
+                {configLoading ? <span className="inline-flex rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600">Syncing admin payment config...</span> : null}
+              </div>
               <div className="space-y-3 bg-blue-50 p-6 rounded-lg">
                 <div className="flex justify-between">
                   <span className="text-gray-700">Account Holder:</span>
-                  <span className="font-bold">CU Daters Pvt Ltd</span>
+                  <span className="font-bold">{accountHolder}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-700">Bank:</span>
-                  <span className="font-bold">HDFC Bank</span>
+                  <span className="font-bold">{bankName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-700">Account:</span>
-                  <span className="font-mono font-bold">1234567890123456</span>
+                  <span className="font-mono font-bold">{accountNumber}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-700">IFSC:</span>
-                  <span className="font-mono font-bold">HDFC0005678</span>
+                  <span className="font-mono font-bold">{ifscCode}</span>
                 </div>
                 <div className="flex justify-between pt-3 border-t border-blue-200">
                   <span className="text-gray-700">UPI ID:</span>
-                  <span className="font-mono font-bold">campusconnect@upi</span>
+                  <span className="font-mono font-bold">{upiId}</span>
                 </div>
               </div>
             </div>
@@ -214,12 +263,13 @@ const PaymentCheckoutFinal = () => {
             <div className="bg-green-50 border-2 border-green-200 p-6 rounded-lg mb-8">
               <h2 className="text-lg font-bold text-green-900 mb-4">📋 Steps:</h2>
               <ol className="space-y-2 text-green-900">
-                <li>1️⃣ Transfer ₹{numericPrice} using UPI or bank transfer</li>
-                <li>2️⃣ Use UPI ID: <span className="font-bold">campusconnect@upi</span></li>
+                <li>1️⃣ Transfer ₹{numericPrice} using your enabled payment method</li>
+                {isUpiEnabled ? <li>2️⃣ Use UPI ID: <span className="font-bold">{upiId}</span></li> : <li>2️⃣ Use bank transfer details shown above</li>}
                 <li>3️⃣ Note the Payment ID (UTR) from your bank</li>
                 <li>4️⃣ Take a screenshot of payment confirmation</li>
                 <li>5️⃣ Upload it in the next step</li>
               </ol>
+              <p className="text-xs text-green-800/90 mt-3">{paymentInstructions}</p>
             </div>
 
             <button
@@ -416,8 +466,8 @@ const PaymentCheckoutFinal = () => {
             <div className="mt-8 p-4 bg-gray-100 rounded-lg">
               <p className="text-sm text-gray-700">
                 <span className="font-bold">Need help?</span> Contact our support team at{' '}
-                <a href="mailto:support@cudaters.in" className="text-pink-600 hover:underline font-semibold">
-                  support@cudaters.in
+                <a href={`mailto:${supportEmail}`} className="text-pink-600 hover:underline font-semibold">
+                  {supportEmail}
                 </a>
               </p>
             </div>

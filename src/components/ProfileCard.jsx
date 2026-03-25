@@ -82,12 +82,6 @@ export default function ProfileCard({ profile, isMatched = false, onLike, onDisl
     onDislike();
   };
 
-  const handleSuperLikeBtnClick = () => {
-    setIsAnimating(true);
-    setTimeout(() => setIsAnimating(false), 600);
-    onSuperLike();
-  };
-
   return (
     <div
       ref={cardRef}

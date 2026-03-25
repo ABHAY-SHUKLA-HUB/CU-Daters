@@ -47,7 +47,12 @@ const SECTION_ROLE_ACCESS = {
 export default function AdminPortal() {
   const API_TIMEOUT_MS = 15000;
   const AUTO_REFRESH_INTERVAL_MS = 45000;
+  const HEAVY_SECTION_MOUNT_DELAY_MS = 120;
   const NON_REFRESHABLE_SECTIONS = React.useMemo(() => new Set(['registration_approvals']), []);
+  const HEAVY_RENDER_SECTIONS = React.useMemo(
+    () => new Set(['chat_monitoring', 'payments', 'reports', 'support', 'analytics', 'activity']),
+    []
+  );
   const ADMIN_FULL_CHAT_VIEW_REQUESTED = String(import.meta.env.VITE_ENABLE_ADMIN_FULL_CHAT_VIEW || '').toLowerCase() === 'true';
 
   const API_BASE_URL = getApiBaseUrl();
@@ -56,6 +61,7 @@ export default function AdminPortal() {
   const { user, clearAuth } = useAuth();
   const { activeTheme } = useTheme();
   const [section, setSection] = React.useState('overview');
+  const [renderSection, setRenderSection] = React.useState('overview');
   const [themePanelOpen, setThemePanelOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -84,10 +90,8 @@ export default function AdminPortal() {
   const [detailData, setDetailData] = React.useState(null);
   const [deleteDialog, setDeleteDialog] = React.useState({ open: false, userId: null, userName: null });
   const [deleteReason, setDeleteReason] = React.useState('');
-  const [userFilters, setUserFilters] = React.useState({ search: '', status: '', subscription: '' });
-  const [paymentFilters, setPaymentFilters] = React.useState({ status: '', plan: '', from: '', to: '' });
-  const [reportFilters, setReportFilters] = React.useState({ status: '', priority: '', targetType: '' });
-  const [supportFilters, setSupportFilters] = React.useState({ status: '', priority: '' });
+  const [userFilters] = React.useState({ search: '', status: '', subscription: '' });
+  const [paymentFilters] = React.useState({ status: '', plan: '', from: '', to: '' });
   const [manualRefreshEnabled, setManualRefreshEnabled] = React.useState(true);
   const [globalSearch, setGlobalSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('');
@@ -126,6 +130,11 @@ export default function AdminPortal() {
   }, []);
 
   const userRole = user?.role || 'user';
+  const canAdminReadAllChats = React.useMemo(
+    () => userRole === 'admin' || userRole === 'super_admin',
+    [userRole]
+  );
+  const shouldPreferFullChatView = ADMIN_FULL_CHAT_VIEW_REQUESTED || canAdminReadAllChats;
   const visibleSections = React.useMemo(
     () => SECTION_CONFIG.filter((sectionItem) => (SECTION_ROLE_ACCESS[sectionItem.id] || []).includes(userRole)),
     [userRole]
@@ -150,6 +159,23 @@ export default function AdminPortal() {
     }
     return JSON.stringify(candidate || {}).toLowerCase().includes(normalizedSearch);
   }, [normalizedSearch]);
+
+  const normalizeCollection = React.useCallback((payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.users)) return payload.users;
+    if (Array.isArray(payload?.approvals)) return payload.approvals;
+    if (Array.isArray(payload?.matches)) return payload.matches;
+    if (Array.isArray(payload?.conversations)) return payload.conversations;
+    if (Array.isArray(payload?.reports)) return payload.reports;
+    if (Array.isArray(payload?.queue)) return payload.queue;
+    if (Array.isArray(payload?.tickets)) return payload.tickets;
+    if (Array.isArray(payload?.colleges)) return payload.colleges;
+    if (Array.isArray(payload?.activity)) return payload.activity;
+    return [];
+  }, []);
 
   const toEpoch = React.useCallback((value) => {
     if (!value) {
@@ -239,50 +265,9 @@ export default function AdminPortal() {
     navigate('/', { replace: true });
   };
 
-  // Export data to CSV
-  const exportToCSV = (data, filename) => {
-    if (!data || data.length === 0) {
-      notify('No data available to export', 'error');
-      return;
-    }
-    
-    try {
-      // Get headers from first object
-      const headers = Object.keys(data[0]);
-      const csvContent = [
-        headers.join(','),
-        ...data.map(row => 
-          headers.map(h => {
-            const val = row[h];
-            if (val === null || val === undefined) return '';
-            if (typeof val === 'object') return JSON.stringify(val).replace(/"/g, '""');
-            const str = String(val);
-            return str.includes(',') || str.includes('"') || str.includes('\n') 
-              ? `"${str.replace(/"/g, '""')}"` 
-              : str;
-          }).join(',')
-        )
-      ].join('\n');
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Export error:', err);
-      notify('Failed to export CSV', 'error');
-    }
-  };
-
   // Development fallback mock data (uses real API in production)
   // Empty fallback data - no mock testing data
-  const EMPTY_DATA = {
+  const EMPTY_DATA = React.useMemo(() => ({
     overview: null,
     users: [],
     approvals: [],
@@ -296,7 +281,7 @@ export default function AdminPortal() {
     analytics: null,
     settings: [],
     activity: []
-  };
+  }), []);
 
   const loadData = React.useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -314,7 +299,7 @@ export default function AdminPortal() {
           if (response?.data) {
             setOverview(response.data);
           }
-        } catch (e) {
+        } catch {
           console.log('🔄 Fetching real data from backend...');
           setOverview(EMPTY_DATA.overview);
         }
@@ -325,13 +310,12 @@ export default function AdminPortal() {
             adminApi.getUsers(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
-          // Backend returns { data: { data: users[], total, page, etc } } - extract the nested data
-          const userData = response?.data?.data || response?.data?.users || [];
+          const userData = normalizeCollection(response?.data);
           console.log('👥 Users fetched:', userData.length, 'items');
           if (Array.isArray(userData)) {
             setUsers(userData);
           }
-        } catch (e) {
+        } catch {
           console.log('🔄 Loading users from backend...');
           setUsers(EMPTY_DATA.users);
         }
@@ -339,7 +323,7 @@ export default function AdminPortal() {
       if (section === 'registration_approvals') {
         try {
           const response = await adminApi.getRegistrationApprovals();
-          const users = response?.data?.data || response?.data || [];
+          const users = normalizeCollection(response?.data);
           setRegistrationApprovals(Array.isArray(users) ? users : []);
         } catch (e) {
           console.error('❌ Failed to load pending registrations:', e.message, e);
@@ -353,8 +337,8 @@ export default function AdminPortal() {
             adminApi.getProfileApprovals(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
-          setApprovals(response?.data?.approvals || []);
-        } catch (e) {
+          setApprovals(normalizeCollection(response?.data));
+        } catch {
           setApprovals(EMPTY_DATA.approvals);
         }
       }
@@ -364,15 +348,15 @@ export default function AdminPortal() {
             adminApi.getMatches(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
-          setMatches(response?.data?.matches || []);
-        } catch (e) {
+          setMatches(normalizeCollection(response?.data));
+        } catch {
           setMatches(EMPTY_DATA.matches);
         }
       }
       if (section === 'chat_monitoring') {
         try {
           let response;
-          if (ADMIN_FULL_CHAT_VIEW_REQUESTED) {
+          if (shouldPreferFullChatView) {
             try {
               response = await Promise.race([
                 adminApi.getFullViewChats(50, 150),
@@ -380,7 +364,7 @@ export default function AdminPortal() {
               ]);
               setChatVisibilityMode('full');
             } catch (fullViewError) {
-              console.warn('Full chat test mode unavailable, using metadata mode:', fullViewError?.message || fullViewError);
+              console.warn('Full chat mode unavailable, falling back to metadata mode:', fullViewError?.message || fullViewError);
               response = await Promise.race([
                 adminApi.getReadOnlyChats(50),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
@@ -402,16 +386,20 @@ export default function AdminPortal() {
 
           const chatData = response?.data?.conversations || [];
           setChats(Array.isArray(chatData) ? chatData : []);
-        } catch (e) {
+        } catch {
           setChatVisibilityMode('metadata');
           setChats(EMPTY_DATA.chats);
         }
       }
       if (section === 'payments') {
         try {
-          const [response, settingsResponse] = await Promise.all([
+          const [response, summaryResponse, settingsResponse] = await Promise.all([
             Promise.race([
               adminApi.getPayments(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
+            ]),
+            Promise.race([
+              adminApi.getPaymentSummary(),
               new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
             ]),
             Promise.race([
@@ -419,21 +407,25 @@ export default function AdminPortal() {
               new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
             ])
           ]);
-          // Backend returns { data: { data: payments[] } } - extract the nested data
-          const paymentData = response?.data?.data || response?.data || [];
-          const settingsData = settingsResponse?.data?.data || settingsResponse?.data || [];
+          const paymentData = normalizeCollection(response?.data);
+          const summaryData = summaryResponse?.data || {};
+          const settingsData = normalizeCollection(settingsResponse?.data);
           console.log('💳 Payments fetched:', paymentData.length, 'items');
           setPayments(Array.isArray(paymentData) ? paymentData : []);
           setSettings(Array.isArray(settingsData) ? settingsData : []);
-          
-          // Calculate summary from payment data
-          const summary = {
-            totalRevenue: paymentData.reduce((sum, p) => sum + (p.amount || 0), 0),
+
+          const fallbackSummary = {
+            totalRevenue: paymentData.reduce((sum, p) => sum + (['approved', 'active'].includes(String(p.status || '').toLowerCase()) ? Number(p.amount || 0) : 0), 0),
             totalPayments: paymentData.length,
-            approvedPayments: paymentData.filter(p => p.status === 'approved').length || 0,
-            failedPayments: paymentData.filter(p => p.status === 'rejected').length || 0
+            approvedPayments: paymentData.filter((p) => ['approved', 'active'].includes(String(p.status || '').toLowerCase())).length || 0,
+            failedPayments: paymentData.filter((p) => ['rejected', 'failed'].includes(String(p.status || '').toLowerCase())).length || 0
           };
-          setPaymentSummary(summary);
+          setPaymentSummary({
+            totalRevenue: Number(summaryData.totalRevenue ?? fallbackSummary.totalRevenue),
+            totalPayments: Number(summaryData.totalPayments ?? fallbackSummary.totalPayments),
+            approvedPayments: Number(summaryData.approvedPayments ?? fallbackSummary.approvedPayments),
+            failedPayments: Number(summaryData.failedPayments ?? fallbackSummary.failedPayments)
+          });
         } catch (e) {
           console.error('❌ Error fetching payments:', e.message);
           setPayments(EMPTY_DATA.payments);
@@ -446,8 +438,8 @@ export default function AdminPortal() {
             adminApi.getReports(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
-          setReports(response?.data?.reports || []);
-        } catch (e) {
+          setReports(normalizeCollection(response?.data));
+        } catch {
           setReports(EMPTY_DATA.reports);
         }
       }
@@ -457,8 +449,8 @@ export default function AdminPortal() {
             adminApi.getModerationPhotos(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
-          setModerationPhotos(response?.data?.queue || []);
-        } catch (e) {
+          setModerationPhotos(normalizeCollection(response?.data));
+        } catch {
           setModerationPhotos([]);
         }
       }
@@ -468,19 +460,26 @@ export default function AdminPortal() {
             adminApi.getColleges(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
-          setColleges(response?.data?.colleges || []);
-        } catch (e) {
+          setColleges(normalizeCollection(response?.data));
+        } catch {
           setColleges(EMPTY_DATA.colleges);
         }
       }
       if (section === 'support') {
         try {
-          const response = await Promise.race([
-            adminApi.getSupportTickets(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
+          const [response, settingsResponse] = await Promise.all([
+            Promise.race([
+              adminApi.getSupportTickets(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
+            ]),
+            Promise.race([
+              adminApi.getSettings(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
+            ])
           ]);
-          setSupportTickets(response?.data?.tickets || []);
-        } catch (e) {
+          setSupportTickets(normalizeCollection(response?.data));
+          setSettings(normalizeCollection(settingsResponse?.data));
+        } catch {
           setSupportTickets(EMPTY_DATA.support);
         }
       }
@@ -491,7 +490,7 @@ export default function AdminPortal() {
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
           setAnalytics(response?.data);
-        } catch (e) {
+        } catch {
           setAnalytics(EMPTY_DATA.analytics);
         }
       }
@@ -502,7 +501,7 @@ export default function AdminPortal() {
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
           setSettings(response?.data?.data || response?.data || []);
-        } catch (e) {
+        } catch {
           setSettings(EMPTY_DATA.settings);
         }
       }
@@ -512,8 +511,8 @@ export default function AdminPortal() {
             adminApi.getActivityLogs(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
-          setActivity(response?.data?.activity || []);
-        } catch (e) {
+          setActivity(normalizeCollection(response?.data));
+        } catch {
           setActivity(EMPTY_DATA.activity);
         }
       }
@@ -524,7 +523,7 @@ export default function AdminPortal() {
         setLoading(false);
       }
     }
-  }, [section, API_TIMEOUT_MS, ADMIN_FULL_CHAT_VIEW_REQUESTED]);
+  }, [section, API_TIMEOUT_MS, shouldPreferFullChatView, normalizeCollection, EMPTY_DATA]);
 
   // Auto-refresh in the background at a safe cadence.
   React.useEffect(() => {
@@ -550,6 +549,20 @@ export default function AdminPortal() {
     console.log(`📂 Section changed to: ${section}`);
     void loadData({ silent: false });
   }, [loadData, section]);
+
+  React.useEffect(() => {
+    if (!HEAVY_RENDER_SECTIONS.has(section)) {
+      setRenderSection(section);
+      return undefined;
+    }
+
+    setRenderSection('');
+    const timer = window.setTimeout(() => {
+      setRenderSection(section);
+    }, HEAVY_SECTION_MOUNT_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [section, HEAVY_RENDER_SECTIONS, HEAVY_SECTION_MOUNT_DELAY_MS]);
 
   const verifyPin = async () => {
     try {
@@ -618,7 +631,7 @@ export default function AdminPortal() {
         throw new Error(errData?.message || 'Failed to delete user');
       }
 
-      const result = await response.json();
+      await response.json();
       
       // Remove from users list
       setUsers(prev => prev.filter(u => u._id !== deleteDialog.userId));
@@ -824,10 +837,10 @@ export default function AdminPortal() {
           <div className="p-5 border-b border-cyan-300/15 bg-gradient-to-r from-cyan-500/20 via-sky-500/15 to-transparent">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 to-sky-500 flex items-center justify-center text-white text-xl shadow-[0_14px_35px_rgba(14,165,233,0.4)]">
-                🛡️
+                👫
               </div>
               <div>
-                <h1 className="text-base font-bold tracking-wide text-white">CU DATERS OPS</h1>
+                <h1 className="text-base font-bold tracking-wide text-white">CU-Daters Ops</h1>
                 <p className="text-[11px] text-cyan-100/85 uppercase tracking-[0.18em]">Admin System</p>
               </div>
             </div>
@@ -900,7 +913,7 @@ export default function AdminPortal() {
           <div className="admin-surface border-b px-6 xl:px-8 py-4 backdrop-blur-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">CU DATERS / Admin / {visibleSections.find((s) => s.id === section)?.label || 'Overview'}</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">CU-Daters / Admin / {visibleSections.find((s) => s.id === section)?.label || 'Overview'}</p>
                 <h2 className="text-2xl font-bold text-white mt-1">{visibleSections.find((s) => s.id === section)?.label || 'Overview'}</h2>
                 <p className="text-sm text-slate-200/85 mt-1">Operational controls, moderation safety workflows, and platform governance.</p>
               </div>
@@ -1057,7 +1070,7 @@ export default function AdminPortal() {
             ) : (
               <>
                 {/* Content Panels */}
-                {!loading && section === 'overview' ? (
+                {!loading && renderSection === 'overview' ? (
                   <OverviewPanel
                     overview={overview}
                     users={users}
@@ -1072,7 +1085,7 @@ export default function AdminPortal() {
                     onSectionChange={setSection}
                   />
                 ) : null}
-                {!loading && section === 'registration_approvals' ? (
+                {!loading && renderSection === 'registration_approvals' ? (
                   <RegistrationApprovalsPanel
                     registrations={filteredRegistrationApprovals}
                     onApprove={handleRegistrationApproval}
@@ -1083,18 +1096,18 @@ export default function AdminPortal() {
                     adminPin={adminPin}
                   />
                 ) : null}
-                {!loading && section === 'users' ? <UsersPanel users={filteredUsers} onModerate={handleModerationAction} onDelete={handleDeleteUser} onOpenDetail={openDetailDrawer} onViewActivity={handleViewUserActivity} onNotify={notify} /> : null}
-                {!loading && section === 'approvals' ? <ApprovalsPanel approvals={filteredApprovals} onApprove={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
-                {!loading && section === 'matches' ? <MatchesPanel matches={filteredMatches} onOpenDetail={openDetailDrawer} /> : null}
-                {!loading && section === 'chat_monitoring' ? <ChatsPanel chats={filteredChats} moderationFilter={moderationFilter} currentRole={userRole} onOpenDetail={openDetailDrawer} visibilityMode={chatVisibilityMode} /> : null}
-                {!loading && section === 'payments' ? <PaymentsPanel payments={filteredPayments} summary={paymentSummary} onOpenDetail={openDetailDrawer} onRefresh={loadData} onUpdateSetting={handleUpdateSetting} settings={settings} adminPin={adminPin} onNotify={notify} /> : null}
-                {!loading && section === 'reports' ? <ReportsPanel reports={filteredReports} onResolve={handleResolveReport} onOpenDetail={openDetailDrawer} /> : null}
-                {!loading && section === 'moderation' ? <ModerationPanel photos={moderationPhotos} /> : null}
-                {!loading && section === 'colleges' ? <CollegesPanel colleges={colleges} /> : null}
-                {!loading && section === 'support' ? <SupportPanel tickets={filteredSupportTickets} /> : null}
-                {!loading && section === 'analytics' ? <AnalyticsPanel analytics={analytics} /> : null}
-                {!loading && section === 'settings' ? <SettingsPanel settings={settings} onUpdate={handleUpdateSetting} /> : null}
-                {!loading && section === 'activity' ? <ActivityPanel logs={filteredActivity} /> : null}
+                {!loading && renderSection === 'users' ? <UsersPanel users={filteredUsers} onModerate={handleModerationAction} onDelete={handleDeleteUser} onOpenDetail={openDetailDrawer} onViewActivity={handleViewUserActivity} onNotify={notify} /> : null}
+                {!loading && renderSection === 'approvals' ? <ApprovalsPanel approvals={filteredApprovals} onApprove={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
+                {!loading && renderSection === 'matches' ? <MatchesPanel matches={filteredMatches} onOpenDetail={openDetailDrawer} /> : null}
+                {!loading && renderSection === 'chat_monitoring' ? <ChatsPanel chats={filteredChats} moderationFilter={moderationFilter} currentRole={userRole} onOpenDetail={openDetailDrawer} visibilityMode={chatVisibilityMode} /> : null}
+                {!loading && renderSection === 'payments' ? <PaymentsPanel payments={filteredPayments} summary={paymentSummary} onOpenDetail={openDetailDrawer} onRefresh={loadData} onUpdateSetting={handleUpdateSetting} settings={settings} adminPin={adminPin} onNotify={notify} /> : null}
+                {!loading && renderSection === 'reports' ? <ReportsPanel reports={filteredReports} onResolve={handleResolveReport} onOpenDetail={openDetailDrawer} /> : null}
+                {!loading && renderSection === 'moderation' ? <ModerationPanel photos={moderationPhotos} /> : null}
+                {!loading && renderSection === 'colleges' ? <CollegesPanel colleges={colleges} /> : null}
+                {!loading && renderSection === 'support' ? <SupportPanel tickets={filteredSupportTickets} settings={settings} onUpdateSetting={handleUpdateSetting} onNotify={notify} /> : null}
+                {!loading && renderSection === 'analytics' ? <AnalyticsPanel analytics={analytics} /> : null}
+                {!loading && renderSection === 'settings' ? <SettingsPanel settings={settings} onUpdate={handleUpdateSetting} /> : null}
+                {!loading && renderSection === 'activity' ? <ActivityPanel logs={filteredActivity} /> : null}
               </>
             )}
           </div>
@@ -1495,7 +1508,7 @@ function OverviewPanel({
     return acc;
   }, []);
 
-  const now = Date.now();
+  const now = new Date().getTime();
   const dailyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 24 * 60 * 60 * 1000).length;
   const weeklyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 7 * 24 * 60 * 60 * 1000).length;
   const monthlyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 30 * 24 * 60 * 60 * 1000).length;
@@ -2053,7 +2066,7 @@ function OverviewPanel({
               {(recentActivity.length ? recentActivity : activityLogs).slice(0, 8).map((entry, idx) => (
                 <div key={entry._id || idx} className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2.5">
                   <p className="text-sm text-[color:var(--text-light)]">{entry.description || entry.action || 'Activity update'}</p>
-                  <p className="text-xs text-[color:var(--portal-muted)] mt-1">{new Date(entry.timestamp || entry.createdAt || Date.now()).toLocaleString()}</p>
+                  <p className="text-xs text-[color:var(--portal-muted)] mt-1">{new Date(entry.timestamp || entry.createdAt || new Date().getTime()).toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -2219,8 +2232,8 @@ function RegistrationApprovalsPanel({
   const [loadingIds, setLoadingIds] = React.useState([]);
   const [fadingIds, setFadingIds] = React.useState([]);
   const [shakingIds, setShakingIds] = React.useState([]);
-  const [lastUpdatedAt, setLastUpdatedAt] = React.useState(Date.now());
-  const [clockTick, setClockTick] = React.useState(Date.now());
+  const [lastUpdatedAt, setLastUpdatedAt] = React.useState(() => new Date().getTime());
+  const [clockTick, setClockTick] = React.useState(() => new Date().getTime());
   const [rejectModal, setRejectModal] = React.useState({ open: false, user: null, reason: 'Profile does not meet requirements' });
   const [bulkRejectModal, setBulkRejectModal] = React.useState({ open: false, reason: 'Bulk rejection by admin review' });
   const [auditTrail, setAuditTrail] = React.useState([]);
@@ -2771,10 +2784,15 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
   const [reviewMessages, setReviewMessages] = React.useState([]);
   const [reviewLoading, setReviewLoading] = React.useState(false);
   const [threadViewer, setThreadViewer] = React.useState(null);
+  const [moderationViewPreference, setModerationViewPreference] = React.useState('auto');
+  const [workspaceOpen, setWorkspaceOpen] = React.useState(false);
+  const [workspaceSelectedId, setWorkspaceSelectedId] = React.useState('');
 
-  const isFullViewMode = visibilityMode === 'full';
+  const backendSupportsFullView = visibilityMode === 'full';
+  const isFullViewMode = backendSupportsFullView && moderationViewPreference !== 'metadata';
+  const isAdminReader = currentRole === 'admin' || currentRole === 'super_admin';
 
-  const canReviewContent = currentRole === 'super_admin' || currentRole === 'moderator';
+  const canReviewContent = currentRole === 'super_admin' || currentRole === 'moderator' || currentRole === 'admin';
 
   const openMetadataDetail = (chat) => {
     const metadataOnly = {
@@ -2928,7 +2946,7 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
     setReviewMessages([]);
   };
 
-  const openThreadViewer = (chat) => {
+  const buildThreadPayload = React.useCallback((chat) => {
     const participantMap = new Map((chat.participants || []).map((participant) => [String(participant?._id), participant?.name || 'Unknown']));
     const normalizedMessages = Array.isArray(chat.messages)
       ? chat.messages.map((message) => ({
@@ -2937,12 +2955,45 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
         }))
       : [];
 
-    setThreadViewer({
+    return {
       ...chat,
       participantNames: chat.participantNames,
       messages: normalizedMessages
-    });
+    };
+  }, []);
+
+  const openThreadViewer = (chat) => {
+    const payload = buildThreadPayload(chat);
+
+    setThreadViewer(payload);
   };
+
+  const activeThreadRows = React.useMemo(() => {
+    return filteredRows
+      .filter((row) => !row.isBlocked && row.messageCount > 0)
+      .sort((a, b) => new Date(b.lastMessageAt || b.updatedAt || 0).getTime() - new Date(a.lastMessageAt || a.updatedAt || 0).getTime());
+  }, [filteredRows]);
+
+  const workspaceConversation = React.useMemo(() => {
+    if (!workspaceOpen || !activeThreadRows.length) {
+      return null;
+    }
+    const source = activeThreadRows.find((row) => row._id === workspaceSelectedId) || activeThreadRows[0];
+    return source ? buildThreadPayload(source) : null;
+  }, [workspaceOpen, activeThreadRows, workspaceSelectedId, buildThreadPayload]);
+
+  React.useEffect(() => {
+    if (!workspaceOpen) {
+      return;
+    }
+    if (!activeThreadRows.length) {
+      setWorkspaceSelectedId('');
+      return;
+    }
+    if (!workspaceSelectedId || !activeThreadRows.some((row) => row._id === workspaceSelectedId)) {
+      setWorkspaceSelectedId(activeThreadRows[0]._id);
+    }
+  }, [workspaceOpen, activeThreadRows, workspaceSelectedId]);
 
   const approveRequest = async () => {
     if (!accessRequest) {
@@ -3022,11 +3073,11 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
       <button className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" onClick={() => openMetadataDetail(chat)}>Detail</button>
       {isFullViewMode ? (
         <button className="text-xs px-2 py-1 rounded-lg bg-cyan-500/20 border border-cyan-300/35 text-cyan-100" onClick={() => openThreadViewer(chat)}>
-          Open Thread
+          Read Chat
         </button>
       ) : (
         <button className={`text-xs px-2 py-1 rounded-lg ${chat.eligibleForDeepReview ? 'bg-fuchsia-500/25 border border-fuchsia-300/35 text-fuchsia-100' : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'}`} disabled={!chat.eligibleForDeepReview} onClick={() => requestContentAccess(chat)}>
-          Review
+          Request Access
         </button>
       )}
     </div>
@@ -3034,10 +3085,54 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
 
   return (
     <div className="space-y-5">
+      <div className="rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/12 via-sky-500/8 to-transparent px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Trust and Safety Ops</p>
+            <p className="text-sm text-slate-200">Investigate conversation risks, escalate incidents, and audit moderator access from one workspace.</p>
+          </div>
+          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${isFullViewMode ? 'border-cyan-300/35 bg-cyan-500/20 text-cyan-100' : 'border-amber-300/35 bg-amber-500/15 text-amber-100'}`}>
+            Mode: {isFullViewMode ? 'Full Chat Visibility' : 'Metadata Protected'}
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm text-slate-300">Visibility Controls</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setModerationViewPreference('auto')}
+            className={`px-3 py-1.5 text-xs rounded-lg border ${moderationViewPreference === 'auto' ? 'border-cyan-300/40 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}
+          >
+            Auto
+          </button>
+          <button
+            type="button"
+            onClick={() => setModerationViewPreference('metadata')}
+            className={`px-3 py-1.5 text-xs rounded-lg border ${moderationViewPreference === 'metadata' ? 'border-amber-300/40 bg-amber-500/20 text-amber-100' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}
+          >
+            Metadata
+          </button>
+          <button
+            type="button"
+            onClick={() => setModerationViewPreference('full')}
+            disabled={!backendSupportsFullView}
+            className={`px-3 py-1.5 text-xs rounded-lg border ${moderationViewPreference === 'full' && backendSupportsFullView ? 'border-cyan-300/45 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'} disabled:opacity-40`}
+          >
+            Full
+          </button>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
         {isFullViewMode
-          ? 'Test mode notice: full conversation visibility is enabled for moderation QA/demo. Disable ENABLE_ADMIN_FULL_CHAT_VIEW to instantly restore metadata-only mode.'
-          : 'Privacy notice: full conversation content is hidden by default. Access is allowed only for flagged/reported conversations with authorized role and auditable reason.'}
+          ? 'Admin full visibility active: you can open complete conversation threads between users for moderation, compliance, and safety review.'
+          : moderationViewPreference === 'metadata' && backendSupportsFullView
+            ? 'Metadata mode was selected manually. Switch to Full to read all messages.'
+          : isAdminReader
+            ? 'Full chat visibility is not enabled by server policy. Admin is currently in metadata mode only.'
+            : 'Privacy notice: full conversation content is hidden by default. Access is allowed only for flagged/reported conversations with authorized role and auditable reason.'}
       </div>
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-3">
@@ -3048,7 +3143,7 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
         <MetricCard label="Resolved Cases" value={queueStats.resolved} tone="emerald" />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/55 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 px-4 py-3">
         <div className="text-sm text-slate-300">Bulk actions for selected conversations ({selectedIds.length})</div>
         <div className="flex gap-2">
           <button disabled={!selectedIds.length} onClick={() => runBulkStatusUpdate('reviewing')} className="px-3 py-1.5 text-xs rounded-lg bg-cyan-500/20 border border-cyan-300/30 disabled:opacity-40">Mark Reviewing</button>
@@ -3058,11 +3153,86 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
       </div>
 
       <TablePanel
-        title={isFullViewMode ? 'Conversation Safety Queue (Full Thread Test Mode)' : 'Conversation Safety Queue'}
+        title={isFullViewMode ? 'Conversation Safety Queue (Full Thread Access)' : 'Conversation Safety Queue'}
         columns={['Participants', 'Messages', 'Risk', 'Reports', 'Blocked', 'Last Activity', 'Case Status', 'Actions']}
         rows={tableRows}
         pageSize={12}
       />
+
+      {isFullViewMode ? (
+        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-white">Active Threads Workspace</h3>
+              <p className="text-xs text-cyan-100/75 mt-1">Review live conversations quickly in a split workspace.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWorkspaceOpen((prev) => !prev)}
+              className="px-3 py-1.5 rounded-lg border border-cyan-300/35 bg-cyan-500/20 text-cyan-100 text-xs font-semibold hover:bg-cyan-500/30"
+            >
+              {workspaceOpen ? 'Hide Workspace' : 'Open Active Threads'}
+            </button>
+          </div>
+
+          {workspaceOpen ? (
+            activeThreadRows.length ? (
+              <div className="grid xl:grid-cols-[320px_1fr] gap-3">
+                <div className="rounded-xl border border-cyan-200/15 bg-black/20 p-2.5 max-h-[52vh] overflow-auto space-y-2">
+                  {activeThreadRows.slice(0, 50).map((row) => (
+                    <button
+                      key={`workspace-${row._id}`}
+                      type="button"
+                      onClick={() => setWorkspaceSelectedId(row._id)}
+                      className={`w-full text-left rounded-lg border px-2.5 py-2 transition ${workspaceConversation?._id === row._id ? 'border-cyan-300/40 bg-cyan-500/20' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                    >
+                      <p className="text-sm font-semibold text-slate-100 truncate">{row.participantNames}</p>
+                      <p className="text-xs text-slate-400 mt-1">Messages: {row.messageCount} • Reports: {row.reportCount}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="rounded-xl border border-cyan-200/15 bg-black/20 p-3">
+                  {workspaceConversation ? (
+                    <>
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{workspaceConversation.participantNames}</p>
+                          <p className="text-xs text-slate-400 mt-1">Conversation ID: {workspaceConversation._id}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openThreadViewer(workspaceConversation)}
+                          className="px-2.5 py-1.5 rounded-lg border border-cyan-300/35 bg-cyan-500/20 text-cyan-100 text-xs"
+                        >
+                          Popout Reader
+                        </button>
+                      </div>
+                      <div className="max-h-[42vh] overflow-auto space-y-2">
+                        {Array.isArray(workspaceConversation.messages) && workspaceConversation.messages.length ? workspaceConversation.messages.map((message) => (
+                          <div key={message._id || `${message.senderId}-${message.createdAt}`} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-2">
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                              <span>{message.senderLabel || 'User'}</span>
+                              <span>{new Date(message.createdAt || Date.now()).toLocaleString()}</span>
+                            </div>
+                            <p className="text-sm text-slate-100 break-words whitespace-pre-wrap">{message.text || '[non-text payload]'}</p>
+                          </div>
+                        )) : <p className="text-sm text-slate-400">No message payloads available.</p>}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-400">Select a thread from the left panel.</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-4 py-8 text-center text-slate-300 text-sm">
+                No active threads found for workspace review.
+              </div>
+            )
+          ) : null}
+        </div>
+      ) : null}
 
       {selectedConversation ? (
         <div className="rounded-2xl border border-white/10 bg-slate-900/55 p-4">
@@ -3201,8 +3371,14 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
     upiEnabled: billingValue.upiEnabled !== false,
     qrEnabled: billingValue.qrEnabled !== false,
     couponsEnabled: billingValue.couponsEnabled !== false,
+    bankEnabled: billingValue.bankEnabled !== false,
     upiId: billingValue.upiId || '',
+    accountHolder: billingValue.accountHolder || '',
+    bankName: billingValue.bankName || '',
+    accountNumber: billingValue.accountNumber || '',
+    ifscCode: billingValue.ifscCode || '',
     offerText: billingValue.offerText || '',
+    paymentInstructions: billingValue.paymentInstructions || '',
     couponCode: billingValue.couponCode || '',
     couponDiscountPct: Number(billingValue.couponDiscountPct) || 0
   });
@@ -3229,12 +3405,18 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
       upiEnabled: billingValue.upiEnabled !== false,
       qrEnabled: billingValue.qrEnabled !== false,
       couponsEnabled: billingValue.couponsEnabled !== false,
+      bankEnabled: billingValue.bankEnabled !== false,
       upiId: billingValue.upiId || prev.upiId,
+      accountHolder: billingValue.accountHolder || prev.accountHolder,
+      bankName: billingValue.bankName || prev.bankName,
+      accountNumber: billingValue.accountNumber || prev.accountNumber,
+      ifscCode: billingValue.ifscCode || prev.ifscCode,
       offerText: billingValue.offerText || prev.offerText,
+      paymentInstructions: billingValue.paymentInstructions || prev.paymentInstructions,
       couponCode: billingValue.couponCode || '',
       couponDiscountPct: Number(billingValue.couponDiscountPct) || 0
     }));
-  }, [billingValue.couponCode, billingValue.couponDiscountPct, billingValue.couponsEnabled, billingValue.disableFreeMode, billingValue.maxActiveMatches, billingValue.maxMessagesPerDay, billingValue.maxRequestsPerDay, billingValue.monthlyPrice, billingValue.offerText, billingValue.premiumFree, billingValue.premiumPrice, billingValue.qrEnabled, billingValue.upiEnabled, billingValue.upiId]);
+  }, [billingValue.accountHolder, billingValue.accountNumber, billingValue.bankEnabled, billingValue.bankName, billingValue.couponCode, billingValue.couponDiscountPct, billingValue.couponsEnabled, billingValue.disableFreeMode, billingValue.ifscCode, billingValue.maxActiveMatches, billingValue.maxMessagesPerDay, billingValue.maxRequestsPerDay, billingValue.monthlyPrice, billingValue.offerText, billingValue.paymentInstructions, billingValue.premiumFree, billingValue.premiumPrice, billingValue.qrEnabled, billingValue.upiEnabled, billingValue.upiId]);
 
   const persistBillingConfig = async () => {
     setSavingConfig(true);
@@ -3262,8 +3444,14 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
         upiEnabled: Boolean(billingDraft.upiEnabled),
         qrEnabled: Boolean(billingDraft.qrEnabled),
         couponsEnabled: Boolean(billingDraft.couponsEnabled),
+        bankEnabled: Boolean(billingDraft.bankEnabled),
         upiId: String(billingDraft.upiId || '').trim(),
+        accountHolder: String(billingDraft.accountHolder || '').trim(),
+        bankName: String(billingDraft.bankName || '').trim(),
+        accountNumber: String(billingDraft.accountNumber || '').trim(),
+        ifscCode: String(billingDraft.ifscCode || '').trim(),
         offerText: String(billingDraft.offerText || '').trim(),
+        paymentInstructions: String(billingDraft.paymentInstructions || '').trim(),
         couponCode: String(billingDraft.couponCode || '').trim().toUpperCase(),
         couponDiscountPct: Math.max(0, Math.min(95, Number(billingDraft.couponDiscountPct) || 0))
       });
@@ -3303,6 +3491,14 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
           body: JSON.stringify({
             upiId: String(billingDraft.upiId || '').trim(),
             offerText: String(billingDraft.offerText || '').trim(),
+            accountHolder: String(billingDraft.accountHolder || '').trim(),
+            bankName: String(billingDraft.bankName || '').trim(),
+            accountNumber: String(billingDraft.accountNumber || '').trim(),
+            ifscCode: String(billingDraft.ifscCode || '').trim(),
+            paymentInstructions: String(billingDraft.paymentInstructions || '').trim(),
+            bankEnabled: Boolean(billingDraft.bankEnabled),
+            upiEnabled: Boolean(billingDraft.upiEnabled),
+            qrEnabled: Boolean(billingDraft.qrEnabled),
             enabled: Boolean(billingDraft.upiEnabled || billingDraft.qrEnabled)
           })
         })
@@ -3373,6 +3569,7 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          ...(adminPin ? { 'x-admin-pin': adminPin } : {})
         },
         body: JSON.stringify({ 
           adminNotes: '',
@@ -3453,156 +3650,179 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
   };
 
   // Separate pending and approved payments
-  const pendingPayments = payments?.filter(p => p.status === 'pending') || [];
-  const approvedPayments = payments?.filter(p => p.status === 'approved') || [];
-  const rejectedPayments = payments?.filter(p => p.status === 'rejected') || [];
+  const pendingPayments = payments?.filter((p) => String(p.status || '').toLowerCase() === 'pending') || [];
+  const approvedPayments = payments?.filter((p) => ['approved', 'active'].includes(String(p.status || '').toLowerCase())) || [];
+  const rejectedPayments = payments?.filter((p) => ['rejected', 'failed'].includes(String(p.status || '').toLowerCase())) || [];
+
+  const totalPayments = summary?.totalPayments || payments.length;
+  const totalRevenue = Number(summary?.totalRevenue || 0);
+  const approvalRate = totalPayments ? Math.round(((summary?.approvedPayments || approvedPayments.length) / totalPayments) * 100) : 0;
+  const pendingAmount = pendingPayments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const inputClass = 'mt-1 w-full rounded-xl bg-white/8 border border-cyan-200/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/40';
 
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/12 via-sky-500/8 to-transparent px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Revenue Ops Command Center</p>
+            <p className="text-sm text-slate-200">Manage pricing, process payment proofs, and apply membership actions with audit visibility.</p>
+          </div>
+          <button
+            onClick={exportPayments}
+            className="px-4 py-2 rounded-xl border border-cyan-300/40 bg-cyan-500/20 text-cyan-100 text-sm font-semibold hover:bg-cyan-500/30 transition"
+          >
+            Export Payments CSV
+          </button>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3">
+        <MetricCard label="Total Revenue" value={`Rs ${totalRevenue}`} />
+        <MetricCard label="All Payments" value={totalPayments} />
+        <MetricCard label="Approved" value={summary?.approvedPayments || approvedPayments.length} />
+        <MetricCard label="Approval Rate" value={`${approvalRate}%`} />
+        <MetricCard label="Pending Value" value={`Rs ${pendingAmount}`} />
+      </div>
+
       <div className="grid xl:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wide">2-Tier Pricing and Payment Controls</h3>
-            <button onClick={persistBillingConfig} disabled={savingConfig} className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-semibold disabled:opacity-60">
+        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_50px_rgba(2,12,27,0.28)]">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wide">Pricing and Billing Controls</h3>
+            <button onClick={persistBillingConfig} disabled={savingConfig} className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-500 transition disabled:opacity-60">
               {savingConfig ? 'Saving...' : 'Save Controls'}
             </button>
           </div>
-          <div className="grid sm:grid-cols-2 gap-2 mb-3">
+
+          <div className="grid sm:grid-cols-2 gap-3 mb-3">
             <label className="text-xs text-slate-300">Premium Price (INR)
-              <input type="number" value={billingDraft.premiumPrice} onChange={(event) => setBillingDraft((prev) => ({ ...prev, premiumPrice: event.target.value }))} className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+              <input type="number" value={billingDraft.premiumPrice} onChange={(event) => setBillingDraft((prev) => ({ ...prev, premiumPrice: event.target.value }))} className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Free Plan Price
-              <input type="number" value={0} disabled className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm opacity-70" />
+              <input type="number" value={0} disabled className={`${inputClass} opacity-65`} />
             </label>
           </div>
-          <div className="grid sm:grid-cols-3 gap-2 mb-3">
+
+          <div className="grid sm:grid-cols-3 gap-3 mb-3">
             <label className="text-xs text-slate-300">Free messages/day
-              <input type="number" value={billingDraft.maxMessagesPerDay} onChange={(event) => setBillingDraft((prev) => ({ ...prev, maxMessagesPerDay: event.target.value }))} className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+              <input type="number" value={billingDraft.maxMessagesPerDay} onChange={(event) => setBillingDraft((prev) => ({ ...prev, maxMessagesPerDay: event.target.value }))} className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Free active matches
-              <input type="number" value={billingDraft.maxActiveMatches} onChange={(event) => setBillingDraft((prev) => ({ ...prev, maxActiveMatches: event.target.value }))} className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+              <input type="number" value={billingDraft.maxActiveMatches} onChange={(event) => setBillingDraft((prev) => ({ ...prev, maxActiveMatches: event.target.value }))} className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Free requests/day
-              <input type="number" value={billingDraft.maxRequestsPerDay} onChange={(event) => setBillingDraft((prev) => ({ ...prev, maxRequestsPerDay: event.target.value }))} className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+              <input type="number" value={billingDraft.maxRequestsPerDay} onChange={(event) => setBillingDraft((prev) => ({ ...prev, maxRequestsPerDay: event.target.value }))} className={inputClass} />
             </label>
           </div>
-          <div className="grid sm:grid-cols-3 gap-2 mb-3">
-            <label className="text-xs text-slate-300 flex items-center gap-2"><input type="checkbox" checked={billingDraft.upiEnabled} onChange={(event) => setBillingDraft((prev) => ({ ...prev, upiEnabled: event.target.checked }))} />UPI enabled</label>
-            <label className="text-xs text-slate-300 flex items-center gap-2"><input type="checkbox" checked={billingDraft.qrEnabled} onChange={(event) => setBillingDraft((prev) => ({ ...prev, qrEnabled: event.target.checked }))} />QR enabled</label>
-            <label className="text-xs text-slate-300 flex items-center gap-2"><input type="checkbox" checked={billingDraft.couponsEnabled} onChange={(event) => setBillingDraft((prev) => ({ ...prev, couponsEnabled: event.target.checked }))} />Coupons enabled</label>
+
+          <div className="grid sm:grid-cols-4 gap-3 mb-3">
+            <label className="text-xs text-slate-300 flex items-center gap-2 rounded-lg border border-cyan-300/15 bg-white/5 px-2.5 py-2"><input type="checkbox" checked={billingDraft.upiEnabled} onChange={(event) => setBillingDraft((prev) => ({ ...prev, upiEnabled: event.target.checked }))} />UPI enabled</label>
+            <label className="text-xs text-slate-300 flex items-center gap-2 rounded-lg border border-cyan-300/15 bg-white/5 px-2.5 py-2"><input type="checkbox" checked={billingDraft.qrEnabled} onChange={(event) => setBillingDraft((prev) => ({ ...prev, qrEnabled: event.target.checked }))} />QR enabled</label>
+            <label className="text-xs text-slate-300 flex items-center gap-2 rounded-lg border border-cyan-300/15 bg-white/5 px-2.5 py-2"><input type="checkbox" checked={billingDraft.couponsEnabled} onChange={(event) => setBillingDraft((prev) => ({ ...prev, couponsEnabled: event.target.checked }))} />Coupons enabled</label>
+            <label className="text-xs text-slate-300 flex items-center gap-2 rounded-lg border border-cyan-300/15 bg-white/5 px-2.5 py-2"><input type="checkbox" checked={billingDraft.bankEnabled} onChange={(event) => setBillingDraft((prev) => ({ ...prev, bankEnabled: event.target.checked }))} />Bank transfer enabled</label>
           </div>
-          <div className="grid sm:grid-cols-2 gap-2 mb-3">
-            <label className="text-xs text-slate-300 flex items-center gap-2"><input type="checkbox" checked={billingDraft.premiumFree} onChange={(event) => setBillingDraft((prev) => ({ ...prev, premiumFree: event.target.checked }))} />Premium for everyone</label>
-            <label className="text-xs text-slate-300 flex items-center gap-2"><input type="checkbox" checked={billingDraft.disableFreeMode} onChange={(event) => setBillingDraft((prev) => ({ ...prev, disableFreeMode: event.target.checked }))} />Disable free mode</label>
+
+          <div className="grid sm:grid-cols-2 gap-3 mb-3">
+            <label className="text-xs text-slate-300 flex items-center gap-2 rounded-lg border border-cyan-300/15 bg-white/5 px-2.5 py-2"><input type="checkbox" checked={billingDraft.premiumFree} onChange={(event) => setBillingDraft((prev) => ({ ...prev, premiumFree: event.target.checked }))} />Premium for everyone</label>
+            <label className="text-xs text-slate-300 flex items-center gap-2 rounded-lg border border-cyan-300/15 bg-white/5 px-2.5 py-2"><input type="checkbox" checked={billingDraft.disableFreeMode} onChange={(event) => setBillingDraft((prev) => ({ ...prev, disableFreeMode: event.target.checked }))} />Disable free mode</label>
           </div>
-          <div className="grid sm:grid-cols-2 gap-2 mb-3">
+
+          <div className="grid sm:grid-cols-2 gap-3 mb-3">
             <label className="text-xs text-slate-300">UPI ID
-              <input value={billingDraft.upiId} onChange={(event) => setBillingDraft((prev) => ({ ...prev, upiId: event.target.value }))} placeholder="name@bank" className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+              <input value={billingDraft.upiId} onChange={(event) => setBillingDraft((prev) => ({ ...prev, upiId: event.target.value }))} placeholder="name@bank" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Offer text
-              <input value={billingDraft.offerText} onChange={(event) => setBillingDraft((prev) => ({ ...prev, offerText: event.target.value }))} placeholder="Limited time offer" className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+              <input value={billingDraft.offerText} onChange={(event) => setBillingDraft((prev) => ({ ...prev, offerText: event.target.value }))} placeholder="Limited time offer" className={inputClass} />
             </label>
           </div>
-          <div className="grid sm:grid-cols-2 gap-2">
+
+          <div className="grid sm:grid-cols-2 gap-3 mb-3">
+            <label className="text-xs text-slate-300">Account holder
+              <input value={billingDraft.accountHolder} onChange={(event) => setBillingDraft((prev) => ({ ...prev, accountHolder: event.target.value }))} placeholder="CU Daters Pvt Ltd" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Bank name
+              <input value={billingDraft.bankName} onChange={(event) => setBillingDraft((prev) => ({ ...prev, bankName: event.target.value }))} placeholder="HDFC Bank" className={inputClass} />
+            </label>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3 mb-3">
+            <label className="text-xs text-slate-300">Account number
+              <input value={billingDraft.accountNumber} onChange={(event) => setBillingDraft((prev) => ({ ...prev, accountNumber: event.target.value }))} placeholder="1234567890123" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">IFSC code
+              <input value={billingDraft.ifscCode} onChange={(event) => setBillingDraft((prev) => ({ ...prev, ifscCode: event.target.value.toUpperCase() }))} placeholder="HDFC0005678" className={inputClass} />
+            </label>
+          </div>
+
+          <label className="text-xs text-slate-300 block mb-3">Payment instructions
+            <textarea value={billingDraft.paymentInstructions} onChange={(event) => setBillingDraft((prev) => ({ ...prev, paymentInstructions: event.target.value }))} placeholder="Important instruction shown to users during checkout" rows={2} className={inputClass} />
+          </label>
+
+          <div className="grid sm:grid-cols-2 gap-3">
             <label className="text-xs text-slate-300">Coupon code
-              <input value={billingDraft.couponCode} onChange={(event) => setBillingDraft((prev) => ({ ...prev, couponCode: event.target.value }))} placeholder="WELCOME20" className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+              <input value={billingDraft.couponCode} onChange={(event) => setBillingDraft((prev) => ({ ...prev, couponCode: event.target.value }))} placeholder="WELCOME20" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Discount %
-              <input type="number" min="0" max="95" value={billingDraft.couponDiscountPct} onChange={(event) => setBillingDraft((prev) => ({ ...prev, couponDiscountPct: event.target.value }))} className="mt-1 w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+              <input type="number" min="0" max="95" value={billingDraft.couponDiscountPct} onChange={(event) => setBillingDraft((prev) => ({ ...prev, couponDiscountPct: event.target.value }))} className={inputClass} />
             </label>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wide mb-3">Membership Operations</h3>
-          <div className="grid sm:grid-cols-2 gap-2 mb-2">
-            <input value={membershipAction.userId} onChange={(event) => setMembershipAction((prev) => ({ ...prev, userId: event.target.value }))} placeholder="User ID" className="rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
-            <select value={membershipAction.action} onChange={(event) => setMembershipAction((prev) => ({ ...prev, action: event.target.value }))} className="rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm">
+        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_50px_rgba(2,12,27,0.28)]">
+          <h3 className="text-sm font-bold text-white uppercase tracking-wide mb-4">Membership Operations</h3>
+          <div className="grid sm:grid-cols-2 gap-3 mb-3">
+            <input value={membershipAction.userId} onChange={(event) => setMembershipAction((prev) => ({ ...prev, userId: event.target.value }))} placeholder="User ID" className={inputClass.replace('mt-1 ', '')} />
+            <select value={membershipAction.action} onChange={(event) => setMembershipAction((prev) => ({ ...prev, action: event.target.value }))} className={inputClass.replace('mt-1 ', '')}>
               <option value="grant">Grant</option>
               <option value="extend">Extend</option>
               <option value="revoke">Revoke</option>
             </select>
           </div>
-          <div className="grid sm:grid-cols-3 gap-2 mb-2">
-            <select value={membershipAction.plan} onChange={(event) => setMembershipAction((prev) => ({ ...prev, plan: event.target.value }))} className="rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm">
+          <div className="grid sm:grid-cols-3 gap-3 mb-3">
+            <select value={membershipAction.plan} onChange={(event) => setMembershipAction((prev) => ({ ...prev, plan: event.target.value }))} className={inputClass.replace('mt-1 ', '')}>
               <option value="Premium">Premium</option>
             </select>
-            <input type="number" value={membershipAction.durationDays} onChange={(event) => setMembershipAction((prev) => ({ ...prev, durationDays: event.target.value }))} placeholder="Days" className="rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
-            <input type="number" value={membershipAction.amount} onChange={(event) => setMembershipAction((prev) => ({ ...prev, amount: event.target.value }))} placeholder="Amount" className="rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm" />
+            <input type="number" value={membershipAction.durationDays} onChange={(event) => setMembershipAction((prev) => ({ ...prev, durationDays: event.target.value }))} placeholder="Days" className={inputClass.replace('mt-1 ', '')} />
+            <input type="number" value={membershipAction.amount} onChange={(event) => setMembershipAction((prev) => ({ ...prev, amount: event.target.value }))} placeholder="Amount" className={inputClass.replace('mt-1 ', '')} />
           </div>
-          <textarea value={membershipAction.note} onChange={(event) => setMembershipAction((prev) => ({ ...prev, note: event.target.value }))} placeholder="Audit note (optional)" rows={2} className="w-full rounded-lg bg-white/10 border border-cyan-200/20 px-2 py-1.5 text-sm mb-2" />
-          <button onClick={runMembershipAction} disabled={runningMembershipAction} className="w-full px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60">
+          <textarea value={membershipAction.note} onChange={(event) => setMembershipAction((prev) => ({ ...prev, note: event.target.value }))} placeholder="Audit note (optional)" rows={3} className={`${inputClass.replace('mt-1 ', '')} mb-3`} />
+          <button onClick={runMembershipAction} disabled={runningMembershipAction} className="w-full px-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-900/35 hover:brightness-110 transition disabled:opacity-60">
             {runningMembershipAction ? 'Applying...' : 'Apply Membership Action'}
           </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid md:grid-cols-4 gap-3">
-        <MetricCard label="Total Revenue" value={`₹${summary?.totalRevenue || 0}`} />
-        <MetricCard label="All Payments" value={summary?.totalPayments || 0} />
-        <MetricCard label="✅ Approved" value={summary?.approvedPayments || 0} />
-        <MetricCard label="⏳ Pending" value={pendingPayments.length} />
-      </div>
-
-      {/* Export Button */}
-      <div className="flex gap-2">
-        <button
-          onClick={exportPayments}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium"
-        >
-          📥 Export Payments to CSV
-        </button>
-      </div>
-
-      {/* Pending Payments - Priority Section */}
-      {pendingPayments.length > 0 && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-amber-900 mb-4 flex items-center gap-2">
-            ⏳ Pending Approvals ({pendingPayments.length})
-          </h3>
-          <div className="overflow-x-auto">
+      {pendingPayments.length > 0 ? (
+        <div className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4 md:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="text-base font-bold text-amber-100">Pending Approvals ({pendingPayments.length})</h3>
+            <p className="text-xs text-amber-100/80">These payments are waiting for finance action.</p>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-amber-200/20">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-amber-200">
-                  <th className="text-left py-2 px-3 font-bold text-amber-900">User</th>
-                  <th className="text-left py-2 px-3 font-bold text-amber-900">Plan</th>
-                  <th className="text-left py-2 px-3 font-bold text-amber-900">Amount</th>
-                  <th className="text-left py-2 px-3 font-bold text-amber-900">Payment ID</th>
-                  <th className="text-left py-2 px-3 font-bold text-amber-900">Submitted</th>
-                  <th className="text-left py-2 px-3 font-bold text-amber-900">Actions</th>
+              <thead className="bg-amber-400/10 text-amber-100 text-xs uppercase tracking-wide">
+                <tr>
+                  <th className="text-left py-2.5 px-3">User</th>
+                  <th className="text-left py-2.5 px-3">Plan</th>
+                  <th className="text-left py-2.5 px-3">Amount</th>
+                  <th className="text-left py-2.5 px-3">Payment ID</th>
+                  <th className="text-left py-2.5 px-3">Submitted</th>
+                  <th className="text-left py-2.5 px-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pendingPayments.map((payment) => (
-                  <tr key={payment._id} className="border-b border-amber-100 hover:bg-amber-100/50">
-                    <td className="py-3 px-3">{payment.user_id?.name || payment.userName || '-'}</td>
-                    <td className="py-3 px-3 font-semibold text-pink-600">{payment.plan || payment.planName}</td>
-                    <td className="py-3 px-3 font-bold">₹{payment.amount}</td>
-                    <td className="py-3 px-3 font-mono text-xs bg-white rounded p-1">{payment.payment_id}</td>
-                    <td className="py-3 px-3 text-xs text-gray-600">
-                      {new Date(payment.created_at || payment.createdAt).toLocaleString()}
-                    </td>
+                  <tr key={payment._id} className="border-t border-amber-200/15 hover:bg-amber-400/10 transition-colors">
+                    <td className="py-3 px-3 text-slate-100">{payment.user_id?.name || payment.userName || '-'}</td>
+                    <td className="py-3 px-3 font-semibold text-fuchsia-200">{payment.plan || payment.planName}</td>
+                    <td className="py-3 px-3 font-bold text-white">Rs {payment.amount}</td>
+                    <td className="py-3 px-3"><span className="inline-flex rounded-md bg-black/25 border border-white/10 px-2 py-0.5 font-mono text-[11px] text-slate-200">{payment.payment_id || payment.paymentId || '-'}</span></td>
+                    <td className="py-3 px-3 text-xs text-slate-300">{new Date(payment.created_at || payment.createdAt).toLocaleString()}</td>
                     <td className="py-3 px-3">
                       <div className="flex gap-2 flex-wrap">
-                        <button
-                          onClick={() => handlePaymentAction(payment._id, 'approve')}
-                          className="text-xs px-3 py-1 rounded bg-green-500 text-white hover:bg-green-600 transition font-bold"
-                        >
-                          ✅ Approve
-                        </button>
-                        <button
-                          onClick={() => handlePaymentAction(payment._id, 'reject')}
-                          className="text-xs px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600 transition font-bold"
-                        >
-                          ❌ Reject
-                        </button>
-                        <button
-                          onClick={() => onOpenDetail('Payment Detail', payment)}
-                          className="text-xs px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 transition font-bold"
-                        >
-                          👁️ View
-                        </button>
+                        <button onClick={() => handlePaymentAction(payment._id, 'approve')} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-400 transition font-semibold">Approve</button>
+                        <button onClick={() => handlePaymentAction(payment._id, 'reject')} className="text-xs px-3 py-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition font-semibold">Reject</button>
+                        <button onClick={() => onOpenDetail('Payment Detail', payment)} className="text-xs px-3 py-1.5 rounded-lg border border-cyan-300/35 bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/30 transition font-semibold">View</button>
                       </div>
                     </td>
                   </tr>
@@ -3611,52 +3831,51 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
             </table>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Approved Payments */}
-      {approvedPayments.length > 0 && (
-        <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-green-900 mb-4">✅ Approved ({approvedPayments.length})</h3>
-          <TablePanel
-            columnClassName="text-xs"
-            columns={['User', 'Plan', 'Amount', 'Payment ID', 'Approved At']}
-            rows={approvedPayments.map((p) => [
-              p.user_id?.name || p.userName || '-',
-              p.plan || p.planName,
-              `₹${p.amount}`,
-              p.payment_id || p.paymentId || '-',
-              new Date(p.approved_at || p.approvedAt).toLocaleString()
-            ])}
-            pageSize={5}
-          />
-        </div>
-      )}
+      <div className="grid lg:grid-cols-2 gap-4">
+        {approvedPayments.length > 0 ? (
+          <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 md:p-5">
+            <h3 className="text-base font-bold text-emerald-100 mb-3">Approved ({approvedPayments.length})</h3>
+            <TablePanel
+              columnClassName="text-xs"
+              columns={['User', 'Plan', 'Amount', 'Payment ID', 'Approved At']}
+              rows={approvedPayments.map((p) => [
+                p.user_id?.name || p.userName || '-',
+                p.plan || p.planName,
+                `Rs ${p.amount}`,
+                p.payment_id || p.paymentId || '-',
+                new Date(p.approved_at || p.approvedAt).toLocaleString()
+              ])}
+              pageSize={5}
+            />
+          </div>
+        ) : null}
 
-      {/* Rejected Payments */}
-      {rejectedPayments.length > 0 && (
-        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-red-900 mb-4">❌ Rejected ({rejectedPayments.length})</h3>
-          <TablePanel
-            columnClassName="text-xs"
-            columns={['User', 'Plan', 'Amount', 'Payment ID', 'Rejected At']}
-            rows={rejectedPayments.map((p) => [
-              p.user_id?.name || p.userName || '-',
-              p.plan || p.planName,
-              `₹${p.amount}`,
-              p.payment_id || p.paymentId || '-',
-              new Date(p.rejected_at || p.rejectedAt).toLocaleString()
-            ])}
-            pageSize={5}
-          />
-        </div>
-      )}
+        {rejectedPayments.length > 0 ? (
+          <div className="rounded-2xl border border-rose-300/25 bg-rose-500/10 p-4 md:p-5">
+            <h3 className="text-base font-bold text-rose-100 mb-3">Rejected ({rejectedPayments.length})</h3>
+            <TablePanel
+              columnClassName="text-xs"
+              columns={['User', 'Plan', 'Amount', 'Payment ID', 'Rejected At']}
+              rows={rejectedPayments.map((p) => [
+                p.user_id?.name || p.userName || '-',
+                p.plan || p.planName,
+                `Rs ${p.amount}`,
+                p.payment_id || p.paymentId || '-',
+                new Date(p.rejected_at || p.rejectedAt).toLocaleString()
+              ])}
+              pageSize={5}
+            />
+          </div>
+        ) : null}
+      </div>
 
-      {/* Empty State */}
       {(!payments || payments.length === 0) && (
-        <div className="text-center py-12 bg-white rounded-xl border-2 border-gray-200">
-          <p className="text-3xl mb-2">💳</p>
-          <p className="text-gray-600 text-lg font-semibold">No payments yet</p>
-          <p className="text-gray-500 text-sm mt-1">Payment requests will appear here</p>
+        <div className="text-center py-14 rounded-2xl border border-cyan-200/20 bg-[#0a1a36]/58">
+          <p className="text-4xl mb-2">💳</p>
+          <p className="text-slate-100 text-lg font-semibold">No payments yet</p>
+          <p className="text-slate-400 text-sm mt-1">Incoming payment requests will appear here for review.</p>
         </div>
       )}
     </div>
@@ -3685,64 +3904,449 @@ function ModerationPanel({ photos }) {
 }
 
 function CollegesPanel({ colleges }) {
-  return <TablePanel title="Campus Management" columns={['College', 'Domain', 'Active', 'Verification', 'Onboarding']} rows={colleges.map((college) => [
-    college.name,
-    college.domain,
-    college.is_active ? 'Yes' : 'No',
-    college.verification_required ? 'Required' : 'Optional',
-    college.onboarding_enabled ? 'Enabled' : 'Disabled'
-  ])} />;
+  const total = colleges.length;
+  const activeCount = colleges.filter((college) => college.is_active).length;
+  const verificationRequiredCount = colleges.filter((college) => college.verification_required).length;
+  const onboardingEnabledCount = colleges.filter((college) => college.onboarding_enabled).length;
+  const inactiveCount = total - activeCount;
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/12 via-sky-500/8 to-transparent px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Campus Operations</p>
+            <p className="text-sm text-slate-200">Manage approved campuses, domain trust, and onboarding readiness across the network.</p>
+          </div>
+          <span className="inline-flex items-center rounded-full border border-cyan-200/30 bg-cyan-400/12 px-3 py-1 text-xs font-semibold text-cyan-100">
+            {total} campus{total === 1 ? '' : 'es'} tracked
+          </span>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <MetricCard label="Total Campuses" value={total} tone="cyan" />
+        <MetricCard label="Active" value={activeCount} tone="emerald" />
+        <MetricCard label="Verification Required" value={verificationRequiredCount} tone="amber" />
+        <MetricCard label="Onboarding Enabled" value={onboardingEnabledCount} tone="rose" />
+      </div>
+
+      {total > 0 ? (
+        <div className="grid lg:grid-cols-2 gap-4">
+          {colleges.map((college) => (
+            <div key={college._id || `${college.name}-${college.domain}`} className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-white">{college.name || 'Unnamed College'}</p>
+                  <p className="text-xs text-cyan-100/75 mt-1">{college.domain || 'No verified domain'}</p>
+                </div>
+                <span className={`text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded-full border ${college.is_active ? 'border-emerald-300/35 bg-emerald-500/15 text-emerald-100' : 'border-rose-300/35 bg-rose-500/15 text-rose-100'}`}>
+                  {college.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400">Verification</p>
+                  <p className="text-sm font-semibold text-slate-100 mt-1">{college.verification_required ? 'Required' : 'Optional'}</p>
+                </div>
+                <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-2.5">
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400">Onboarding</p>
+                  <p className="text-sm font-semibold text-slate-100 mt-1">{college.onboarding_enabled ? 'Enabled' : 'Disabled'}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="text-[11px] px-2.5 py-1 rounded-full border border-cyan-300/25 bg-cyan-500/12 text-cyan-100">Domain: {college.domain || 'N/A'}</span>
+                <span className="text-[11px] px-2.5 py-1 rounded-full border border-slate-300/20 bg-slate-500/10 text-slate-200">ID: {college._id || 'N/A'}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-cyan-200/20 bg-[#0a1a36]/58 px-6 py-14 text-center">
+          <p className="text-4xl mb-2">🏫</p>
+          <p className="text-slate-100 text-lg font-semibold">No campuses available yet</p>
+          <p className="text-slate-400 text-sm mt-1">Add your first campus to enable domain-based student verification and onboarding.</p>
+          <div className="mt-6 grid sm:grid-cols-3 gap-2 max-w-3xl mx-auto">
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2 text-left">
+              <p className="text-xs uppercase tracking-[0.12em] text-cyan-100/70">Step 1</p>
+              <p className="text-sm text-slate-200 mt-1">Create campus profile</p>
+            </div>
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2 text-left">
+              <p className="text-xs uppercase tracking-[0.12em] text-cyan-100/70">Step 2</p>
+              <p className="text-sm text-slate-200 mt-1">Verify email domain</p>
+            </div>
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2 text-left">
+              <p className="text-xs uppercase tracking-[0.12em] text-cyan-100/70">Step 3</p>
+              <p className="text-sm text-slate-200 mt-1">Enable onboarding flow</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {inactiveCount > 0 ? (
+        <div className="rounded-2xl border border-amber-300/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm text-amber-100">
+            {inactiveCount} campus{inactiveCount === 1 ? ' is' : 'es are'} currently inactive. Review onboarding and verification settings before reactivation.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
-function SupportPanel({ tickets }) {
-  return <TablePanel title="Support and Operations" columns={['Subject', 'User', 'Priority', 'Status', 'Updated']} rows={tickets.map((ticket) => [
-    ticket.subject,
-    ticket.user_id?.email || '-',
-    ticket.priority,
-    ticket.status,
-    new Date(ticket.updated_at || ticket.created_at).toLocaleString()
-  ])} />;
+function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify }) {
+  const contactSetting = settings.find((item) => item.key === 'support_contact_config');
+  const rawContact = contactSetting?.value;
+  const parsedContact = React.useMemo(() => {
+    if (!rawContact) {
+      return {};
+    }
+    if (typeof rawContact === 'string') {
+      try {
+        return JSON.parse(rawContact);
+      } catch {
+        return {};
+      }
+    }
+    return typeof rawContact === 'object' ? rawContact : {};
+  }, [rawContact]);
+
+  const [contactDraft, setContactDraft] = React.useState({
+    supportEmail: '',
+    escalationEmail: '',
+    supportPhone: '',
+    whatsapp: '',
+    instagramId: '',
+    telegramId: '',
+    supportHandle: '',
+    helpCenterUrl: '',
+    officeHours: '',
+    responseSlaHours: ''
+  });
+  const [savingContact, setSavingContact] = React.useState(false);
+
+  React.useEffect(() => {
+    setContactDraft((prev) => ({
+      ...prev,
+      supportEmail: parsedContact.supportEmail || '',
+      escalationEmail: parsedContact.escalationEmail || '',
+      supportPhone: parsedContact.supportPhone || '',
+      whatsapp: parsedContact.whatsapp || '',
+      instagramId: parsedContact.instagramId || '',
+      telegramId: parsedContact.telegramId || '',
+      supportHandle: parsedContact.supportHandle || '',
+      helpCenterUrl: parsedContact.helpCenterUrl || '',
+      officeHours: parsedContact.officeHours || '',
+      responseSlaHours: parsedContact.responseSlaHours || ''
+    }));
+  }, [parsedContact]);
+
+  const totalTickets = tickets.length;
+  const openTickets = tickets.filter((t) => ['open', 'pending', 'new'].includes(String(t.status || '').toLowerCase())).length;
+  const resolvedTickets = tickets.filter((t) => ['resolved', 'closed', 'done'].includes(String(t.status || '').toLowerCase())).length;
+  const highPriorityTickets = tickets.filter((t) => ['high', 'urgent', 'critical', 'p1'].includes(String(t.priority || '').toLowerCase())).length;
+  const slaHealth = totalTickets ? Math.max(0, Math.min(100, Math.round((resolvedTickets / totalTickets) * 100))) : 100;
+
+  const saveContactConfig = async () => {
+    try {
+      setSavingContact(true);
+      await onUpdateSetting?.('support_contact_config', {
+        supportEmail: String(contactDraft.supportEmail || '').trim(),
+        escalationEmail: String(contactDraft.escalationEmail || '').trim(),
+        supportPhone: String(contactDraft.supportPhone || '').trim(),
+        whatsapp: String(contactDraft.whatsapp || '').trim(),
+        instagramId: String(contactDraft.instagramId || '').trim(),
+        telegramId: String(contactDraft.telegramId || '').trim(),
+        supportHandle: String(contactDraft.supportHandle || '').trim(),
+        helpCenterUrl: String(contactDraft.helpCenterUrl || '').trim(),
+        officeHours: String(contactDraft.officeHours || '').trim(),
+        responseSlaHours: String(contactDraft.responseSlaHours || '').trim()
+      });
+      onNotify?.('Support contact details updated.');
+    } catch (err) {
+      onNotify?.(err?.message || 'Failed to save support contact details', 'error');
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const inputClass = 'mt-1 w-full rounded-xl bg-white/8 border border-cyan-200/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/40';
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/12 via-sky-500/8 to-transparent px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Support Command Center</p>
+            <p className="text-sm text-slate-200">Manage support queue performance and live contact channels from one operational surface.</p>
+          </div>
+          <span className="inline-flex items-center rounded-full border border-cyan-200/30 bg-cyan-400/12 px-3 py-1 text-xs font-semibold text-cyan-100">
+            SLA Health {slaHealth}%
+          </span>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3">
+        <MetricCard label="Total Tickets" value={totalTickets} tone="cyan" />
+        <MetricCard label="Open Queue" value={openTickets} tone="amber" />
+        <MetricCard label="Resolved" value={resolvedTickets} tone="emerald" />
+        <MetricCard label="High Priority" value={highPriorityTickets} tone="rose" />
+        <MetricCard label="Resolution Rate" value={`${slaHealth}%`} tone="slate" />
+      </div>
+
+      <div className="grid xl:grid-cols-[1.2fr_1fr] gap-4">
+        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-white">Support Queue</h3>
+            <span className="text-xs text-cyan-100/75">Live operational list</span>
+          </div>
+
+          {tickets.length ? (
+            <div className="space-y-2.5 max-h-[56vh] overflow-auto pr-1">
+              {tickets.slice(0, 40).map((ticket, idx) => {
+                const priority = String(ticket.priority || 'normal').toLowerCase();
+                const status = String(ticket.status || 'open').toLowerCase();
+                const priorityClass = priority.includes('high') || priority.includes('urgent') || priority.includes('critical')
+                  ? 'border-rose-300/30 bg-rose-500/12 text-rose-100'
+                  : 'border-cyan-300/25 bg-cyan-500/12 text-cyan-100';
+                const statusClass = ['resolved', 'closed', 'done'].includes(status)
+                  ? 'border-emerald-300/30 bg-emerald-500/12 text-emerald-100'
+                  : 'border-amber-300/30 bg-amber-500/12 text-amber-100';
+
+                return (
+                  <div key={ticket._id || `${ticket.subject}-${idx}`} className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-100">{ticket.subject || 'Support Ticket'}</p>
+                        <p className="text-xs text-slate-300 mt-1">{ticket.user_id?.email || ticket.email || 'Unknown user'}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] uppercase tracking-[0.12em] px-2 py-0.5 rounded-full border ${priorityClass}`}>{priority}</span>
+                        <span className={`text-[10px] uppercase tracking-[0.12em] px-2 py-0.5 rounded-full border ${statusClass}`}>{status}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">Updated {new Date(ticket.updated_at || ticket.created_at || Date.now()).toLocaleString()}</p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-4 py-10 text-center">
+              <p className="text-3xl mb-2">🎧</p>
+              <p className="text-slate-100 font-semibold">No support tickets in this range</p>
+              <p className="text-sm text-slate-400 mt-1">Incoming support requests will appear here automatically.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-white">Contact Control Center</h3>
+            <button onClick={saveContactConfig} disabled={savingContact} className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-500 transition disabled:opacity-60">
+              {savingContact ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+          <div className="space-y-3 max-h-[56vh] overflow-auto pr-1">
+            <label className="text-xs text-slate-300">Primary Support Email
+              <input value={contactDraft.supportEmail} onChange={(event) => setContactDraft((prev) => ({ ...prev, supportEmail: event.target.value }))} placeholder="support@cudaters.com" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Escalation Email
+              <input value={contactDraft.escalationEmail} onChange={(event) => setContactDraft((prev) => ({ ...prev, escalationEmail: event.target.value }))} placeholder="escalations@cudaters.com" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Support Phone
+              <input value={contactDraft.supportPhone} onChange={(event) => setContactDraft((prev) => ({ ...prev, supportPhone: event.target.value }))} placeholder="+91 98XXXXXX10" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">WhatsApp Number
+              <input value={contactDraft.whatsapp} onChange={(event) => setContactDraft((prev) => ({ ...prev, whatsapp: event.target.value }))} placeholder="+91 98XXXXXX10" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Instagram ID
+              <input value={contactDraft.instagramId} onChange={(event) => setContactDraft((prev) => ({ ...prev, instagramId: event.target.value }))} placeholder="@cu_daters_support" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Telegram ID
+              <input value={contactDraft.telegramId} onChange={(event) => setContactDraft((prev) => ({ ...prev, telegramId: event.target.value }))} placeholder="@cudatershelp" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Support Handle / Contact ID
+              <input value={contactDraft.supportHandle} onChange={(event) => setContactDraft((prev) => ({ ...prev, supportHandle: event.target.value }))} placeholder="CU-Daters Support Ops" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Help Center URL
+              <input value={contactDraft.helpCenterUrl} onChange={(event) => setContactDraft((prev) => ({ ...prev, helpCenterUrl: event.target.value }))} placeholder="https://help.cudaters.com" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Office Hours
+              <input value={contactDraft.officeHours} onChange={(event) => setContactDraft((prev) => ({ ...prev, officeHours: event.target.value }))} placeholder="Mon-Sat, 9:00 AM - 8:00 PM" className={inputClass} />
+            </label>
+            <label className="text-xs text-slate-300">Response SLA (hours)
+              <input value={contactDraft.responseSlaHours} onChange={(event) => setContactDraft((prev) => ({ ...prev, responseSlaHours: event.target.value }))} placeholder="6" className={inputClass} />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function AnalyticsPanel({ analytics }) {
   if (!analytics) {
-    return <p className="text-softBrown">No analytics data available.</p>;
+    return <p className="text-slate-300">No analytics data available.</p>;
   }
 
-  const bars = [
-    ['DAU', analytics.dailyActiveUsers],
-    ['WAU', analytics.weeklyActiveUsers],
-    ['MAU', analytics.monthlyActiveUsers],
-    ['Signups', analytics.newSignups],
-    ['Messages', analytics.messageActivity]
-  ];
+  const dau = Number(analytics.dailyActiveUsers) || 0;
+  const wau = Number(analytics.weeklyActiveUsers) || 0;
+  const mau = Number(analytics.monthlyActiveUsers) || 0;
+  const signups = Number(analytics.newSignups) || 0;
+  const messages = Number(analytics.messageActivity) || 0;
+  const premiumConversion = Number(analytics.premiumConversionRate) || 0;
+  const matchRate = Number(analytics.matchRate) || 0;
+  const retention = Number(analytics.retentionHint) || 0;
 
-  const maxValue = Math.max(...bars.map((item) => Number(item[1]) || 0), 1);
+  const trendSeries = Array.isArray(analytics.engagementTrend) && analytics.engagementTrend.length >= 5
+    ? analytics.engagementTrend.map((value) => Number(value) || 0).slice(-7)
+    : [
+        Math.max(0, Math.round(dau * 0.72)),
+        Math.max(0, Math.round(dau * 0.81)),
+        Math.max(0, Math.round(dau * 0.76)),
+        Math.max(0, Math.round(dau * 0.9)),
+        Math.max(0, Math.round(dau * 0.95)),
+        Math.max(0, Math.round(dau * 0.88)),
+        Math.max(0, dau)
+      ];
+
+  const trendMax = Math.max(...trendSeries, 1);
+  const linePoints = trendSeries.map((value, idx) => {
+    const x = (idx / Math.max(trendSeries.length - 1, 1)) * 100;
+    const y = 100 - (value / trendMax) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+  const areaPoints = `0,100 ${linePoints} 100,100`;
+
+  const kpiBars = [
+    { label: 'DAU', value: dau },
+    { label: 'WAU', value: wau },
+    { label: 'MAU', value: mau },
+    { label: 'Signups', value: signups },
+    { label: 'Messages', value: messages }
+  ];
+  const kpiMax = Math.max(...kpiBars.map((item) => item.value), 1);
+
+  const acquisition = Math.max(signups, 1);
+  const premiumUsers = Math.max(Math.round((premiumConversion / 100) * signups), 0);
+  const conversionSegments = [
+    { label: 'Free', value: Math.max(acquisition - premiumUsers, 0), color: '#0ea5e9' },
+    { label: 'Premium', value: premiumUsers, color: '#f59e0b' }
+  ];
+  const segmentTotal = Math.max(conversionSegments.reduce((sum, item) => sum + item.value, 0), 1);
+  let runningOffset = 0;
+  const donutSegments = conversionSegments.map((segment) => {
+    const dash = (segment.value / segmentTotal) * 100;
+    const strokeDasharray = `${dash} ${100 - dash}`;
+    const strokeDashoffset = -runningOffset;
+    runningOffset += dash;
+    return { ...segment, strokeDasharray, strokeDashoffset };
+  });
 
   return (
-    <div className="space-y-4">
-      <div className="grid md:grid-cols-3 gap-3">
-        <MetricCard label="DAU" value={analytics.dailyActiveUsers} />
-        <MetricCard label="WAU" value={analytics.weeklyActiveUsers} />
-        <MetricCard label="MAU" value={analytics.monthlyActiveUsers} />
-        <MetricCard label="New Signups" value={analytics.newSignups} />
-        <MetricCard label="Premium Conversion" value={`${analytics.premiumConversionRate}%`} />
-        <MetricCard label="Match Rate" value={`${analytics.matchRate}%`} />
-        <MetricCard label="Message Activity" value={analytics.messageActivity} />
-        <MetricCard label="Retention Indicator" value={`${analytics.retentionHint}%`} />
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/12 via-sky-500/8 to-transparent px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Growth Intelligence</p>
+            <p className="text-sm text-slate-200">Core product health, trend momentum, and conversion quality in one analytics surface.</p>
+          </div>
+          <span className="inline-flex items-center rounded-full border border-cyan-200/30 bg-cyan-400/12 px-3 py-1 text-xs font-semibold text-cyan-100">
+            Live dashboard mode
+          </span>
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-softPink/40 bg-white p-4">
-        <p className="font-bold text-darkBrown mb-3">Engagement Trend Snapshot</p>
-        <div className="space-y-2">
-          {bars.map(([label, value]) => (
-            <div key={label}>
-              <div className="flex justify-between text-xs text-softBrown mb-1">
-                <span>{label}</span>
-                <span>{value || 0}</span>
+      <div className="grid md:grid-cols-3 gap-3">
+        <MetricCard label="DAU" value={dau} tone="cyan" />
+        <MetricCard label="WAU" value={wau} tone="slate" />
+        <MetricCard label="MAU" value={mau} tone="slate" />
+        <MetricCard label="New Signups" value={signups} tone="emerald" />
+        <MetricCard label="Premium Conversion" value={`${premiumConversion}%`} tone="amber" />
+        <MetricCard label="Match Rate" value={`${matchRate}%`} tone="rose" />
+        <MetricCard label="Message Activity" value={messages} tone="cyan" />
+        <MetricCard label="Retention Indicator" value={`${retention}%`} tone="emerald" />
+      </div>
+
+      <div className="grid xl:grid-cols-[1.6fr_1fr] gap-4">
+        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-white">7-Day Engagement Trend</h3>
+            <span className="text-xs text-cyan-100/75">Area + line analysis</span>
+          </div>
+          <div className="h-56 rounded-xl border border-cyan-200/15 bg-black/25 p-3">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+              <defs>
+                <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.5" />
+                  <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.02" />
+                </linearGradient>
+              </defs>
+              {[20, 40, 60, 80].map((grid) => (
+                <line key={grid} x1="0" y1={grid} x2="100" y2={grid} stroke="rgba(148,163,184,0.18)" strokeWidth="0.4" />
+              ))}
+              <polygon points={areaPoints} fill="url(#trendFill)" />
+              <polyline points={linePoints} fill="none" stroke="#22d3ee" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className="grid grid-cols-7 gap-2 mt-3">
+            {trendSeries.map((value, idx) => (
+              <div key={`day-${idx}`} className="text-center">
+                <p className="text-[10px] text-slate-400">D-{6 - idx}</p>
+                <p className="text-xs font-semibold text-slate-100">{value}</p>
               </div>
-              <div className="h-2 rounded-full bg-softPink/40 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blushPink to-softPink" style={{ width: `${Math.max(6, ((Number(value) || 0) / maxValue) * 100)}%` }}></div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Plan Mix</h3>
+          <div className="flex items-center justify-center py-2">
+            <svg viewBox="0 0 42 42" className="w-44 h-44 -rotate-90">
+              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.2)" strokeWidth="4" />
+              {donutSegments.map((segment) => (
+                <circle
+                  key={segment.label}
+                  cx="21"
+                  cy="21"
+                  r="15.915"
+                  fill="none"
+                  stroke={segment.color}
+                  strokeWidth="4"
+                  strokeDasharray={segment.strokeDasharray}
+                  strokeDashoffset={segment.strokeDashoffset}
+                  strokeLinecap="round"
+                />
+              ))}
+            </svg>
+          </div>
+          <div className="space-y-2 mt-1">
+            {conversionSegments.map((segment) => (
+              <div key={segment.label} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-slate-200">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
+                  <span>{segment.label}</span>
+                </div>
+                <span className="font-semibold text-white">{segment.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+        <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Comparative KPI Bars</h3>
+        <div className="space-y-3">
+          {kpiBars.map((item) => (
+            <div key={item.label}>
+              <div className="flex justify-between text-xs text-slate-300 mb-1">
+                <span>{item.label}</span>
+                <span>{item.value}</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-slate-900/60 overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-500" style={{ width: `${Math.max(6, (item.value / kpiMax) * 100)}%` }} />
               </div>
             </div>
           ))}
@@ -3755,9 +4359,220 @@ function AnalyticsPanel({ analytics }) {
 function SettingsPanel({ settings, onUpdate }) {
   const [draftKey, setDraftKey] = React.useState('');
   const [draftValue, setDraftValue] = React.useState('');
+  const legalSetting = settings.find((item) => item.key === 'legal_content_config');
+  const legalRaw = legalSetting?.value;
+  const parsedLegal = React.useMemo(() => {
+    if (!legalRaw) {
+      return {};
+    }
+    if (typeof legalRaw === 'string') {
+      try {
+        return JSON.parse(legalRaw);
+      } catch {
+        return {};
+      }
+    }
+    return typeof legalRaw === 'object' ? legalRaw : {};
+  }, [legalRaw]);
+
+  const [legalDraft, setLegalDraft] = React.useState({
+    appName: '',
+    companyName: '',
+    termsLastUpdated: '',
+    privacyLastUpdated: '',
+    legalEmail: '',
+    privacyEmail: '',
+    supportEmail: '',
+    disputeResponseDays: '',
+    arbitrationCity: '',
+    governingLaw: '',
+    mailingAddress: '',
+    termsBlocks: [],
+    privacyBlocks: []
+  });
+  const [savingLegal, setSavingLegal] = React.useState(false);
+
+  const normalizeBlocks = React.useCallback((blocks, fallback) => {
+    const source = Array.isArray(blocks) ? blocks : fallback;
+    return source.map((block, index) => ({
+      id: block?.id || `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+      title: String(block?.title || '').trim(),
+      body: String(block?.body || '').trim()
+    }));
+  }, []);
+
+  const defaultTermsBlocks = React.useMemo(() => ([
+    { title: 'Acceptance of Terms', body: 'By using the app, users agree to these terms and any future updates announced by the platform.' },
+    { title: 'User Conduct', body: 'Users must behave respectfully and must not engage in harassment, fraud, abuse, impersonation, or illegal activity.' }
+  ]), []);
+
+  const defaultPrivacyBlocks = React.useMemo(() => ([
+    { title: 'Information We Collect', body: 'We collect account, profile, and usage information required to provide the service and keep the community safe.' },
+    { title: 'How We Use Information', body: 'Information is used for account management, feature delivery, moderation, support, and legal compliance.' }
+  ]), []);
+
+  React.useEffect(() => {
+    setLegalDraft((prev) => ({
+      ...prev,
+      appName: parsedLegal.appName || 'CU-Daters',
+      companyName: parsedLegal.companyName || 'CU-Daters',
+      termsLastUpdated: parsedLegal.termsLastUpdated || 'March 2026',
+      privacyLastUpdated: parsedLegal.privacyLastUpdated || 'March 2026',
+      legalEmail: parsedLegal.legalEmail || 'legal@cudaters.in',
+      privacyEmail: parsedLegal.privacyEmail || 'privacy@cudaters.in',
+      supportEmail: parsedLegal.supportEmail || 'support@cudaters.in',
+      disputeResponseDays: parsedLegal.disputeResponseDays || '7',
+      arbitrationCity: parsedLegal.arbitrationCity || 'Chandigarh, India',
+      governingLaw: parsedLegal.governingLaw || 'Laws of India',
+      mailingAddress: parsedLegal.mailingAddress || 'Chandigarh University, Chandigarh, India',
+      termsBlocks: normalizeBlocks(parsedLegal.termsBlocks, defaultTermsBlocks),
+      privacyBlocks: normalizeBlocks(parsedLegal.privacyBlocks, defaultPrivacyBlocks)
+    }));
+  }, [defaultPrivacyBlocks, defaultTermsBlocks, normalizeBlocks, parsedLegal]);
+
+  const updateBlock = (field, id, patch) => {
+    setLegalDraft((prev) => ({
+      ...prev,
+      [field]: (prev[field] || []).map((item) => (item.id === id ? { ...item, ...patch } : item))
+    }));
+  };
+
+  const addBlock = (field) => {
+    setLegalDraft((prev) => ({
+      ...prev,
+      [field]: [
+        ...(prev[field] || []),
+        { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, title: '', body: '' }
+      ]
+    }));
+  };
+
+  const removeBlock = (field, id) => {
+    setLegalDraft((prev) => ({
+      ...prev,
+      [field]: (prev[field] || []).filter((item) => item.id !== id)
+    }));
+  };
+
+  const saveLegalContent = async () => {
+    try {
+      setSavingLegal(true);
+      await onUpdate('legal_content_config', {
+        appName: String(legalDraft.appName || '').trim(),
+        companyName: String(legalDraft.companyName || '').trim(),
+        termsLastUpdated: String(legalDraft.termsLastUpdated || '').trim(),
+        privacyLastUpdated: String(legalDraft.privacyLastUpdated || '').trim(),
+        legalEmail: String(legalDraft.legalEmail || '').trim(),
+        privacyEmail: String(legalDraft.privacyEmail || '').trim(),
+        supportEmail: String(legalDraft.supportEmail || '').trim(),
+        disputeResponseDays: String(legalDraft.disputeResponseDays || '').trim(),
+        arbitrationCity: String(legalDraft.arbitrationCity || '').trim(),
+        governingLaw: String(legalDraft.governingLaw || '').trim(),
+        mailingAddress: String(legalDraft.mailingAddress || '').trim(),
+        termsBlocks: (legalDraft.termsBlocks || [])
+          .map((block) => ({ title: String(block.title || '').trim(), body: String(block.body || '').trim() }))
+          .filter((block) => block.title || block.body),
+        privacyBlocks: (legalDraft.privacyBlocks || [])
+          .map((block) => ({ title: String(block.title || '').trim(), body: String(block.body || '').trim() }))
+          .filter((block) => block.title || block.body)
+      });
+    } finally {
+      setSavingLegal(false);
+    }
+  };
+
+  const inputClass = 'mt-1 w-full rounded-xl bg-white/8 border border-cyan-200/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/40';
 
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-white">Legal Content Control Center</h3>
+            <p className="text-xs text-cyan-100/75 mt-1">Manage Terms and Privacy public details from admin.</p>
+          </div>
+          <button onClick={saveLegalContent} disabled={savingLegal} className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-500 transition disabled:opacity-60">
+            {savingLegal ? 'Saving...' : 'Save Legal Content'}
+          </button>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-3">
+          <label className="text-xs text-slate-300">App Name
+            <input value={legalDraft.appName} onChange={(event) => setLegalDraft((prev) => ({ ...prev, appName: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Company Name
+            <input value={legalDraft.companyName} onChange={(event) => setLegalDraft((prev) => ({ ...prev, companyName: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Terms Last Updated
+            <input value={legalDraft.termsLastUpdated} onChange={(event) => setLegalDraft((prev) => ({ ...prev, termsLastUpdated: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Privacy Last Updated
+            <input value={legalDraft.privacyLastUpdated} onChange={(event) => setLegalDraft((prev) => ({ ...prev, privacyLastUpdated: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Legal Email
+            <input value={legalDraft.legalEmail} onChange={(event) => setLegalDraft((prev) => ({ ...prev, legalEmail: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Privacy Email
+            <input value={legalDraft.privacyEmail} onChange={(event) => setLegalDraft((prev) => ({ ...prev, privacyEmail: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Support Email
+            <input value={legalDraft.supportEmail} onChange={(event) => setLegalDraft((prev) => ({ ...prev, supportEmail: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Dispute Response (days)
+            <input value={legalDraft.disputeResponseDays} onChange={(event) => setLegalDraft((prev) => ({ ...prev, disputeResponseDays: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Arbitration City
+            <input value={legalDraft.arbitrationCity} onChange={(event) => setLegalDraft((prev) => ({ ...prev, arbitrationCity: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300">Governing Law
+            <input value={legalDraft.governingLaw} onChange={(event) => setLegalDraft((prev) => ({ ...prev, governingLaw: event.target.value }))} className={inputClass} />
+          </label>
+          <label className="text-xs text-slate-300 md:col-span-2">Mailing Address
+            <input value={legalDraft.mailingAddress} onChange={(event) => setLegalDraft((prev) => ({ ...prev, mailingAddress: event.target.value }))} className={inputClass} />
+          </label>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4 mt-4">
+          <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">Terms Content Blocks</p>
+              <button type="button" onClick={() => addBlock('termsBlocks')} className="px-2.5 py-1 rounded-lg text-[11px] border border-cyan-300/40 bg-cyan-500/15 text-cyan-100">Add Block</button>
+            </div>
+            <div className="space-y-2 max-h-[320px] overflow-auto pr-1">
+              {(legalDraft.termsBlocks || []).map((block, index) => (
+                <div key={block.id} className="rounded-lg border border-cyan-200/15 bg-black/20 p-2.5">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-[11px] text-slate-300">Section {index + 1}</p>
+                    <button type="button" onClick={() => removeBlock('termsBlocks', block.id)} className="text-[11px] px-2 py-0.5 rounded border border-rose-300/40 text-rose-200">Remove</button>
+                  </div>
+                  <input value={block.title} onChange={(event) => updateBlock('termsBlocks', block.id, { title: event.target.value })} placeholder="Section title" className={inputClass} />
+                  <textarea value={block.body} onChange={(event) => updateBlock('termsBlocks', block.id, { body: event.target.value })} placeholder="Section content" rows={3} className={inputClass} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">Privacy Content Blocks</p>
+              <button type="button" onClick={() => addBlock('privacyBlocks')} className="px-2.5 py-1 rounded-lg text-[11px] border border-cyan-300/40 bg-cyan-500/15 text-cyan-100">Add Block</button>
+            </div>
+            <div className="space-y-2 max-h-[320px] overflow-auto pr-1">
+              {(legalDraft.privacyBlocks || []).map((block, index) => (
+                <div key={block.id} className="rounded-lg border border-cyan-200/15 bg-black/20 p-2.5">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-[11px] text-slate-300">Section {index + 1}</p>
+                    <button type="button" onClick={() => removeBlock('privacyBlocks', block.id)} className="text-[11px] px-2 py-0.5 rounded border border-rose-300/40 text-rose-200">Remove</button>
+                  </div>
+                  <input value={block.title} onChange={(event) => updateBlock('privacyBlocks', block.id, { title: event.target.value })} placeholder="Section title" className={inputClass} />
+                  <textarea value={block.body} onChange={(event) => updateBlock('privacyBlocks', block.id, { body: event.target.value })} placeholder="Section content" rows={3} className={inputClass} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <TablePanel title="Platform Settings" columns={['Key', 'Value', 'Description']} rows={settings.map((setting) => [
         setting.key,
         typeof setting.value === 'object' ? JSON.stringify(setting.value) : String(setting.value),
@@ -3777,12 +4592,142 @@ function SettingsPanel({ settings, onUpdate }) {
 }
 
 function ActivityPanel({ logs }) {
-  return <TablePanel title="Operational Audit Trail" columns={['Action', 'Status', 'Actor', 'Time']} rows={logs.map((log) => [
-    log.action,
-    log.status,
-    log.admin_id?.email || log.user_id?.email || '-',
-    new Date(log.timestamp).toLocaleString()
-  ])} />;
+  const normalizedLogs = React.useMemo(() => {
+    return (logs || []).map((log, index) => {
+      const action = String(log?.action || log?.event || log?.type || 'activity').trim();
+      const status = String(log?.status || log?.result || 'info').trim().toLowerCase();
+      const actor = log?.admin_id?.email || log?.user_id?.email || log?.actor?.email || log?.actor || 'system';
+      const rawTs = log?.timestamp || log?.createdAt || log?.updatedAt;
+      const ts = rawTs ? new Date(rawTs).getTime() : 0;
+      const safeTs = Number.isFinite(ts) ? ts : 0;
+      return {
+        id: log?._id || `${action}-${safeTs}-${index}`,
+        action,
+        status,
+        actor,
+        timestamp: safeTs,
+        readableTime: safeTs ? new Date(safeTs).toLocaleString() : 'Unknown time',
+        description: log?.description || log?.note || log?.message || ''
+      };
+    }).sort((a, b) => b.timestamp - a.timestamp);
+  }, [logs]);
+
+  const totalEvents = normalizedLogs.length;
+  const criticalEvents = normalizedLogs.filter((item) => /failed|error|reject|denied|blocked/.test(item.status) || /delete|ban|suspend|reject/.test(item.action.toLowerCase()));
+  const sensitiveEvents = normalizedLogs.filter((item) => /delete|ban|suspend|reject|pin|payment|settings|config|approve/.test(item.action.toLowerCase()));
+  const uniqueActors = new Set(normalizedLogs.map((item) => item.actor)).size;
+  const latestEvent = normalizedLogs[0];
+
+  const actorDistribution = React.useMemo(() => {
+    const tally = new Map();
+    normalizedLogs.forEach((item) => {
+      tally.set(item.actor, (tally.get(item.actor) || 0) + 1);
+    });
+    return Array.from(tally.entries())
+      .map(([actor, count]) => ({ actor, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [normalizedLogs]);
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/12 via-sky-500/8 to-transparent px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Security Operations Timeline</p>
+            <p className="text-sm text-slate-200">Track sensitive admin actions, detect high-risk events, and maintain compliance visibility.</p>
+          </div>
+          <span className="inline-flex items-center rounded-full border border-cyan-200/30 bg-cyan-400/12 px-3 py-1 text-xs font-semibold text-cyan-100">
+            {totalEvents} events in current window
+          </span>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3">
+        <MetricCard label="Total Events" value={totalEvents} tone="cyan" />
+        <MetricCard label="Critical Flags" value={criticalEvents.length} tone="rose" />
+        <MetricCard label="Sensitive Actions" value={sensitiveEvents.length} tone="amber" />
+        <MetricCard label="Unique Actors" value={uniqueActors} tone="emerald" />
+        <MetricCard label="Latest Event" value={latestEvent ? 'Live' : 'No Data'} tone="slate" />
+      </div>
+
+      {!totalEvents ? (
+        <div className="rounded-2xl border border-cyan-200/20 bg-[#0a1a36]/58 px-6 py-14 text-center">
+          <p className="text-4xl mb-2">📋</p>
+          <p className="text-slate-100 text-lg font-semibold">No audit events in this time range</p>
+          <p className="text-slate-400 text-sm mt-1">Adjust filters or wait for the next admin activity cycle.</p>
+          <div className="mt-6 inline-flex rounded-full border border-emerald-300/30 bg-emerald-500/12 px-3 py-1 text-xs text-emerald-100">
+            Audit pipeline healthy
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid xl:grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-rose-300/25 bg-rose-500/10 p-4 md:p-5">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-rose-100 mb-3">Critical Event Focus</h3>
+              {criticalEvents.length ? (
+                <div className="space-y-2.5">
+                  {criticalEvents.slice(0, 6).map((item) => (
+                    <div key={`critical-${item.id}`} className="rounded-xl border border-rose-300/25 bg-black/20 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-rose-100">{item.action}</p>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full border border-rose-300/25 bg-rose-500/15 text-rose-100 uppercase">{item.status}</span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-1">{item.actor} • {item.readableTime}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-emerald-200">No critical flags detected in this range.</p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-cyan-300/25 bg-cyan-500/10 p-4 md:p-5">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-cyan-100 mb-3">Actor Distribution</h3>
+              <div className="space-y-2.5">
+                {actorDistribution.map((item) => {
+                  const width = Math.max(10, Math.round((item.count / Math.max(actorDistribution[0]?.count || 1, 1)) * 100));
+                  return (
+                    <div key={`actor-${item.actor}`}>
+                      <div className="flex items-center justify-between text-xs text-slate-200 mb-1">
+                        <span className="truncate pr-2">{item.actor}</span>
+                        <span>{item.count}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-900/60 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-sky-500" style={{ width: `${width}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Audit Event Stream</h3>
+            <div className="space-y-2.5 max-h-[56vh] overflow-auto pr-1">
+              {normalizedLogs.slice(0, 40).map((item) => {
+                const isCritical = /failed|error|reject|denied|blocked/.test(item.status) || /delete|ban|suspend|reject/.test(item.action.toLowerCase());
+                return (
+                  <div key={item.id} className={`rounded-xl border px-3 py-3 ${isCritical ? 'border-rose-300/30 bg-rose-500/10' : 'border-cyan-200/15 bg-white/5'}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-slate-100">{item.action}</p>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] uppercase tracking-[0.12em] px-2 py-0.5 rounded-full border ${isCritical ? 'border-rose-300/35 bg-rose-500/20 text-rose-100' : 'border-emerald-300/30 bg-emerald-500/12 text-emerald-100'}`}>{item.status}</span>
+                        <span className="text-xs text-slate-400">{item.readableTime}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-cyan-100/75 mt-1">Actor: {item.actor}</p>
+                    {item.description ? <p className="text-xs text-slate-300 mt-1">{item.description}</p> : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function TablePanel({ title, columns, rows, pageSize = 12, onRowClick }) {

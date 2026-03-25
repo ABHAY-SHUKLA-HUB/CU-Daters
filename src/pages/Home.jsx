@@ -1,104 +1,228 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import ScrollReveal from '../components/ScrollReveal';
+import LazySection from '../components/LazySection';
 import PremiumHero from '../components/PremiumHero';
-import PremiumFeatureCard from '../components/PremiumFeatureCard';
-import HowItWorks from '../components/HowItWorks';
-import ChatShowcase from '../components/ChatShowcase';
-import SafetySection from '../components/SafetySection';
-import PremiumPlans from '../components/PremiumPlans';
-import Testimonials from '../components/Testimonials';
-import FAQSection from '../components/FAQSection';
-import FinalCTA from '../components/FinalCTA';
 import SocialProof from '../components/SocialProof';
 
+const HowItWorks = React.lazy(() => import('../components/HowItWorks'));
+const ChatShowcase = React.lazy(() => import('../components/ChatShowcase'));
+const SafetySection = React.lazy(() => import('../components/SafetySection'));
+const PremiumPlans = React.lazy(() => import('../components/PremiumPlans'));
+const Testimonials = React.lazy(() => import('../components/Testimonials'));
+const FAQSection = React.lazy(() => import('../components/FAQSection'));
+const FinalCTA = React.lazy(() => import('../components/FinalCTA'));
+
 export default function Home() {
+  const sectionFallback = (
+    <div className="max-w-7xl mx-auto px-4 py-16">
+      <div className="h-28 rounded-3xl border border-rose-200/60 bg-gradient-to-r from-rose-50 to-fuchsia-50 animate-pulse" />
+    </div>
+  );
+
+  const startupPillars = [
+    {
+      title: 'Trust As Infrastructure',
+      body: 'Verified identity, moderation workflows, and transparent controls are built into every flow instead of bolted on later.',
+      icon: '🛡️'
+    },
+    {
+      title: 'Campus-Native Matching',
+      body: 'People discover each other through context that matters in college life: course, year, interests, and social intent.',
+      icon: '🎯'
+    },
+    {
+      title: 'Conversation First Product',
+      body: 'The product is optimized for meaningful conversations, not vanity swipes, with private chat and social safety signals.',
+      icon: '💬'
+    }
+  ];
+
+  const productLoop = [
+    {
+      step: '01',
+      title: 'Verified Onboarding',
+      desc: 'Student email + identity checks ensure every profile starts with trust.'
+    },
+    {
+      step: '02',
+      title: 'Smart Discovery',
+      desc: 'Personalized recommendations surface compatible students from your campus network.'
+    },
+    {
+      step: '03',
+      title: 'Mutual Intent',
+      desc: 'Connection requests and matching flow keep interaction consensual and signal-driven.'
+    },
+    {
+      step: '04',
+      title: 'Private Conversation',
+      desc: 'Encrypted chat experience with controls for blocking, reporting, and escalation.'
+    }
+  ];
+
   return (
     <div className="bg-white">
-      {/* ===== PREMIUM HERO SECTION (NEW COMPONENT) ===== */}
       <PremiumHero />
 
-      {/* SOCIAL PROOF SECTION */}
       <SocialProof />
 
-      {/* ===== PREMIUM FEATURE CARDS SECTION ===== */}
-      <section className="py-24 px-4 bg-white">
+      <section className="py-24 px-4 bg-[radial-gradient(circle_at_12%_12%,rgba(244,114,182,0.08),transparent_36%),radial-gradient(circle_at_86%_20%,rgba(251,191,36,0.08),transparent_32%),linear-gradient(180deg,#fff_0%,#fff8fb_52%,#fff_100%)]">
         <div className="max-w-7xl mx-auto">
-          {/* Section Header */}
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="section-title text-4xl mb-4">Why CU Daters Stands Out</h2>
-            <p className="section-subtitle max-w-3xl mx-auto text-lg">
-              Built by students, for students. Six powerful features that make CU Daters the safest, most private college dating platform.
+          <ScrollReveal className="max-w-3xl" delayMs={40}>
+            <p className="text-xs uppercase tracking-[0.2em] text-rose-500 font-bold">Product Narrative</p>
+            <h2 className="mt-3 text-4xl md:text-5xl font-black text-darkBrown leading-tight">
+              Built Like A Real Startup,
+              <span className="block bg-gradient-to-r from-rose-500 to-fuchsia-500 bg-clip-text text-transparent">Focused On Real Outcomes</span>
+            </h2>
+            <p className="mt-4 text-lg text-softBrown leading-relaxed">
+              CU-Daters is designed as a trust-first social product: clearer intent, safer conversations, and a tighter campus network loop that grows with every verified student.
             </p>
+          </ScrollReveal>
+
+          <div className="mt-12 grid md:grid-cols-3 gap-5">
+            {startupPillars.map((pillar, index) => (
+              <ScrollReveal
+                key={pillar.title}
+                delayMs={120 + index * 90}
+                className="rounded-3xl border border-rose-200/70 bg-white/90 backdrop-blur-xl p-6 shadow-[0_18px_50px_rgba(190,24,93,0.08)] hover:-translate-y-1 hover:shadow-[0_22px_56px_rgba(190,24,93,0.15)] transition-all duration-300"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-fuchsia-500 text-white flex items-center justify-center text-xl shadow-lg shadow-rose-200 mb-4">
+                  {pillar.icon}
+                </div>
+                <h3 className="text-xl font-extrabold text-darkBrown mb-2">{pillar.title}</h3>
+                <p className="text-softBrown leading-relaxed text-sm">{pillar.body}</p>
+              </ScrollReveal>
+            ))}
           </div>
 
-          {/* 6 Premium Feature Cards Grid */}
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
-            <PremiumFeatureCard
-              icon="✓"
-              title="Actually Verified. Actually Safe."
-              subtitle="Every profile verified with college email, face ID, and real student status. Zero fake profiles—ever."
-              gradient="blue"
-              delay={0}
-            />
-            <PremiumFeatureCard
-              icon="👻"
-              title="Your Privacy, Your Rules"
-              subtitle="Stay completely anonymous. Reveal your name, photos, and socials only when you want."
-              gradient="purple"
-              delay={100}
-            />
-            <PremiumFeatureCard
-              icon="💬"
-              title="Conversations Are Yours Alone"
-              subtitle="Encrypted chats only between you and your match. Screenshot warning included."
-              gradient="pink"
-              delay={200}
-            />
-            <PremiumFeatureCard
-              icon="🎯"
-              title="Your Campus, Your People"
-              subtitle="Find people in your year, major, and interests. Real connections with real students from your campus."
-              gradient="orange"
-              delay={300}
-            />
-            <PremiumFeatureCard
-              icon="👑"
-              title="Premium+ Unlocks More"
-              subtitle="See who crushed on you. Unlimited super likes. Advanced filters. Priority chat."
-              gradient="gold"
-              delay={400}
-            />
-            <PremiumFeatureCard
-              icon="📍"
-              title="By Campus, For Campus"
-              subtitle="Exclusive to verified students. No randoms. No catfish. Just your people."
-              gradient="slate"
-              delay={500}
-            />
+          <ScrollReveal className="mt-10 grid sm:grid-cols-4 gap-3" delayMs={220}>
+            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center">
+              <p className="text-2xl font-black text-rose-500">50K+</p>
+              <p className="text-xs uppercase tracking-wide text-softBrown">Verified Students</p>
+            </div>
+            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center">
+              <p className="text-2xl font-black text-rose-500">200K+</p>
+              <p className="text-xs uppercase tracking-wide text-softBrown">Matches</p>
+            </div>
+            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center">
+              <p className="text-2xl font-black text-rose-500">4.9★</p>
+              <p className="text-xs uppercase tracking-wide text-softBrown">User Rating</p>
+            </div>
+            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center">
+              <p className="text-2xl font-black text-rose-500">24h</p>
+              <p className="text-xs uppercase tracking-wide text-softBrown">Safety Review SLA</p>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      <section className="py-24 px-4 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-[1fr_1.2fr] gap-10 items-start">
+            <ScrollReveal delayMs={40}>
+              <p className="text-xs uppercase tracking-[0.2em] text-rose-500 font-bold">Growth Engine</p>
+              <h3 className="mt-3 text-4xl font-black text-darkBrown leading-tight">A Clear Product Loop That Compounds</h3>
+              <p className="mt-4 text-softBrown leading-relaxed">
+                Every stage strengthens quality: verified onboarding reduces noise, smarter discovery improves intent, and private chat drives retention.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link to="/features" className="px-5 py-3 rounded-full bg-gradient-to-r from-rose-500 to-fuchsia-500 text-white font-semibold shadow-md hover:brightness-110 transition">Explore Product</Link>
+                <Link to="/signup" className="px-5 py-3 rounded-full border-2 border-rose-300 text-rose-600 font-semibold hover:bg-rose-50 transition">Join Free</Link>
+              </div>
+            </ScrollReveal>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              {productLoop.map((item, index) => (
+                <ScrollReveal key={item.step} delayMs={120 + index * 70} className="rounded-2xl border border-rose-200/60 bg-gradient-to-b from-white to-rose-50/40 p-5 hover:shadow-lg transition-shadow">
+                  <p className="text-xs font-black tracking-[0.2em] text-rose-500">{item.step}</p>
+                  <h4 className="mt-2 text-lg font-extrabold text-darkBrown">{item.title}</h4>
+                  <p className="mt-2 text-sm text-softBrown leading-relaxed">{item.desc}</p>
+                </ScrollReveal>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS SECTION */}
-      <HowItWorks />
+      <LazySection fallback={sectionFallback}>
+        <React.Suspense fallback={sectionFallback}>
+          <HowItWorks />
+        </React.Suspense>
+      </LazySection>
 
-      {/* PRIVATE CHAT SHOWCASE SECTION */}
-      <ChatShowcase />
+      <LazySection fallback={sectionFallback}>
+        <React.Suspense fallback={sectionFallback}>
+          <ChatShowcase />
+        </React.Suspense>
+      </LazySection>
 
-      {/* SAFETY & VERIFICATION SECTION */}
-      <SafetySection />
+      <LazySection fallback={sectionFallback}>
+        <React.Suspense fallback={sectionFallback}>
+          <SafetySection />
+        </React.Suspense>
+      </LazySection>
 
-      {/* PREMIUM PLANS SECTION */}
-      <PremiumPlans />
+      <section className="py-24 px-4 bg-[linear-gradient(180deg,#fff_0%,#fff5f9_48%,#fff_100%)]">
+        <ScrollReveal className="max-w-7xl mx-auto rounded-[2rem] border border-rose-200/70 bg-white shadow-[0_28px_80px_rgba(190,24,93,0.1)] p-8 md:p-10" delayMs={60}>
+          <div className="grid lg:grid-cols-[1.1fr_1fr] gap-8 items-center">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-rose-500 font-bold">Startup Momentum</p>
+              <h3 className="mt-3 text-4xl font-black text-darkBrown">From Campus Tool To Category Leader</h3>
+              <p className="mt-4 text-softBrown leading-relaxed">
+                The roadmap is focused: safer social discovery, better compatibility intelligence, and faster trust loops for every student cohort.
+              </p>
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center gap-3 text-sm text-darkBrown"><span className="text-lg">✓</span><span>Operational admin controls for pricing, legal content, and support.</span></div>
+                <div className="flex items-center gap-3 text-sm text-darkBrown"><span className="text-lg">✓</span><span>Config-driven checkout and payment instructions managed by admin.</span></div>
+                <div className="flex items-center gap-3 text-sm text-darkBrown"><span className="text-lg">✓</span><span>Scalable moderation flows with privacy-aware access controls.</span></div>
+              </div>
+            </div>
 
-      {/* TESTIMONIALS SECTION */}
-      <Testimonials />
+            <div className="rounded-3xl border border-rose-200/70 bg-gradient-to-br from-rose-50 via-white to-fuchsia-50 p-6">
+              <p className="text-sm font-bold text-darkBrown mb-4">Quarterly Priorities</p>
+              <div className="space-y-3">
+                <div className="rounded-xl bg-white border border-rose-100 p-3">
+                  <p className="text-xs uppercase tracking-[0.15em] text-rose-500 font-bold">Q2</p>
+                  <p className="text-sm text-darkBrown font-semibold mt-1">Trust & Safety Intelligence</p>
+                </div>
+                <div className="rounded-xl bg-white border border-rose-100 p-3">
+                  <p className="text-xs uppercase tracking-[0.15em] text-rose-500 font-bold">Q3</p>
+                  <p className="text-sm text-darkBrown font-semibold mt-1">Campus Expansion Toolkit</p>
+                </div>
+                <div className="rounded-xl bg-white border border-rose-100 p-3">
+                  <p className="text-xs uppercase tracking-[0.15em] text-rose-500 font-bold">Q4</p>
+                  <p className="text-sm text-darkBrown font-semibold mt-1">Conversation AI Assist</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ScrollReveal>
+      </section>
 
-      {/* FAQ SECTION */}
-      <FAQSection />
+      <LazySection fallback={sectionFallback}>
+        <React.Suspense fallback={sectionFallback}>
+          <PremiumPlans />
+        </React.Suspense>
+      </LazySection>
 
-      {/* FINAL CTA SECTION */}
-      <FinalCTA />
+      <LazySection fallback={sectionFallback}>
+        <React.Suspense fallback={sectionFallback}>
+          <Testimonials />
+        </React.Suspense>
+      </LazySection>
+
+      <LazySection fallback={sectionFallback}>
+        <React.Suspense fallback={sectionFallback}>
+          <FAQSection />
+        </React.Suspense>
+      </LazySection>
+
+      <LazySection fallback={sectionFallback}>
+        <React.Suspense fallback={sectionFallback}>
+          <FinalCTA />
+        </React.Suspense>
+      </LazySection>
     </div>
   );
 }

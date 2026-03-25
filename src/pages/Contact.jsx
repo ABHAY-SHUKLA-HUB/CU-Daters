@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
+import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function Contact() {
+  const contactConfig = useSupportContactConfig();
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.in';
+  const escalationEmail = contactConfig.escalationEmail || supportEmail;
+  const adminEmail = escalationEmail;
+  const supportPhone = contactConfig.supportPhone || contactConfig.whatsapp || '+91 00000 00000';
+  const instagramHref = contactConfig.instagramId ? `https://instagram.com/${String(contactConfig.instagramId).replace(/^@/, '')}` : '#';
+  const telegramHref = contactConfig.telegramId ? `https://t.me/${String(contactConfig.telegramId).replace(/^@/, '')}` : '#';
+  const helpCenterHref = contactConfig.helpCenterUrl || '#';
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,8 +54,8 @@ export default function Contact() {
             <p className="text-softBrown mb-4">
               For general inquiries and support
             </p>
-            <a href="mailto:contact@cucrush.in" className="text-blushPink font-bold hover:underline">
-              contact@cucrush.in
+            <a href={`mailto:${supportEmail}`} className="text-blushPink font-bold hover:underline">
+              {supportEmail}
             </a>
           </div>
 
@@ -55,8 +65,8 @@ export default function Contact() {
             <p className="text-softBrown mb-4">
               Report harassment, abuse, or fake profiles
             </p>
-            <a href="mailto:safety@cucrush.in" className="text-blushPink font-bold hover:underline">
-              safety@cucrush.in
+            <a href={`mailto:${escalationEmail}`} className="text-blushPink font-bold hover:underline">
+              {escalationEmail}
             </a>
           </div>
 
@@ -66,8 +76,8 @@ export default function Contact() {
             <p className="text-softBrown mb-4">
               For verification or admin queries
             </p>
-            <a href="mailto:admin@cucrush.in" className="text-blushPink font-bold hover:underline">
-              admin@cucrush.in
+            <a href={`mailto:${adminEmail}`} className="text-blushPink font-bold hover:underline">
+              {adminEmail}
             </a>
           </div>
         </div>
@@ -161,7 +171,7 @@ export default function Contact() {
               },
               {
                 q: 'Can I request a refund?',
-                a: 'Refunds are available within 48 hours of purchase if you haven\'t used premium features. Contact support@cucrush.in for assistance.'
+                a: `Refunds are available within 48 hours of purchase if you haven't used premium features. Contact ${supportEmail} for assistance.`
               },
               {
                 q: 'How do I delete my account?',
@@ -173,7 +183,7 @@ export default function Contact() {
               },
               {
                 q: 'How do I update my verification information?',
-                a: 'Contact admin@cucrush.in with your verification details. Our admin team will review and update your profile.'
+                a: `Contact ${adminEmail} with your verification details. Our admin team will review and update your profile.`
               },
               {
                 q: 'Is CU CRUSH available on web?',
@@ -198,16 +208,16 @@ export default function Contact() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-darkBrown mb-8">Follow Us</h2>
           <div className="flex justify-center gap-8">
-            <a href="#" className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition">
+            <a href={`mailto:${supportEmail}`} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition" title={supportEmail}>
               f
             </a>
-            <a href="#" className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition">
+            <a href={instagramHref} target={instagramHref === '#' ? undefined : '_blank'} rel={instagramHref === '#' ? undefined : 'noreferrer'} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition" title={contactConfig.instagramId || 'Instagram'}>
               📷
             </a>
-            <a href="#" className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition">
+            <a href={helpCenterHref} target={helpCenterHref === '#' ? undefined : '_blank'} rel={helpCenterHref === '#' ? undefined : 'noreferrer'} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition" title="Help Center">
               𝕏
             </a>
-            <a href="#" className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition">
+            <a href={telegramHref} target={telegramHref === '#' ? undefined : '_blank'} rel={telegramHref === '#' ? undefined : 'noreferrer'} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition" title={contactConfig.telegramId || supportPhone}>
               👥
             </a>
           </div>
