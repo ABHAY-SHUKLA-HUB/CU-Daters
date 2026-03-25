@@ -141,6 +141,7 @@ router.post('/send-otp', asyncHandler(async (req, res, next) => {
       name: name.trim(),
       email: emailLower,
       personalEmail: emailLower,
+      collegeEmail: emailLower,
       phone,
       password,
       college,
@@ -153,9 +154,11 @@ router.post('/send-otp', asyncHandler(async (req, res, next) => {
       subscription_status: 'none'
     });
   } else {
+    // Keep all identity email fields in sync so verify/signup can always find the same record.
     tempUser.name = tempUser.name || name.trim();
-    tempUser.email = tempUser.email || emailLower;
-    tempUser.personalEmail = tempUser.personalEmail || emailLower;
+    tempUser.email = emailLower;
+    tempUser.personalEmail = emailLower;
+    tempUser.collegeEmail = emailLower;
     tempUser.phone = tempUser.phone || phone;
     tempUser.college = tempUser.college || college;
     tempUser.emailOtp = otp;
@@ -223,18 +226,10 @@ router.post('/send-otp', asyncHandler(async (req, res, next) => {
       })
     );
   } else {
-    // Email failed but OTP was generated - notify user
-    console.warn(`⚠️  Email service failed, but OTP was generated. Email Error: ${emailError}`);
-    res.status(200).json(
-      successResponse('OTP generated (Email delivery may have failed - check console)', {
-        email: emailLower,
-        otp: otp, // DEV ONLY: Show OTP in response if email fails
-        expiresIn: 300,
-        otpRequestsRemaining: remainingAttempts,
-        maxRequests: MAX_OTP_REQUESTS,
-        emailStatus: 'failed',
-        emailError: emailError
-      })
+    // Never expose OTP via API response.
+    console.error(`❌ OTP email delivery failed for ${emailLower}: ${emailError}`);
+    res.status(503).json(
+      errorResponse('Unable to send OTP email right now. Please try again in 1-2 minutes.')
     );
   }
 }));
@@ -256,8 +251,14 @@ router.post('/verify-otp', asyncHandler(async (req, res, next) => {
 
   const emailLower = email.toLowerCase().trim();
 
-  // Find user with this email
-  const user = await User.findOne({ email: emailLower });
+  // Find the same user regardless of which email field was previously populated.
+  const user = await User.findOne({
+    $or: [
+      { email: emailLower },
+      { collegeEmail: emailLower },
+      { personalEmail: emailLower }
+    ]
+  });
 
   if (!user) {
     throw new AppError('User not found. Please sign up first.', 404);
@@ -318,8 +319,14 @@ router.post('/signup', asyncHandler(async (req, res, next) => {
 
   const emailLower = email.toLowerCase().trim();
 
-  // Find the user by email - should already exist with OTP verified
-  let user = await User.findOne({ email: emailLower });
+  // Find the user by any identity email field.
+  let user = await User.findOne({
+    $or: [
+      { email: emailLower },
+      { collegeEmail: emailLower },
+      { personalEmail: emailLower }
+    ]
+  });
 
   if (!user) {
     throw new AppError('User not found. Please complete email verification first.', 404);
@@ -754,30 +761,8 @@ router.post('/forgot-password', asyncHandler(async (req, res, next) => {
 
   console.log(`✅ Reset token generated for: ${emailLower}`);
 
-  // Send password reset email
-  try {
-    await sendPasswordResetEmail(emailLower, resetToken);
-    console.log(`📧 Password reset email sent to: ${emailLower}`);
-  } catch (error) {
-    console.error('❌ Failed to send password reset email:', error.message);
-    // Clear the token if email fails
-    user.passwordResetToken = null;
-    user.passwordResetTokenExpiry = null;
-    await user.save();
-    throw new AppError('Failed to send reset email. Please try again.', 500);
-  }
-
-  // Log activity
-  await logActivity({
-    user_id: user._id,
-    action: 'forgot_password_requested',
-    description: 'User requested password reset',
-    ...getClientInfo(req),
-    status: 'success'
-  });
-
-  // Security: Always return success message even if email doesn't exist
-  // This prevents email enumeration attacks
+  // Security: Always return success quickly to avoid leaking account existence
+  // and to prevent client timeouts when SMTP is slow.
   console.log(`✅ Forgot password response sent for: ${emailLower}`);
   res.status(200).json(
     successResponse('If an account exists with this email, a password reset link will be sent.', {
@@ -785,6 +770,57 @@ router.post('/forgot-password', asyncHandler(async (req, res, next) => {
       message: 'Check your email for instructions'
     })
   );
+
+  // Send email in background so API stays responsive under SMTP/network delays.
+  setImmediate(async () => {
+    try {
+      await Promise.race([
+        sendPasswordResetEmail(emailLower, resetToken),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Password reset email send timed out')), 15000);
+        })
+      ]);
+
+      await logActivity({
+        user_id: user._id,
+        action: 'forgot_password_requested',
+        description: 'User requested password reset',
+        ...getClientInfo(req),
+        status: 'success'
+      });
+
+      console.log(`📧 Password reset email sent to: ${emailLower}`);
+    } catch (error) {
+      console.error('❌ Background password reset email failed:', error.message);
+
+      // Clear reset token on delivery failure so user can retry immediately.
+      try {
+        await User.findByIdAndUpdate(user._id, {
+          $set: {
+            passwordResetToken: null,
+            passwordResetTokenExpiry: null
+          },
+          $inc: {
+            passwordResetRequestCount: -1
+          }
+        });
+      } catch (cleanupError) {
+        console.error('⚠️ Failed to clear reset token after email failure:', cleanupError.message);
+      }
+
+      try {
+        await logActivity({
+          user_id: user._id,
+          action: 'forgot_password_email_failed',
+          description: `Password reset email failed: ${error.message}`,
+          ...getClientInfo(req),
+          status: 'failed'
+        });
+      } catch (logError) {
+        console.error('⚠️ Failed to log forgot-password email failure:', logError.message);
+      }
+    }
+  });
 }));
 
 // ===== VERIFY RESET TOKEN =====

@@ -172,22 +172,8 @@ export default function Signup() {
 
       // If success, move to Step 2
       if (response.data?.success) {
-        // Check if email failed but OTP still generated
-        if (response.data?.data?.emailStatus === 'failed' && response.data?.data?.otp) {
-          const otpCode = response.data.data.otp;
-          
-          // Store OTP for display in UI
-          setFormData(prev => ({ ...prev, fallbackOtp: otpCode }));
-          setErrorModal({
-            title: '📧 Email Not Received',
-            message: `Your OTP is: ${otpCode}\n\nEmail delivery failed. Use this code to continue.\nValid for 5 minutes.`,
-            type: 'info',
-            onClose: () => {
-              setErrorModal(null);
-              // After user closes modal, proceed to Step 2
-              setStep(2);
-            }
-          });
+        if (response.data?.data?.emailStatus === 'failed') {
+          setError('Unable to send OTP email right now. Please try again in 1-2 minutes.');
         } else {
           // Email sent successfully, move to Step 2
           setStep(2);

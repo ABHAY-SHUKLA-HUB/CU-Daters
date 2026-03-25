@@ -117,7 +117,7 @@ export default function Privacy() {
               <li>• <strong>Opt-Out:</strong> Disable marketing communications anytime</li>
             </ul>
             <p className="text-softBrown mt-4">
-              Contact privacy@cucrush.in to exercise any of these rights.
+              Contact support@cudaters.tech to exercise any of these rights.
             </p>
           </div>
 
@@ -153,7 +153,7 @@ export default function Privacy() {
               For privacy concerns or questions, contact us at:
             </p>
             <p className="text-softBrown mt-4">
-              <strong>Email:</strong> privacy@cucrush.in<br/>
+              <strong>Email:</strong> support@cudaters.tech<br/>
               <strong>Mailing Address:</strong> Chandigarh University, Chandigarh, India
             </p>
           </div>
