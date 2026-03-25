@@ -15,12 +15,41 @@ try {
 // Detect if running in production
 const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('netlify'));
 
-const sanitizedEmailUser = String(process.env.EMAIL_USER || '').trim();
+const sanitizedEmailUser = String(
+  process.env.EMAIL_USER ||
+  process.env.SMTP_USER ||
+  process.env.MAIL_USER ||
+  ''
+).trim();
 // Gmail app passwords are often copied with spaces between groups. Remove all spaces.
-const sanitizedEmailPassword = String(process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '');
+const sanitizedEmailPassword = String(
+  process.env.EMAIL_PASSWORD ||
+  process.env.SMTP_PASSWORD ||
+  process.env.EMAIL_PASS ||
+  process.env.MAIL_PASSWORD ||
+  ''
+).replace(/\s+/g, '');
 const smtpHost = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpSecure = String(process.env.SMTP_SECURE || String(smtpPort === 465)).toLowerCase() === 'true';
+const maxSmtpRetries = Math.max(1, Number(process.env.SMTP_RETRIES || 3));
+const defaultFromAddress = String(
+  process.env.EMAIL_FROM ||
+  process.env.SMTP_FROM ||
+  sanitizedEmailUser ||
+  'cudaters.verify@gmail.com'
+).trim();
+
+const smtpHealth = {
+  totalAttempts: 0,
+  totalSuccesses: 0,
+  totalFailures: 0,
+  consecutiveFailures: 0,
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  lastErrorCode: null,
+  lastErrorMessage: null
+};
 
 // Create transporter based on environment
 let transporter;
@@ -67,27 +96,89 @@ const shouldTryFallback = (error) => {
   ].includes(code) || msg.includes('timed out') || msg.includes('connection closed');
 };
 
+const wait = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
+
+const recordSmtpSuccess = () => {
+  smtpHealth.totalAttempts += 1;
+  smtpHealth.totalSuccesses += 1;
+  smtpHealth.consecutiveFailures = 0;
+  smtpHealth.lastSuccessAt = new Date().toISOString();
+  smtpHealth.lastErrorCode = null;
+  smtpHealth.lastErrorMessage = null;
+};
+
+const recordSmtpFailure = (error) => {
+  smtpHealth.totalAttempts += 1;
+  smtpHealth.totalFailures += 1;
+  smtpHealth.consecutiveFailures += 1;
+  smtpHealth.lastFailureAt = new Date().toISOString();
+  smtpHealth.lastErrorCode = String(error?.code || 'UNKNOWN');
+  smtpHealth.lastErrorMessage = String(error?.message || 'SMTP send failed');
+};
+
+export const getEmailServiceHealth = () => {
+  const configured = Boolean(sanitizedEmailUser && sanitizedEmailPassword);
+  const degraded = configured && smtpHealth.consecutiveFailures >= 3;
+
+  return {
+    configured,
+    mode: configured ? 'smtp' : 'console-dev',
+    smtp: {
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      retries: maxSmtpRetries
+    },
+    counters: {
+      totalAttempts: smtpHealth.totalAttempts,
+      totalSuccesses: smtpHealth.totalSuccesses,
+      totalFailures: smtpHealth.totalFailures,
+      consecutiveFailures: smtpHealth.consecutiveFailures
+    },
+    lastSuccessAt: smtpHealth.lastSuccessAt,
+    lastFailureAt: smtpHealth.lastFailureAt,
+    lastErrorCode: smtpHealth.lastErrorCode,
+    lastErrorMessage: smtpHealth.lastErrorMessage,
+    degraded
+  };
+};
+
 const sendMailWithFallback = async (mailOptions) => {
   const candidates = [transporter, ...fallbackTransporters].filter(Boolean);
   let lastError = null;
 
-  for (let i = 0; i < candidates.length; i += 1) {
-    try {
-      const info = await sendMailAsync(candidates[i], mailOptions);
-      if (i > 0) {
-        console.warn(`⚠️ Email sent via fallback SMTP candidate #${i + 1}`);
+  for (let attempt = 1; attempt <= maxSmtpRetries; attempt += 1) {
+    for (let i = 0; i < candidates.length; i += 1) {
+      try {
+        const info = await sendMailAsync(candidates[i], mailOptions);
+        if (i > 0) {
+          console.warn(`⚠️ Email sent via fallback SMTP candidate #${i + 1}`);
+        }
+        if (attempt > 1) {
+          console.warn(`⚠️ Email send succeeded on retry attempt #${attempt}`);
+        }
+        recordSmtpSuccess();
+        return info;
+      } catch (error) {
+        lastError = error;
+        const code = error?.code || 'UNKNOWN';
+        console.error(`❌ SMTP attempt ${attempt}/${maxSmtpRetries}, candidate #${i + 1} failed:`, code, error?.message || error);
+        if (!shouldTryFallback(error)) {
+          throw error;
+        }
       }
-      return info;
-    } catch (error) {
-      lastError = error;
-      const code = error?.code || 'UNKNOWN';
-      console.error(`❌ SMTP candidate #${i + 1} failed:`, code, error?.message || error);
-      if (!shouldTryFallback(error)) {
-        break;
-      }
+    }
+
+    if (attempt < maxSmtpRetries) {
+      const retryDelayMs = 700 * attempt;
+      console.warn(`⚠️ Retrying email send in ${retryDelayMs}ms...`);
+      await wait(retryDelayMs);
     }
   }
 
+  recordSmtpFailure(lastError);
   throw lastError || new Error('All SMTP transport attempts failed');
 };
 
@@ -262,7 +353,7 @@ export const sendOtpEmail = async (email, otp) => {
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '💖 Your CU Daters Verification Code',
       html: htmlTemplate,
@@ -300,7 +391,7 @@ export const sendOtpEmail = async (email, otp) => {
 export const sendApprovalEmail = async (email, name) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '✅ Your CU Daters Profile Has Been Approved!',
       html: `
@@ -335,7 +426,7 @@ export const sendApprovalEmail = async (email, name) => {
 export const sendRejectionEmail = async (email, name, reason) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '❌ CU Daters Profile Review',
       html: `
@@ -492,7 +583,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '🔐 CU Daters Password Reset Request',
       html: htmlTemplate,
@@ -690,7 +781,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '✨ Your Registration is Pending Approval – CU DATERS',
       html: htmlTemplate,
@@ -708,6 +799,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
 };
 
 export default {
+  getEmailServiceHealth,
   sendOtpEmail,
   sendApprovalEmail,
   sendRejectionEmail,

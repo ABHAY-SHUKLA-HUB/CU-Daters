@@ -14,11 +14,37 @@ import {
   errorResponse,
   successResponse
 } from '../utils/validation.js';
-import { sendOtpEmail, sendPasswordResetEmail, sendRegistrationConfirmationEmail } from '../utils/emailService.js';
+import { sendOtpEmail, sendPasswordResetEmail, sendRegistrationConfirmationEmail, getEmailServiceHealth } from '../utils/emailService.js';
 
 const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin'];
+const SMTP_ALERT_FAILURE_THRESHOLD = Math.max(2, Number(process.env.SMTP_ALERT_FAILURE_THRESHOLD || 3));
 
 const router = express.Router();
+
+// ===== EMAIL SERVICE HEALTH =====
+router.get('/email-health', asyncHandler(async (req, res) => {
+  const adminPin = String(process.env.ADMIN_PIN || '').trim();
+  const providedPin = String(req.headers['x-admin-pin'] || req.query.adminPin || '').trim();
+  const canAccessWithoutPin = process.env.NODE_ENV !== 'production';
+
+  if (!canAccessWithoutPin && adminPin && providedPin !== adminPin) {
+    return res.status(403).json(
+      errorResponse('Forbidden', {
+        code: 'EMAIL_HEALTH_FORBIDDEN'
+      })
+    );
+  }
+
+  const health = getEmailServiceHealth();
+  const httpStatus = health.degraded ? 503 : 200;
+
+  return res.status(httpStatus).json(
+    successResponse('Email service health status', {
+      code: health.degraded ? 'EMAIL_SERVICE_DEGRADED' : 'EMAIL_SERVICE_OK',
+      ...health
+    })
+  );
+}));
 
 // ===== SEND OTP (Email) =====
 router.post('/send-otp', asyncHandler(async (req, res, next) => {
@@ -99,6 +125,12 @@ router.post('/send-otp', asyncHandler(async (req, res, next) => {
   const MAX_OTP_REQUESTS = 5;
   const COOLDOWN_MINUTES = 20;
   const now = new Date();
+  const wasExistingTempUser = Boolean(tempUser);
+  const previousOtpRequestCount = Number(tempUser?.otpRequestCount || 0);
+  const previousOtpRequestLastTime = tempUser?.otpRequestLastTime || null;
+  const previousOtpCooldownUntil = tempUser?.otpCooldownUntil || null;
+  const previousEmailOtp = tempUser?.emailOtp || null;
+  const previousEmailOtpExpiry = tempUser?.emailOtpExpiry || null;
 
   if (tempUser) {
     // Check if user is in cooldown period
@@ -218,6 +250,7 @@ router.post('/send-otp', asyncHandler(async (req, res, next) => {
   if (emailSent) {
     res.status(200).json(
       successResponse('OTP sent successfully to your email. Valid for 5 minutes.', {
+        code: 'OTP_SENT',
         email: emailLower,
         expiresIn: 300, // seconds
         otpRequestsRemaining: remainingAttempts,
@@ -228,8 +261,67 @@ router.post('/send-otp', asyncHandler(async (req, res, next) => {
   } else {
     // Never expose OTP via API response.
     console.error(`❌ OTP email delivery failed for ${emailLower}: ${emailError}`);
+
+    try {
+      if (wasExistingTempUser) {
+        // Restore rate-limit and OTP state so failed SMTP attempts do not punish users.
+        tempUser.otpRequestCount = previousOtpRequestCount;
+        tempUser.otpRequestLastTime = previousOtpRequestLastTime;
+        tempUser.otpCooldownUntil = previousOtpCooldownUntil;
+        tempUser.emailOtp = previousEmailOtp;
+        tempUser.emailOtpExpiry = previousEmailOtpExpiry;
+      } else {
+        // New signup that failed to send OTP should not consume quota or keep undelivered OTP.
+        tempUser.otpRequestCount = 0;
+        tempUser.otpRequestLastTime = null;
+        tempUser.otpCooldownUntil = null;
+        tempUser.emailOtp = null;
+        tempUser.emailOtpExpiry = null;
+      }
+      await tempUser.save();
+    } catch (rollbackError) {
+      console.error('⚠️ Failed to rollback OTP counters after email failure:', rollbackError?.message || rollbackError);
+    }
+
+    try {
+      const health = getEmailServiceHealth();
+      const isRepeatedFailure = Number(health?.counters?.consecutiveFailures || 0) >= SMTP_ALERT_FAILURE_THRESHOLD;
+
+      await logActivity({
+        user_id: tempUser?._id,
+        action: isRepeatedFailure ? 'otp_email_failed_repeated' : 'otp_email_failed',
+        description: isRepeatedFailure
+          ? `Repeated OTP email failures detected (${health.counters.consecutiveFailures} consecutive failures)`
+          : 'OTP email delivery failed',
+        ...getClientInfo(req),
+        status: 'failure',
+        error_message: emailError,
+        metadata: {
+          email: emailLower,
+          otpRequestsRemaining: Math.max(0, remainingAttempts),
+          emailService: {
+            degraded: Boolean(health?.degraded),
+            consecutiveFailures: Number(health?.counters?.consecutiveFailures || 0),
+            lastErrorCode: health?.lastErrorCode || null,
+            lastFailureAt: health?.lastFailureAt || null
+          }
+        }
+      });
+
+      if (isRepeatedFailure) {
+        console.error(`🚨 SMTP ALERT: ${health.counters.consecutiveFailures} consecutive email failures detected.`);
+      }
+    } catch (activityError) {
+      console.error('⚠️ Failed to log OTP email failure activity:', activityError?.message || activityError);
+    }
+
     res.status(503).json(
-      errorResponse('Unable to send OTP email right now. Please try again in 1-2 minutes.')
+      errorResponse('Unable to send OTP email right now. Please try again in 1-2 minutes.', {
+        code: 'OTP_EMAIL_DELIVERY_FAILED',
+        retryAfterSeconds: 90,
+        emailStatus: 'failed',
+        temporary: true
+      })
     );
   }
 }));
