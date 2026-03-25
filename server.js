@@ -102,8 +102,10 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isNetlify = hostname.endsWith('.netlify.app');
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
+  const isCudatersTech = hostname === 'cudaters.tech' || hostname.endsWith('.cudaters.tech');
+  const isCuDatersTech = hostname === 'cu-daters.tech' || hostname.endsWith('.cu-daters.tech');
 
-  return isLocalDevHost || isNetlify || isVercel || isRender;
+  return isLocalDevHost || isNetlify || isVercel || isRender || isCudatersTech || isCuDatersTech;
 };
 
 // ===== CONNECT DATABASE =====
@@ -142,6 +144,10 @@ const staticAllowedOrigins = [
   'https://www.cu-daters-found.netlify.app',
   'https://cu-daters.vercel.app',
   'https://www.cu-daters.vercel.app',
+  'https://cudaters.tech',
+  'https://www.cudaters.tech',
+  'https://cu-daters.tech',
+  'https://www.cu-daters.tech',
 
   // Backend URL
   process.env.BACKEND_URL,
