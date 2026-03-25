@@ -5,6 +5,7 @@ import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ThemeSettingsPanel from '../components/ThemeSettingsPanel';
+import { PremiumSurface, StatCard, StatusChip } from '../components/ui/PremiumPrimitives';
 import '../styles/adminPortal.css';
 
 const SECTION_CONFIG = [
@@ -99,10 +100,12 @@ export default function AdminPortal() {
   );
   const currentThemeName = React.useMemo(() => {
     if (activeTheme === 'classic-light') return 'Classic Light';
-    if (activeTheme === 'dark-premium') return 'Dark Premium';
+    if (activeTheme === 'admin-pro-dark' || activeTheme === 'admin-pro') return 'Admin Pro Dark';
+    if (activeTheme === 'midnight-neon') return 'Midnight Neon';
+    if (activeTheme === 'graphite-blue') return 'Graphite Blue';
+    if (activeTheme === 'luxury-black' || activeTheme === 'vip-luxury') return 'Luxury Black';
+    if (activeTheme === 'soft-dark-glass') return 'Soft Dark Glass';
     if (activeTheme === 'midnight-glass') return 'Midnight Glass';
-    if (activeTheme === 'vip-luxury') return 'VIP Luxury';
-    if (activeTheme === 'admin-pro') return 'Admin Pro';
     return activeTheme;
   }, [activeTheme]);
 
@@ -560,8 +563,19 @@ export default function AdminPortal() {
   };
 
   const handleModerationAction = async (userId, action) => {
+    const requiresReason = ['ban', 'suspend', 'delete', 'freeze_chat'].includes(action);
+    let reason = '';
+
+    if (requiresReason) {
+      reason = window.prompt(`Enter reason for ${action.replace('_', ' ')} action:`, '') || '';
+      if (reason.trim().length < 5) {
+        notify('Reason must be at least 5 characters for this action.', 'error');
+        return;
+      }
+    }
+
     await requiresPinAction(async () => {
-      await adminApi.updateUserModeration(userId, { action }, adminPin);
+      await adminApi.updateUserModeration(userId, { action, reason }, adminPin);
     });
   };
 
@@ -863,6 +877,14 @@ export default function AdminPortal() {
                 <p className="text-sm text-slate-200/85 mt-1">Operational controls, moderation safety workflows, and platform governance.</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <StatusChip tone="info">Live</StatusChip>
+                <button
+                  type="button"
+                  className="w-10 h-10 rounded-xl border border-cyan-100/20 bg-white/10 hover:bg-white/15 transition"
+                  title="Notifications"
+                >
+                  🔔
+                </button>
                 <button
                   onClick={() => setThemePanelOpen(true)}
                   className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm font-semibold transition border border-cyan-100/20"
@@ -874,6 +896,13 @@ export default function AdminPortal() {
                 </button>
                 <button onClick={() => exportCurrentSection()} className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold hover:opacity-95 transition shadow-lg shadow-cyan-900/40">
                   Export
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-2 rounded-xl border border-cyan-100/20 bg-white/10 hover:bg-white/15 text-sm font-medium"
+                  title="Admin profile"
+                >
+                  {user?.name ? user.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() : 'AD'}
                 </button>
               </div>
             </div>
@@ -972,7 +1001,7 @@ export default function AdminPortal() {
             ) : (
               <>
                 {/* Content Panels */}
-                {!loading && section === 'overview' ? <OverviewPanel overview={overview} users={filteredUsers} reports={filteredReports} chats={filteredChats} payments={filteredPayments} approvals={filteredRegistrationApprovals} /> : null}
+                {!loading && section === 'overview' ? <OverviewPanel overview={overview} users={filteredUsers} reports={filteredReports} chats={filteredChats} payments={filteredPayments} approvals={filteredRegistrationApprovals} onSectionChange={setSection} /> : null}
                 {!loading && section === 'registration_approvals' ? <RegistrationApprovalsPanel registrations={filteredRegistrationApprovals} onApprove={handleRegistrationApproval} onOpenDetail={openDetailDrawer} /> : null}
                 {!loading && section === 'users' ? <UsersPanel users={filteredUsers} onModerate={handleModerationAction} onDelete={handleDeleteUser} onOpenDetail={openDetailDrawer} onViewActivity={handleViewUserActivity} onNotify={notify} /> : null}
                 {!loading && section === 'approvals' ? <ApprovalsPanel approvals={filteredApprovals} onApprove={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
@@ -1082,78 +1111,161 @@ export default function AdminPortal() {
   );
 }
 
-function OverviewPanel({ overview, users = [], reports = [], chats = [], payments = [], approvals = [] }) {
-  const flaggedChats = chats.filter((chat) => Number(chat.riskScore || 0) >= 65 || Number(chat.reportCount || 0) > 0).length;
-  const suspiciousUsers = users.filter((user) => Number(user.warnings_count || 0) > 1 || user.status === 'banned').length;
-  const blockedAccounts = users.filter((user) => ['banned', 'suspended'].includes(user.status)).length;
-  const pendingPaymentReviews = payments.filter((payment) => payment.status === 'pending').length;
-  const activeReports = reports.filter((report) => report.status !== 'resolved').length;
+function OverviewPanel({ overview, users = [], reports = [], chats = [], payments = [], approvals = [], onSectionChange }) {
+  const totalUsers = Number(overview?.totalUsers || users.length || 0);
+  const activeToday = Number(overview?.activeToday || overview?.activeUsers || 0);
+  const newRegistrations = Number(overview?.newRegistrations || 0);
+  const pendingRegistrationApprovals = Number(overview?.pendingRegistrationApprovals || approvals.length || 0);
+  const pendingProfileApprovals = Number(overview?.pendingProfileApprovals || overview?.pendingApprovals || 0);
+  const activeReports = Number(overview?.activeReports || reports.filter((report) => report.status !== 'resolved').length || 0);
+  const flaggedChats = Number(overview?.flaggedChats || chats.filter((chat) => Number(chat.riskScore || 0) >= 65 || Number(chat.reportCount || 0) > 0).length || 0);
+  const suspiciousUsers = Number(overview?.suspiciousUsers || users.filter((user) => Number(user.warnings_count || 0) > 1 || user.status === 'banned').length || 0);
+  const blockedAccounts = Number(overview?.blockedAccounts || users.filter((user) => ['banned', 'suspended'].includes(user.status)).length || 0);
+  const premiumUsers = Number(overview?.premiumUsers || overview?.activeSubscriptions || 0);
+  const monthlyRevenue = Number(overview?.monthlyRevenue || overview?.totalRevenue || 0);
+  const pendingPaymentReviews = Number(overview?.pendingPaymentReviews || payments.filter((payment) => payment.status === 'pending').length || 0);
 
-  const cards = [
-    { label: 'Active Reports', value: activeReports, icon: '🚩', tone: 'from-rose-500/25 to-rose-600/10' },
-    { label: 'Flagged Chats', value: flaggedChats, icon: '🛡️', tone: 'from-amber-500/25 to-amber-600/10' },
-    { label: 'Pending Approvals', value: approvals.length, icon: '✅', tone: 'from-cyan-500/25 to-cyan-600/10' },
-    { label: 'Suspicious Users', value: suspiciousUsers, icon: '🕵️', tone: 'from-orange-500/25 to-orange-600/10' },
-    { label: 'Blocked Accounts', value: blockedAccounts, icon: '⛔', tone: 'from-fuchsia-500/25 to-fuchsia-600/10' },
-    { label: 'Payment Reviews', value: pendingPaymentReviews, icon: '💳', tone: 'from-emerald-500/25 to-emerald-600/10' }
+  const systemHealth = overview?.systemHealth || {};
+  const recentActivity = overview?.recentActivity || [];
+  const notices = overview?.platformAlerts || [];
+  const liveQueue = [
+    { label: 'Registration Queue', value: pendingRegistrationApprovals, section: 'registration_approvals' },
+    { label: 'Profile Queue', value: pendingProfileApprovals, section: 'approvals' },
+    { label: 'Payment Queue', value: pendingPaymentReviews, section: 'payments' },
+    { label: 'Reports Queue', value: activeReports, section: 'reports' }
   ];
 
-  const trendSnapshot = [
-    { label: 'Total users', value: overview?.totalUsers ?? users.length ?? 0 },
-    { label: 'Active today', value: overview?.activeUsers ?? 0 },
-    { label: 'Premium users', value: overview?.activeSubscriptions ?? 0 },
-    { label: 'Monthly revenue', value: overview?.totalRevenue ? `₹${overview.totalRevenue}` : '₹0' }
+  const statCards = [
+    { label: 'Total Users', value: totalUsers, icon: '👥', hint: 'All registered accounts', tone: 'info' },
+    { label: 'Active Today', value: activeToday, icon: '🟢', hint: 'Engaged in last 24h', tone: 'success' },
+    { label: 'New Registrations', value: newRegistrations, icon: '🆕', hint: 'Created in last 24h', tone: 'info' },
+    { label: 'Pending Registration', value: pendingRegistrationApprovals, icon: '📝', hint: 'Awaiting admin decision', tone: 'warning' },
+    { label: 'Pending Profile Approvals', value: pendingProfileApprovals, icon: '✅', hint: 'Verification queue', tone: 'warning' },
+    { label: 'Active Reports', value: activeReports, icon: '🚩', hint: 'Open moderation cases', tone: 'danger' },
+    { label: 'Flagged Chats', value: flaggedChats, icon: '🛡️', hint: 'Safety signal triggered', tone: 'warning' },
+    { label: 'Suspicious Users', value: suspiciousUsers, icon: '🕵️', hint: 'Marked for review', tone: 'danger' },
+    { label: 'Blocked Accounts', value: blockedAccounts, icon: '⛔', hint: 'Restricted users', tone: 'danger' },
+    { label: 'Premium Users', value: premiumUsers, icon: '⭐', hint: 'Active premium members', tone: 'success' },
+    { label: 'Monthly Revenue', value: `INR ${monthlyRevenue.toLocaleString('en-IN')}`, icon: '💰', hint: 'Current month approved', tone: 'success' },
+    { label: 'Pending Payment Reviews', value: pendingPaymentReviews, icon: '💳', hint: 'Needs finance action', tone: 'warning' }
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {cards.map((card) => (
-          <div key={card.label} className={`rounded-2xl border border-cyan-200/15 bg-gradient-to-br ${card.tone} p-4 shadow-[0_16px_44px_rgba(4,10,26,0.42)] backdrop-blur-xl`}>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-cyan-100/80">{card.label}</p>
-                <p className="text-3xl font-bold text-white mt-2">{card.value ?? 0}</p>
-              </div>
-              <span className="text-2xl">{card.icon}</span>
-            </div>
-          </div>
+    <div className="space-y-5">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {statCards.map((card) => (
+          <StatCard
+            key={card.label}
+            icon={card.icon}
+            label={card.label}
+            value={card.value}
+            hint={card.hint}
+            tone={card.tone}
+          />
         ))}
       </div>
 
       <div className="grid xl:grid-cols-[1.3fr_1fr] gap-4">
-        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/55 p-5 backdrop-blur-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-semibold text-white">Operational Trend Summary</p>
-            <span className="text-xs px-2.5 py-1 rounded-full border border-cyan-300/35 bg-cyan-500/10 text-cyan-200">Live snapshot</span>
-          </div>
+        <PremiumSurface
+          title="Operational Trend Summary"
+          subtitle="Realtime pulse of approvals, moderation, and growth"
+          rightSlot={<StatusChip tone="info">Live Snapshot</StatusChip>}
+        >
           <div className="grid sm:grid-cols-2 gap-3">
-            {trendSnapshot.map((item) => (
-              <div key={item.label} className="rounded-xl border border-cyan-200/15 bg-white/8 px-4 py-3">
-                <p className="text-xs text-cyan-100/70 uppercase tracking-wider">{item.label}</p>
-                <p className="text-lg font-semibold text-white mt-1">{item.value}</p>
-              </div>
-            ))}
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">Verification velocity</p>
+              <p className="text-lg font-semibold text-[color:var(--text-light)] mt-1">{pendingProfileApprovals === 0 ? 'Queue clear' : `${pendingProfileApprovals} pending`}</p>
+            </div>
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">Moderation pressure</p>
+              <p className="text-lg font-semibold text-[color:var(--text-light)] mt-1">{activeReports > 0 ? `${activeReports} active cases` : 'No open incidents'}</p>
+            </div>
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">Revenue momentum</p>
+              <p className="text-lg font-semibold text-[color:var(--text-light)] mt-1">INR {monthlyRevenue.toLocaleString('en-IN')}</p>
+            </div>
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">Premium conversion</p>
+              <p className="text-lg font-semibold text-[color:var(--text-light)] mt-1">{totalUsers > 0 ? `${Math.round((premiumUsers / totalUsers) * 100)}%` : '0%'} premium users</p>
+            </div>
           </div>
-        </div>
+        </PremiumSurface>
 
-        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/55 p-5 backdrop-blur-2xl">
-          <p className="font-semibold text-white mb-3">Safety and Moderation Notices</p>
-          {(overview?.platformAlerts || []).length ? (
-            <div className="space-y-2">
-              {overview.platformAlerts.map((alert, idx) => (
-                <div key={idx} className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-                  ⚠️ {alert}
+        <PremiumSurface title="System Health" subtitle="Core platform services">
+          <div className="space-y-2">
+            {[
+              { label: 'API', value: systemHealth.api || 'healthy' },
+              { label: 'Database', value: systemHealth.database || 'healthy' },
+              { label: 'Payments', value: systemHealth.payments || 'degraded' },
+              { label: 'Storage', value: systemHealth.storage || 'healthy' }
+            ].map((item) => {
+              const tone = item.value === 'healthy' ? 'success' : item.value === 'degraded' ? 'warning' : 'danger';
+              return (
+                <div key={item.label} className="flex items-center justify-between rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2">
+                  <span className="text-sm text-[color:var(--text-light)]">{item.label}</span>
+                  <StatusChip tone={tone}>{item.value}</StatusChip>
+                </div>
+              );
+            })}
+          </div>
+        </PremiumSurface>
+      </div>
+
+      <div className="grid xl:grid-cols-[1.1fr_1fr_1fr] gap-4">
+        <PremiumSurface title="Recent Admin Activity" subtitle="Latest governance actions">
+          {recentActivity.length ? (
+            <div className="space-y-2.5">
+              {recentActivity.slice(0, 8).map((entry, idx) => (
+                <div key={entry._id || idx} className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2.5">
+                  <p className="text-sm text-[color:var(--text-light)]">{entry.description || entry.action || 'Activity update'}</p>
+                  <p className="text-xs text-[color:var(--portal-muted)] mt-1">{new Date(entry.timestamp || entry.createdAt || Date.now()).toLocaleString()}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-200">
-              All systems operational. No unresolved critical incidents.
-            </div>
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-4 text-sm text-[color:var(--portal-muted)]">No recent admin actions. Activity will appear as the team starts reviewing queues.</div>
           )}
-        </div>
+        </PremiumSurface>
+
+        <PremiumSurface title="Safety & Moderation Notices" subtitle="Priority alerts for trust operations">
+          {notices.length ? (
+            <div className="space-y-2">
+              {notices.map((alert, idx) => (
+                <div key={`${alert}-${idx}`} className="rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">{alert}</div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-200">No critical safety alerts right now. Monitoring remains active.</div>
+          )}
+        </PremiumSurface>
+
+        <PremiumSurface title="Quick Actions" subtitle="High-impact admin shortcuts">
+          <div className="grid grid-cols-2 gap-2.5">
+            <button onClick={() => onSectionChange?.('registration_approvals')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Open Registration Queue</button>
+            <button onClick={() => onSectionChange?.('approvals')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Review Profiles</button>
+            <button onClick={() => onSectionChange?.('reports')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Resolve Reports</button>
+            <button onClick={() => onSectionChange?.('payments')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Approve Payments</button>
+            <button onClick={() => onSectionChange?.('users')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">User Directory</button>
+            <button onClick={() => onSectionChange?.('settings')} className="rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs text-[color:var(--text-light)]">Platform Settings</button>
+          </div>
+        </PremiumSurface>
       </div>
+
+      <PremiumSurface title="Live Queue Panel" subtitle="Operational backlog and throughput">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {liveQueue.map((queue) => (
+            <button
+              key={queue.label}
+              onClick={() => onSectionChange?.(queue.section)}
+              className="text-left rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-4 py-3"
+            >
+              <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">{queue.label}</p>
+              <p className="text-2xl font-semibold text-[color:var(--text-light)] mt-1">{queue.value}</p>
+              <p className="text-xs text-cyan-200 mt-1">Open queue</p>
+            </button>
+          ))}
+        </div>
+      </PremiumSurface>
     </div>
   );
 }
