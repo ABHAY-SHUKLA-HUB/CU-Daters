@@ -97,6 +97,8 @@ const UserSchema = new mongoose.Schema({
   subscription_plan: { type: String },
   subscription_start_date: { type: Date },
   subscription_expiry_date: { type: Date },
+  lastSubscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subscription' },
+  lastRazorpayPaymentId: { type: String }, // Last Razorpay payment ID
   
   // Email OTP Verification
   emailOtp: { type: String },

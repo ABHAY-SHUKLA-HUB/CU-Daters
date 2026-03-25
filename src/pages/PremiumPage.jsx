@@ -1,29 +1,33 @@
 // src/pages/PremiumPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import QRCode from "react-qr-code";
 
 const PremiumPage = () => {
-  const [selected, setSelected] = useState('monthly');
+  const [selected, setSelected] = useState('premium');
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const plans = [
     {
-      id: 'monthly',
-      name: 'Monthly Premium',
-      price: '₹4.99',
+      id: 'premium',
+      name: 'Premium',
+      price: '₹99',
       period: '/month',
-      features: ['Unlimited chats', 'No ads', 'Verified badge', 'Priority matching']
-    },
-    {
-      id: 'yearly',
-      name: 'Yearly Premium',
-      price: '₹39.99',
-      period: '/year',
-      savings: 'Save 33%',
-      features: ['Unlimited chats', 'No ads', 'Verified badge', 'Priority matching']
+      features: ['Unlimited likes', 'See who liked you', 'No ads', 'Verified badge', 'Priority matching']
     }
   ];
+
+  const handleContinue = (plan) => {
+    if (!isAuthenticated) {
+      // Redirect to login, then back to this page
+      navigate('/login', { state: { from: '/razorpay-checkout', plan } });
+      return;
+    }
+    // User is authenticated, go to checkout
+    navigate('/razorpay-checkout', { state: { plan: { id: plan.id, name: plan.name, price: parseInt(plan.price.replace(/[^\d]/g, '')), duration: 30 } } });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white pt-24 pb-12 px-4">
@@ -63,10 +67,15 @@ const PremiumPage = () => {
                     ? 'bg-pink-500 text-white hover:bg-pink-600'
                     : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
                 }`}
-                onClick={() => navigate('/checkout', { state: { plan: plan.id } })}
+                onClick={() => handleContinue(plan)}
               >
-                Continue
+                {isAuthenticated ? 'Continue to Payment' : 'Login to Upgrade'}
               </button>
+              {!isAuthenticated && (
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  💡 You need to login to proceed with payment
+                </p>
+              )}
             </div>
           ))}
         </div>

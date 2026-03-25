@@ -52,11 +52,7 @@ const PricingTiers = () => {
   };
 
   const handleUpgrade = () => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    navigate('/premium-upgrade');
+    navigate('/premium');
   };
 
   if (loading) {

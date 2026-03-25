@@ -19,7 +19,9 @@ import { getDbReconnectState, markDbReconnectStart, markDbReconnectEnd } from '.
 import authRoutes from './routes/auth.js';
 import configRoutes from './routes/config.js';
 import subscriptionRoutes from './routes/subscriptions.js';
+import razorpayRoutes from './routes/razorpay.js';
 import adminRoutes from './routes/admin.js';
+import cmsRoutes from './routes/cms.js';
 import chatRoutes from './routes/chat.js';
 import likesRoutes from './routes/likes.js';
 import connectionRoutes from './routes/connections.js';
@@ -247,7 +249,9 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/razorpay', razorpayRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/cms', cmsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/likes', likesRoutes);
 app.use('/api/connections', connectionRoutes);

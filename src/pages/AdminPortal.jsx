@@ -5,6 +5,8 @@ import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ThemeSettingsPanel from '../components/ThemeSettingsPanel';
+import CareerApplicationsPanel from '../components/CareerApplicationsPanel';
+import ContentEditorPanel from '../components/ContentEditorPanel';
 import '../styles/adminPortal.css';
 
 const SECTION_CONFIG = [
@@ -18,6 +20,8 @@ const SECTION_CONFIG = [
   { id: 'moderation', label: 'Content Moderation', icon: '🔍', group: 'Moderation' },
   { id: 'payments', label: 'Payment Reviews', icon: '💳', group: 'Finance' },
   { id: 'support', label: 'Support Desk', icon: '🎧', group: 'Support' },
+  { id: 'career_applications', label: 'Career Applications', icon: '🚀', group: 'Support' },
+  { id: 'content_management', label: 'Content Management', icon: '📝', group: 'Settings' },
   { id: 'analytics', label: 'Analytics', icon: '📈', group: 'Insights' },
   { id: 'activity', label: 'Audit Logs', icon: '📋', group: 'Insights' },
   { id: 'colleges', label: 'Colleges', icon: '🏫', group: 'Settings' },
@@ -38,6 +42,8 @@ const SECTION_ROLE_ACCESS = {
   moderation: ['admin', 'super_admin', 'moderator'],
   colleges: ['admin', 'super_admin'],
   support: ['admin', 'super_admin', 'moderator'],
+  career_applications: ['admin', 'super_admin'],
+  content_management: ['admin', 'super_admin'],
   analytics: ['admin', 'super_admin', 'finance_admin', 'moderator'],
   settings: ['admin', 'super_admin'],
   activity: ['admin', 'super_admin', 'moderator', 'finance_admin']
@@ -983,6 +989,8 @@ export default function AdminPortal() {
                 {!loading && section === 'moderation' ? <ModerationPanel photos={moderationPhotos} /> : null}
                 {!loading && section === 'colleges' ? <CollegesPanel colleges={colleges} /> : null}
                 {!loading && section === 'support' ? <SupportPanel tickets={filteredSupportTickets} /> : null}
+                {!loading && section === 'career_applications' ? <CareerApplicationsPanel /> : null}
+                {!loading && section === 'content_management' ? <ContentEditorPanel /> : null}
                 {!loading && section === 'analytics' ? <AnalyticsPanel analytics={analytics} /> : null}
                 {!loading && section === 'settings' ? <SettingsPanel settings={settings} onUpdate={handleUpdateSetting} /> : null}
                 {!loading && section === 'activity' ? <ActivityPanel logs={filteredActivity} /> : null}

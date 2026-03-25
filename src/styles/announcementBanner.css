@@ -1,0 +1,122 @@
+/* Global Announcement Banner */
+
+.global-announcement-banner {
+  background: linear-gradient(135deg, var(--blushPink, #E85B89) 0%, #d64a7a 100%);
+  color: white;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.announcement-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.announcement-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.announcement-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.announcement-cta {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.announcement-cta:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(2px, 0);
+}
+
+.announcement-dismiss {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.announcement-dismiss:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.announcement-dismiss:active {
+  transform: scale(0.95);
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+  .announcement-container {
+    padding: 10px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .announcement-content {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .announcement-text {
+    font-size: 13px;
+  }
+
+  .announcement-dismiss {
+    position: absolute;
+    right: 16px;
+    top: 10px;
+  }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  .global-announcement-banner {
+    background: linear-gradient(135deg, #c04a6d 0%, #a03a5d 100%);
+  }
+}

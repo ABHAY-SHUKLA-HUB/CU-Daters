@@ -10,7 +10,7 @@ const SubscriptionSchema = new mongoose.Schema({
   // Payment Info
   plan: { 
     type: String,
-    enum: ['Free Plan', 'CU Crush+', 'CU Crush Gold', 'CU Crush Platinum'], 
+    enum: ['premium', 'monthly', 'quarterly', 'yearly', 'Free Plan', 'CU Crush+', 'CU Crush Gold', 'CU Crush Platinum'], 
     required: true 
   },
   amount: { type: Number, required: true },
