@@ -1456,7 +1456,7 @@ export default function AdminPortal() {
             </div>
           </div>
 
-          <div className="px-5 xl:px-7 py-4 border-b border-cyan-200/12 bg-white/[0.03]">
+          <div className="px-5 xl:px-7 py-4 border-b border-cyan-200/6 bg-white/[0.03]">
             <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-4">
               <div className="rounded-2xl border border-cyan-200/15 bg-white/6 p-3.5">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-cyan-100/70">Quick Actions</p>

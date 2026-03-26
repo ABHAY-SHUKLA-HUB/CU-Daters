@@ -101,6 +101,11 @@ export default function ChatPage() {
   const [watermarkClock, setWatermarkClock] = React.useState(Date.now());
   const lastPrivacySignalRef = React.useRef(0);
 
+  const showNotice = React.useCallback((text) => {
+    setNotice(text);
+    setTimeout(() => setNotice(''), 3500);
+  }, []);
+
   React.useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
@@ -404,11 +409,6 @@ export default function ChatPage() {
         .sort((a, b) => new Date(b.lastMessageTime || b.updatedAt) - new Date(a.lastMessageTime || a.updatedAt))
     );
   }, [normalizeId, toConversationPreviewText]);
-
-  const showNotice = React.useCallback((text) => {
-    setNotice(text);
-    setTimeout(() => setNotice(''), 3500);
-  }, []);
 
   const mutateConversationCache = React.useCallback((conversationId, updater) => {
     if (!conversationId || typeof updater !== 'function') {

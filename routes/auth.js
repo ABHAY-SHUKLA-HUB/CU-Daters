@@ -428,12 +428,23 @@ router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next)
       console.error('⚠️ Failed to log OTP email failure activity:', activityError?.message || activityError);
     }
 
+    const errorText = String(emailError || '').toLowerCase();
+    const isProviderAuthFailure =
+      errorText.includes('authentication failed') ||
+      errorText.includes('invalid login') ||
+      errorText.includes(' 535') ||
+      errorText.includes('eauth');
+
+    const message = isProviderAuthFailure
+      ? 'OTP email service is not configured correctly right now. Please contact support.'
+      : 'Unable to send OTP email right now. Please try again in 1-2 minutes.';
+
     res.status(503).json(
-      errorResponse('Unable to send OTP email right now. Please try again in 1-2 minutes.', {
-        code: 'OTP_EMAIL_DELIVERY_FAILED',
-        retryAfterSeconds: 90,
+      errorResponse(message, {
+        code: isProviderAuthFailure ? 'OTP_EMAIL_PROVIDER_AUTH_FAILED' : 'OTP_EMAIL_DELIVERY_FAILED',
+        retryAfterSeconds: isProviderAuthFailure ? 300 : 90,
         emailStatus: 'failed',
-        temporary: true
+        temporary: !isProviderAuthFailure
       })
     );
   }

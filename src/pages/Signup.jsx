@@ -244,7 +244,12 @@ export default function Signup() {
         errorMsg = 'Email already registered. Please login instead.';
         setError(errorMsg);
       } else if (err.response?.status === 503) {
-        errorMsg = err.response?.data?.message || 'Email service is temporarily unavailable. Please retry in 1-2 minutes.';
+        const errorCode = err.response?.data?.details?.code;
+        if (errorCode === 'OTP_EMAIL_PROVIDER_AUTH_FAILED') {
+          errorMsg = 'OTP service configuration issue detected. Please contact support/admin to fix email credentials.';
+        } else {
+          errorMsg = err.response?.data?.message || 'Email service is temporarily unavailable. Please retry in 1-2 minutes.';
+        }
         setError(errorMsg);
       } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
         errorMsg = '❌ Cannot connect to server. Backend might be down.';
