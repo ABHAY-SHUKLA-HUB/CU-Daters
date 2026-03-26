@@ -28,10 +28,10 @@ export default function Terms() {
   const legal = useLegalContentConfig();
   const support = useSupportContactConfig();
 
-  const appName = legal.appName || 'CU-Daters';
+  const appName = legal.appName || 'SeeU-Daters';
   const companyName = legal.companyName || appName;
-  const legalEmail = legal.legalEmail || 'legal@cudaters.in';
-  const supportEmail = support.supportEmail || legal.supportEmail || 'support@cudaters.in';
+  const legalEmail = legal.legalEmail || 'legal@seeudaters.in';
+  const supportEmail = support.supportEmail || legal.supportEmail || 'support@seeudaters.in';
   const termsLastUpdated = legal.termsLastUpdated || 'March 2026';
   const mailingAddress = legal.mailingAddress || 'Chandigarh University, Chandigarh, India';
 
@@ -77,3 +77,4 @@ export default function Terms() {
     </div>
   );
 }
+

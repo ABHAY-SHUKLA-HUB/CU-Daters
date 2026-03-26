@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import authApi from '../services/authApi';
 import { useAuth } from '../context/AuthContext';
 
-const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin'];
+const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'];
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -30,6 +30,7 @@ export default function AdminLogin() {
 
       const token = response?.data?.token || response?.token;
       const user = response?.data?.user || response?.user;
+      const csrfToken = response?.data?.csrfToken || response?.csrfToken || '';
 
       if (!token || !user) {
         setError('Invalid login response from server');
@@ -41,7 +42,7 @@ export default function AdminLogin() {
         return;
       }
 
-      setAuth({ token, user });
+      setAuth({ token, user, csrfToken });
       setSuccess('Login successful. Redirecting...');
       navigate('/admin-portal', { replace: true });
     } catch (err) {

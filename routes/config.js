@@ -231,13 +231,13 @@ router.get('/plan/:planId', asyncHandler(async (req, res) => {
  */
 router.get('/support-contact', asyncHandler(async (req, res) => {
   const defaults = {
-    supportEmail: 'support@cudaters.in',
-    escalationEmail: 'escalations@cudaters.in',
+    supportEmail: 'support@seeudaters.in',
+    escalationEmail: 'escalations@seeudaters.in',
     supportPhone: '',
     whatsapp: '',
     instagramId: '',
     telegramId: '',
-    supportHandle: 'CU-Daters Support',
+    supportHandle: 'SeeU-Daters Support',
     helpCenterUrl: '',
     officeHours: 'Mon-Sat, 9:00 AM - 8:00 PM',
     responseSlaHours: '24'
@@ -273,13 +273,13 @@ router.get('/support-contact', asyncHandler(async (req, res) => {
  */
 router.get('/legal-content', asyncHandler(async (req, res) => {
   const defaults = {
-    appName: 'CU-Daters',
-    companyName: 'CU-Daters',
+    appName: 'SeeU-Daters',
+    companyName: 'SeeU-Daters',
     termsLastUpdated: 'March 2026',
     privacyLastUpdated: 'March 2026',
-    legalEmail: 'legal@cudaters.in',
-    privacyEmail: 'privacy@cudaters.in',
-    supportEmail: 'support@cudaters.in',
+    legalEmail: 'legal@seeudaters.in',
+    privacyEmail: 'privacy@seeudaters.in',
+    supportEmail: 'support@seeudaters.in',
     disputeResponseDays: '7',
     arbitrationCity: 'Chandigarh, India',
     governingLaw: 'Laws of India',
@@ -499,3 +499,4 @@ router.post('/admin/payment-config', asyncHandler(async (req, res) => {
 }));
 
 export default router;
+

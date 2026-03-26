@@ -5,7 +5,7 @@ export default function FAQSection() {
 
   const faqs = [
     {
-      question: 'Is my data really private on CU Daters?',
+      question: 'Is my data really private on SeeU-Daters?',
       answer:
         'Yes. Your conversations are end-to-end encrypted, meaning only you and your match can read them. We physically cannot read your messages even if we tried. Your location is private until you share it manually. We don\'t sell your data or use it for ads. We comply with GDPR and can never share your data with third parties.',
     },
@@ -27,7 +27,7 @@ export default function FAQSection() {
     {
       question: 'How do I know other profiles are real?',
       answer:
-        'Every profile on CU Daters is verified through college email, student ID, and face ID. We have AI moderation that flags suspicious patterns and duplicate accounts. Our human review team manually checks flagged profiles. If it seems too good to be true, it probably failed verification.',
+        'Every profile on SeeU-Daters is verified through college email, student ID, and face ID. We have AI moderation that flags suspicious patterns and duplicate accounts. Our human review team manually checks flagged profiles. If it seems too good to be true, it probably failed verification.',
     },
     {
       question: 'Why do you focus on college students only?',
@@ -105,3 +105,4 @@ export default function FAQSection() {
     </section>
   );
 }
+

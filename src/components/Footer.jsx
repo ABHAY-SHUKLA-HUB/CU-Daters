@@ -4,7 +4,7 @@ import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function Footer() {
   const contactConfig = useSupportContactConfig();
-  const supportEmail = contactConfig.supportEmail || 'support@cudaters.in';
+  const supportEmail = contactConfig.supportEmail || 'support@seeudaters.in';
   const instagramHref = contactConfig.instagramId ? `https://instagram.com/${String(contactConfig.instagramId).replace(/^@/, '')}` : '#';
   const telegramHref = contactConfig.telegramId ? `https://t.me/${String(contactConfig.telegramId).replace(/^@/, '')}` : '#';
   const helpCenterHref = contactConfig.helpCenterUrl || '#';
@@ -14,7 +14,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Section: Brand Story */}
         <div className="mb-16 pb-16 border-b border-gray-700">
-          <h3 className="text-2xl font-bold mb-4 gradient-text">CU Daters</h3>
+          <h3 className="text-2xl font-bold mb-4 gradient-text">SeeU-Daters</h3>
           <p className="text-gray-300 text-base leading-relaxed max-w-2xl mb-6">
             We're building the safest dating platform for college students. Verified profiles. Private conversations. Real connections. By students, for students.
           </p>
@@ -82,7 +82,7 @@ export default function Footer() {
         <div className="border-t border-gray-700 pt-12 flex flex-col md:flex-row justify-between items-center">
           <div>
             <p className="text-sm text-gray-400 mb-4 md:mb-0">
-              © 2026 CU Daters. All rights reserved. Made with 💕 by students, for students.
+              © 2026 SeeU-Daters. All rights reserved. Made with 💕 by students, for students.
             </p>
           </div>
           <div className="flex gap-6 flex-wrap justify-center md:justify-end">
@@ -101,3 +101,4 @@ export default function Footer() {
     </footer>
   );
 }
+

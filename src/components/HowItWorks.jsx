@@ -40,7 +40,7 @@ export default function HowItWorks() {
         <div className="text-center mb-16 animate-fade-in-up">
           <h2 className="section-title mb-4">How It Works</h2>
           <p className="section-subtitle max-w-3xl mx-auto">
-            Join thousands of students who found their people on CU Daters. The process is simple, safe, and completely anonymous until you're ready.
+            Join thousands of students who found their people on SeeU-Daters. The process is simple, safe, and completely anonymous until you're ready.
           </p>
         </div>
 
@@ -90,3 +90,4 @@ export default function HowItWorks() {
     </section>
   );
 }
+

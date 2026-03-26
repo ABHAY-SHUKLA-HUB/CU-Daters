@@ -33,7 +33,7 @@ export default function Pricing() {
               <span className="block bg-gradient-to-r from-rose-500 to-fuchsia-500 bg-clip-text text-transparent">Serious Product Value</span>
             </h1>
             <p className="mt-5 text-lg text-softBrown leading-relaxed max-w-3xl">
-              CU-Daters keeps pricing intentionally clear: a powerful free base for discovery and a premium tier for speed, visibility, and control.
+              SeeU-Daters keeps pricing intentionally clear: a powerful free base for discovery and a premium tier for speed, visibility, and control.
             </p>
           </ScrollReveal>
 
@@ -92,3 +92,4 @@ export default function Pricing() {
     </div>
   );
 }
+

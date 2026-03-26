@@ -27,6 +27,7 @@ import likesRoutes from './routes/likes.js';
 import connectionRoutes from './routes/connections.js';
 import discoveryRoutes from './routes/discovery.js';
 import safetyRoutes from './routes/safety.js';
+import securityRoutes from './routes/security.js';
 import profileAccessRoutes from './routes/profileAccess.js';
 import registerChatSocket from './socket/chatSocket.js';
 import { registerNotificationSocket } from './socket/notificationSocket.js';
@@ -87,6 +88,17 @@ const parseOriginList = (rawValue) => {
     .filter(Boolean);
 };
 
+const extractHostFromUrl = (value) => {
+  const normalized = normalizeOrigin(value);
+  if (!normalized) return '';
+
+  try {
+    return new URL(normalized).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
 const isAllowedOrigin = (origin, allowedOriginSet) => {
   if (!origin) return true;
 
@@ -107,10 +119,19 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isNetlify = hostname.endsWith('.netlify.app');
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
-  const isCudatersTech = hostname === 'cudaters.tech' || hostname.endsWith('.cudaters.tech');
-  const isCuDatersTech = hostname === 'cu-daters.tech' || hostname.endsWith('.cu-daters.tech');
+  const isSeeuDatersTech = hostname === 'seeudaters.tech' || hostname.endsWith('.seeudaters.tech');
+  const isSeeuDashedDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
 
-  return isLocalDevHost || isNetlify || isVercel || isRender || isCudatersTech || isCuDatersTech;
+  const configuredFrontendHosts = [
+    extractHostFromUrl(process.env.FRONTEND_URL),
+    extractHostFromUrl(process.env.FRONTEND_PUBLIC_URL),
+  ].filter(Boolean);
+
+  const isConfiguredFrontendHost = configuredFrontendHosts.some((configuredHost) => {
+    return hostname === configuredHost || hostname.endsWith(`.${configuredHost}`);
+  });
+
+  return isLocalDevHost || isNetlify || isVercel || isRender || isSeeuDatersTech || isSeeuDashedDatersTech || isConfiguredFrontendHost;
 };
 
 // ===== CONNECT DATABASE =====
@@ -145,14 +166,14 @@ const staticAllowedOrigins = [
   process.env.FRONTEND_PUBLIC_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
   process.env.NETLIFY_URL,
-  'https://cu-daters-found.netlify.app',
-  'https://www.cu-daters-found.netlify.app',
-  'https://cu-daters.vercel.app',
-  'https://www.cu-daters.vercel.app',
-  'https://cudaters.tech',
-  'https://www.cudaters.tech',
-  'https://cu-daters.tech',
-  'https://www.cu-daters.tech',
+  'https://seeu-daters-found.netlify.app',
+  'https://www.seeu-daters-found.netlify.app',
+  'https://seeu-daters.vercel.app',
+  'https://www.seeu-daters.vercel.app',
+  'https://seeudaters.tech',
+  'https://www.seeudaters.tech',
+  'https://seeu-daters.tech',
+  'https://www.seeu-daters.tech',
 
   // Backend URL
   process.env.BACKEND_URL,
@@ -164,6 +185,7 @@ const staticAllowedOrigins = [
 const envAllowedOrigins = [
   ...parseOriginList(process.env.CORS_ORIGIN),
   ...parseOriginList(process.env.CORS_ALLOWED_ORIGINS),
+  ...parseOriginList(process.env.FRONTEND_ORIGINS),
 ];
 
 const allowedOriginSet = new Set([...staticAllowedOrigins, ...envAllowedOrigins]);
@@ -192,7 +214,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-pin'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-pin', 'x-request-id', 'x-csrf-token', 'x-step-up-token', 'x-refresh-token'],
   maxAge: 86400,
 };
 
@@ -208,6 +230,9 @@ app.use((req, res, next) => {
   res.setHeader('x-frame-options', 'DENY');
   res.setHeader('referrer-policy', 'strict-origin-when-cross-origin');
   res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('cross-origin-opener-policy', 'same-origin');
+  res.setHeader('cross-origin-resource-policy', 'same-site');
+  res.setHeader('content-security-policy', "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; font-src 'self' data:; media-src 'self' data: blob: https:");
 
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('strict-transport-security', 'max-age=31536000; includeSubDomains');
@@ -307,12 +332,13 @@ app.use('/api/likes', likesRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/api/discovery', discoveryRoutes);
 app.use('/api/safety', safetyRoutes);
+app.use('/api/security', securityRoutes);
 app.use('/api/profile-access', profileAccessRoutes);
 
 // ===== ROOT ROUTE =====
 app.get('/', (req, res) => {
   res.json({
-    message: 'CU Daters Backend API',
+    message: 'SeeU-Daters Backend API',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
@@ -363,7 +389,7 @@ httpServer.on('error', (error) => {
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`\n${'='.repeat(50)}`);
-  console.log(`🚀 CU Daters Backend Server`);
+  console.log(`🚀 SeeU-Daters Backend Server`);
   console.log(`${'='.repeat(50)}`);
   console.log(`✓ Server running on http://0.0.0.0:${PORT}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV}`);

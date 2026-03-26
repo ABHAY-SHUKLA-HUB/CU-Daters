@@ -4,7 +4,7 @@ export default function AdminActivityLog() {
   const [logs] = useState(() => {
     // Initialize state from localStorage
     try {
-      return JSON.parse(localStorage.getItem('cudaters_activity_logs') || '[]');
+      return JSON.parse(localStorage.getItem('seeudaters_activity_logs') || '[]');
     } catch {
       return [];
     }
@@ -71,3 +71,4 @@ export default function AdminActivityLog() {
     </div>
   );
 }
+

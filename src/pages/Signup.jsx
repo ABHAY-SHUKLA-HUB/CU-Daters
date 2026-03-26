@@ -191,8 +191,14 @@ export default function Signup() {
           type: 'limit',
           isRateLimit: true
         });
+      } else if (err.response?.status === 403) {
+        errorMsg = err.response?.data?.message || 'OTP request blocked by server policy (CORS or access rule). Please verify frontend domain is whitelisted.';
+        setError(errorMsg);
       } else if (err.response?.status === 409) {
         errorMsg = 'Email already registered. Please login instead.';
+        setError(errorMsg);
+      } else if (err.response?.status === 503) {
+        errorMsg = err.response?.data?.message || 'Email service is temporarily unavailable. Please retry in 1-2 minutes.';
         setError(errorMsg);
       } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
         errorMsg = '❌ Cannot connect to server. Backend might be down.';
@@ -375,7 +381,7 @@ export default function Signup() {
         <div className="card">
           <div className="text-center mb-8">
             <div className="text-5xl mb-2">💕</div>
-            <h1 className="text-3xl font-bold gradient-text mb-2">CU Daters</h1>
+            <h1 className="text-3xl font-bold gradient-text mb-2">SeeU-Daters</h1>
             <p className="text-softBrown">Create Your Account</p>
           </div>
 
@@ -737,3 +743,4 @@ export default function Signup() {
     </div>
   );
 }
+

@@ -7,7 +7,7 @@ export default function AdminReportsModeration() {
 
   useEffect(() => {
     // Load reports from localStorage
-    const allReports = JSON.parse(localStorage.getItem('cudaters_reports') || '[]');
+    const allReports = JSON.parse(localStorage.getItem('seeudaters_reports') || '[]');
     setReports(allReports);
   }, []);
 
@@ -148,3 +148,4 @@ export default function AdminReportsModeration() {
     </div>
   );
 }
+

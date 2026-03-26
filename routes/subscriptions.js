@@ -64,7 +64,7 @@ router.get('/pricing-config', async (req, res) => {
     const premiumFree = Boolean(billing.premiumFree);
     const disableFreeMode = Boolean(billing.disableFreeMode);
     const bankEnabled = billing.bankEnabled !== false;
-    const accountHolder = String(billing.accountHolder || 'CU Daters Pvt Ltd');
+    const accountHolder = String(billing.accountHolder || 'SeeU-Daters Pvt Ltd');
     const bankName = String(billing.bankName || 'HDFC Bank');
     const accountNumber = String(billing.accountNumber || '1234567890123456');
     const ifscCode = String(billing.ifscCode || 'HDFC0005678');
@@ -316,3 +316,4 @@ router.get('/:subscriptionId', verifyAuth, async (req, res) => {
 });
 
 export default router;
+

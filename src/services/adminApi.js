@@ -9,6 +9,104 @@ const getAdminHeaders = (adminPin) => {
 };
 
 const adminApi = {
+  verifyStepUp: async (payload) => {
+    const response = await api.post('/api/admin/step-up/verify', payload);
+    return response.data;
+  },
+
+  getAdminSessions: async () => {
+    const response = await api.get('/api/admin/sessions');
+    return response.data;
+  },
+
+  revokeAdminSession: async (sessionId) => {
+    const response = await api.delete(`/api/admin/sessions/${sessionId}`);
+    return response.data;
+  },
+
+  logoutAllSessions: async () => {
+    const response = await api.post('/api/admin/logout-all');
+    return response.data;
+  },
+
+  getImmutableAuditLogs: async (params = {}) => {
+    const response = await api.get('/api/admin/audit-logs/immutable', { params });
+    return response.data;
+  },
+
+  exportImmutableAuditLogs: async (params = {}) => {
+    const response = await api.get('/api/admin/audit-logs/immutable/export', {
+      params,
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  getSecurityAlerts: async () => {
+    const response = await api.get('/api/admin/security/alerts');
+    return response.data;
+  },
+
+  getFlaggedUsers: async (params = {}) => {
+    const response = await api.get('/api/admin/flagged-users', { params });
+    return response.data;
+  },
+
+  getModerationCases: async (params = {}) => {
+    const response = await api.get('/api/admin/trust-safety/cases', { params });
+    return response.data;
+  },
+
+  assignModerationCase: async (caseId, payload) => {
+    const response = await api.post(`/api/admin/trust-safety/cases/${caseId}/assign`, payload);
+    return response.data;
+  },
+
+  escalateModerationCase: async (caseId, payload, stepUpToken = '') => {
+    const response = await api.post(`/api/admin/trust-safety/cases/${caseId}/escalate`, payload, {
+      headers: stepUpToken ? { 'x-step-up-token': stepUpToken } : {}
+    });
+    return response.data;
+  },
+
+  getAppeals: async (params = {}) => {
+    const response = await api.get('/api/admin/appeals', { params });
+    return response.data;
+  },
+
+  updateAppeal: async (appealId, payload) => {
+    const response = await api.put(`/api/admin/appeals/${appealId}`, payload);
+    return response.data;
+  },
+
+  getDeletionRequests: async (params = {}) => {
+    const response = await api.get('/api/admin/deletion-requests', { params });
+    return response.data;
+  },
+
+  getScreenshotPrivacyEvents: async (params = {}) => {
+    const response = await api.get('/api/admin/privacy-events/screenshots', { params });
+    return response.data;
+  },
+
+  getScreenshotRiskProfiles: async (params = {}) => {
+    const response = await api.get('/api/admin/privacy-events/screenshots/risk', { params });
+    return response.data;
+  },
+
+  exportScreenshotPrivacyEvents: async (params = {}) => {
+    const response = await api.get('/api/admin/privacy-events/screenshots/export', {
+      params,
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  updateDeletionRequest: async (requestId, payload) => {
+    const response = await api.put(`/api/admin/deletion-requests/${requestId}`, payload);
+    return response.data;
+  },
+
   verifyPin: async (pin) => {
     const response = await api.post('/api/admin/verify-pin', { pin });
     return response.data;
@@ -34,6 +132,16 @@ const adminApi = {
     return response.data;
   },
 
+  approveRegistration: async (userId, payload = {}, adminPin) => {
+    const response = await api.put(`/api/admin/registrations/${userId}/approve`, payload, getAdminHeaders(adminPin));
+    return response.data;
+  },
+
+  rejectRegistration: async (userId, payload = {}, adminPin) => {
+    const response = await api.put(`/api/admin/registrations/${userId}/reject`, payload, getAdminHeaders(adminPin));
+    return response.data;
+  },
+
   updateUserModeration: async (userId, payload, adminPin) => {
     const response = await api.put(`/api/admin/users/${userId}/moderation`, payload, getAdminHeaders(adminPin));
     return response.data;
@@ -46,6 +154,14 @@ const adminApi = {
 
   updateProfileApproval: async (userId, payload, adminPin) => {
     const response = await api.put(`/api/admin/users/${userId}/profile-approval`, payload, getAdminHeaders(adminPin));
+    return response.data;
+  },
+
+  deleteUser: async (userId, payload = {}, adminPin) => {
+    const response = await api.delete(`/api/admin/users/${userId}`, {
+      ...getAdminHeaders(adminPin),
+      data: payload
+    });
     return response.data;
   },
 
@@ -69,8 +185,8 @@ const adminApi = {
     return response.data;
   },
 
-  getFullViewChats: async (limit = 30, messageLimit = 120) => {
-    const response = await api.get('/api/admin/chats/full-view', { params: { limit, messageLimit } });
+  getFullViewChats: async (limit = 30, messageLimit = 120, reason = 'moderation_review') => {
+    const response = await api.get('/api/admin/chats/full-view', { params: { limit, messageLimit, reason } });
     return response.data;
   },
 
@@ -86,6 +202,16 @@ const adminApi = {
 
   getPaymentSummary: async () => {
     const response = await api.get('/api/admin/payments/summary');
+    return response.data;
+  },
+
+  approveSubscription: async (subscriptionId, payload = {}, adminPin) => {
+    const response = await api.put(`/api/admin/subscriptions/${subscriptionId}/approve`, payload, getAdminHeaders(adminPin));
+    return response.data;
+  },
+
+  rejectSubscription: async (subscriptionId, payload = {}, adminPin) => {
+    const response = await api.put(`/api/admin/subscriptions/${subscriptionId}/reject`, payload, getAdminHeaders(adminPin));
     return response.data;
   },
 
@@ -134,8 +260,8 @@ const adminApi = {
     return response.data;
   },
 
-  getAnalytics: async () => {
-    const response = await api.get('/api/admin/analytics/engagement');
+  getAnalytics: async (params = {}) => {
+    const response = await api.get('/api/admin/analytics/engagement', { params });
     return response.data;
   },
 

@@ -37,6 +37,41 @@ const safetyApi = {
     return response.data ?? {};
   },
 
+  getPrivacyNotice: async () => {
+    const response = await api.get('/api/safety/privacy-notice');
+    return response.data ?? {};
+  },
+
+  reportPrivacyEvent: async (payload) => {
+    const response = await api.post('/api/safety/privacy-events', payload);
+    return response.data ?? {};
+  },
+
+  reportScreenshotEvent: async (payload) => {
+    const response = await api.post('/api/security/screenshot-event', payload);
+    return response.data ?? {};
+  },
+
+  submitAppeal: async (payload) => {
+    const response = await api.post('/api/safety/appeals', payload);
+    return response.data ?? {};
+  },
+
+  getMyAppeals: async () => {
+    const response = await api.get('/api/safety/appeals/my');
+    return response.data ?? {};
+  },
+
+  submitDeletionRequest: async (payload = {}) => {
+    const response = await api.post('/api/safety/deletion-request', payload);
+    return response.data ?? {};
+  },
+
+  getDeletionRequests: async () => {
+    const response = await api.get('/api/safety/deletion-request');
+    return response.data ?? {};
+  },
+
   requestCollegeVerification: async (collegeEmail) => {
     const response = await api.post('/api/safety/college-verification/request', { collegeEmail });
     return response.data ?? {};

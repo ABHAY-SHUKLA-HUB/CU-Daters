@@ -10,10 +10,41 @@ services:
       - key: VITE_API_URL
         value: https://datee.onrender.com
       - key: VITE_APP_URL
-        value: https://cu-daters-found.netlify.app
+        value: https://seeu-daters-found.netlify.app
       - key: FRONTEND_URL
-        value: https://cu-daters.vercel.app
+        value: https://seeu-daters.vercel.app
       - key: FRONTEND_PUBLIC_URL
-        value: https://cu-daters.vercel.app
+        value: https://seeu-daters.vercel.app
       - key: CORS_ALLOWED_ORIGINS
-        value: https://cu-daters.vercel.app,https://www.cu-daters.vercel.app,https://cu-daters-git-main-abhay-shukla-hubs-projects.vercel.app
+        value: https://seeu-daters.vercel.app,https://www.seeu-daters.vercel.app,https://seeu-daters-git-main-abhay-shukla-hubs-projects.vercel.app
+      - key: FRONTEND_ORIGINS
+        value: https://seeu-daters.vercel.app,https://www.seeu-daters.vercel.app
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_RETRIES
+        value: "3"
+      - key: SMTP_TLS_REJECT_UNAUTHORIZED
+        value: "true"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
+      - key: OTP_HASH_SECRET
+        sync: false
+      - key: OTP_EXPIRY_SECONDS
+        value: "300"
+      - key: OTP_VERIFY_MAX_ATTEMPTS
+        value: "5"
+      - key: OTP_VERIFY_LOCK_MINUTES
+        value: "15"
+

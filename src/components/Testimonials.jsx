@@ -6,7 +6,7 @@ export default function Testimonials() {
       initials: 'SK',
       name: 'Sarah K.',
       major: 'CS Major • 3rd Year',
-      text: 'I was skeptical about dating apps, but CU Daters felt so much safer. The anonymous thing made me comfortable saying what I actually wanted. 10/10 would recommend!',
+      text: 'I was skeptical about dating apps, but SeeU-Daters felt so much safer. The anonymous thing made me comfortable saying what I actually wanted. 10/10 would recommend!',
       rating: 5
     },
     {
@@ -29,7 +29,7 @@ export default function Testimonials() {
     <section className="py-20 md:py-24 px-4 bg-[linear-gradient(180deg,#fffaf4_0%,#ffffff_55%,#fff8fb_100%)]">
       <div className="max-w-6xl mx-auto">
 
-        <h2 className="section-title">Students Are Loving CU Daters</h2>
+        <h2 className="section-title">Students Are Loving SeeU-Daters</h2>
         <p className="section-subtitle">Real stories from real CU students</p>
 
         <div className="grid md:grid-cols-3 gap-6 mt-12">
@@ -67,3 +67,4 @@ export default function Testimonials() {
     </section>
   );
 }
+

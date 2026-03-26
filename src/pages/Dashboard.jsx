@@ -376,7 +376,28 @@ export default function Dashboard() {
     void refreshIncomingRequests();
   }, [refreshIncomingRequests]);
 
-  useNotificationSocket(handleNewLike, handleNewMatch, handleRequestUpdate, handleIncomingRequest);
+  const handlePrivacyCaptureAlert = React.useCallback((data) => {
+    const message = data?.message || 'Privacy alert: screenshot-related activity was detected on a supported device.';
+    setLikeNotification(`🛡️ ${message}`);
+    setTimeout(() => setLikeNotification(null), 4200);
+  }, []);
+
+  const handleSecurityAlert = React.useCallback((data) => {
+    if (String(currentUser?.role || '').toLowerCase() === 'admin' || String(currentUser?.role || '').toLowerCase() === 'super_admin' || String(currentUser?.role || '').toLowerCase() === 'moderator') {
+      const message = data?.message || 'New security alert received.';
+      setLikeNotification(`🚨 ${message}`);
+      setTimeout(() => setLikeNotification(null), 4200);
+    }
+  }, [currentUser?.role]);
+
+  useNotificationSocket(
+    handleNewLike,
+    handleNewMatch,
+    handleRequestUpdate,
+    handleIncomingRequest,
+    handlePrivacyCaptureAlert,
+    handleSecurityAlert
+  );
 
   // Filter out admin users
   const visibleProfiles = allProfiles.filter(profile => 

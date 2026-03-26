@@ -6,29 +6,48 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ThemeSettingsPanel from '../components/ThemeSettingsPanel';
 import { PremiumSurface, StatCard, StatusChip } from '../components/ui/PremiumPrimitives';
-import '../styles/adminPortal.css';
+import {
+  Activity,
+  BarChart3,
+  Bell,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  Settings,
+  Shield,
+  Sparkles,
+  UserCheck,
+  UserMinus,
+  UserX,
+  Users
+} from 'lucide-react';
+import '../styles/adminPortal.premium.css';
 
 const SECTION_CONFIG = [
-  { id: 'overview', label: 'Overview', icon: '📊', group: 'Operations' },
-  { id: 'registration_approvals', label: 'Registration Approvals', icon: '🆕', group: 'Approvals' },
-  { id: 'approvals', label: 'Profile Approvals', icon: '✅', group: 'Approvals' },
-  { id: 'users', label: 'User Directory', icon: '👥', group: 'User Ops' },
-  { id: 'matches', label: 'Matches', icon: '💕', group: 'User Ops' },
-  { id: 'chat_monitoring', label: 'Conversation Safety', icon: '🛡️', group: 'Moderation' },
-  { id: 'reports', label: 'Reports Queue', icon: '🚩', group: 'Moderation' },
-  { id: 'moderation', label: 'Content Moderation', icon: '🔍', group: 'Moderation' },
-  { id: 'payments', label: 'Payment Reviews', icon: '💳', group: 'Finance' },
-  { id: 'support', label: 'Support Desk', icon: '🎧', group: 'Support' },
-  { id: 'analytics', label: 'Analytics', icon: '📈', group: 'Insights' },
-  { id: 'activity', label: 'Audit Logs', icon: '📋', group: 'Insights' },
-  { id: 'colleges', label: 'Colleges', icon: '🏫', group: 'Settings' },
-  { id: 'settings', label: 'Platform Settings', icon: '⚙️', group: 'Settings' }
+  { id: 'overview', label: 'Overview' },
+  { id: 'security_ops', label: 'Security Operations' },
+  { id: 'registration_approvals', label: 'Registration Approvals' },
+  { id: 'approvals', label: 'Profile Approvals' },
+  { id: 'users', label: 'User Directory' },
+  { id: 'matches', label: 'Matches' },
+  { id: 'chat_monitoring', label: 'Conversation Safety' },
+  { id: 'reports', label: 'Reports Queue' },
+  { id: 'moderation', label: 'Content Moderation' },
+  { id: 'payments', label: 'Payment Reviews' },
+  { id: 'support', label: 'Support Desk' },
+  { id: 'analytics', label: 'Analytics' },
+  { id: 'activity', label: 'Audit Logs' },
+  { id: 'colleges', label: 'Colleges' },
+  { id: 'settings', label: 'Platform Settings' }
 ];
-
-const NAV_GROUP_ORDER = ['Operations', 'Approvals', 'User Ops', 'Moderation', 'Finance', 'Support', 'Insights', 'Settings'];
 
 const SECTION_ROLE_ACCESS = {
   overview: ['admin', 'super_admin', 'moderator', 'finance_admin'],
+  security_ops: ['admin', 'super_admin', 'moderator', 'support_admin', 'analyst'],
   registration_approvals: ['admin', 'super_admin', 'moderator'],
   users: ['admin', 'super_admin', 'moderator'],
   approvals: ['admin', 'super_admin', 'moderator'],
@@ -42,6 +61,57 @@ const SECTION_ROLE_ACCESS = {
   analytics: ['admin', 'super_admin', 'finance_admin', 'moderator'],
   settings: ['admin', 'super_admin'],
   activity: ['admin', 'super_admin', 'moderator', 'finance_admin']
+};
+
+const SIDEBAR_GROUPS = [
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    items: ['overview', 'security_ops', 'registration_approvals', 'approvals']
+  },
+  {
+    key: 'moderation',
+    label: 'Moderation',
+    icon: Shield,
+    items: ['chat_monitoring', 'reports', 'moderation', 'payments']
+  },
+  {
+    key: 'users',
+    label: 'Users',
+    icon: Users,
+    items: ['users', 'matches', 'support']
+  },
+  {
+    key: 'analytics',
+    label: 'Analytics',
+    icon: BarChart3,
+    items: ['analytics', 'activity']
+  },
+  {
+    key: 'system',
+    label: 'System',
+    icon: Settings,
+    items: ['colleges', 'settings']
+  }
+];
+
+const SECTION_ICON_MAP = {
+  overview: LayoutDashboard,
+  security_ops: Shield,
+  registration_approvals: UserCheck,
+  approvals: CheckCircle2,
+  users: Users,
+  matches: Sparkles,
+  chat_monitoring: Shield,
+  reports: Bell,
+  moderation: UserMinus,
+  payments: BarChart3,
+  support: Activity,
+  analytics: BarChart3,
+  activity: Activity,
+  colleges: Users,
+  settings: Settings
 };
 
 export default function AdminPortal() {
@@ -68,9 +138,24 @@ export default function AdminPortal() {
   const [adminPin, setAdminPin] = React.useState('');
   const [pinEnabled, setPinEnabled] = React.useState(false);
   const [pinVerified, setPinVerified] = React.useState(false);
-  const [pinAttempt, setPinAttempt] = React.useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
+  const [pinDigits, setPinDigits] = React.useState(['', '', '', '', '', '']);
+  const [pinVerifying, setPinVerifying] = React.useState(false);
+  const [pinShake, setPinShake] = React.useState(false);
+  const [pinSuccessFlash, setPinSuccessFlash] = React.useState(false);
 
   const [overview, setOverview] = React.useState(null);
+  const [securityAlerts, setSecurityAlerts] = React.useState(null);
+  const [flaggedUsers, setFlaggedUsers] = React.useState([]);
+  const [moderationCases, setModerationCases] = React.useState([]);
+  const [appealRequests, setAppealRequests] = React.useState([]);
+  const [deletionRequests, setDeletionRequests] = React.useState([]);
+  const [adminSessions, setAdminSessions] = React.useState([]);
+  const [immutableAuditLogs, setImmutableAuditLogs] = React.useState([]);
+  const [screenshotPrivacyEvents, setScreenshotPrivacyEvents] = React.useState([]);
+  const [screenshotRiskProfiles, setScreenshotRiskProfiles] = React.useState([]);
+  const [stepUpToken, setStepUpToken] = React.useState('');
   const [users, setUsers] = React.useState([]);
   const [registrationApprovals, setRegistrationApprovals] = React.useState([]);
   const [approvals, setApprovals] = React.useState([]);
@@ -99,6 +184,8 @@ export default function AdminPortal() {
   const [dateRange, setDateRange] = React.useState('7d');
   const [customDateRange, setCustomDateRange] = React.useState({ from: '', to: '' });
   const isRefreshInFlightRef = React.useRef(false);
+  const profileMenuRef = React.useRef(null);
+  const pinInputRefs = React.useRef([]);
   const autoRefresh = React.useMemo(
     () => manualRefreshEnabled && !NON_REFRESHABLE_SECTIONS.has(section),
     [manualRefreshEnabled, NON_REFRESHABLE_SECTIONS, section]
@@ -139,17 +226,22 @@ export default function AdminPortal() {
     () => SECTION_CONFIG.filter((sectionItem) => (SECTION_ROLE_ACCESS[sectionItem.id] || []).includes(userRole)),
     [userRole]
   );
+  const visibleSectionMap = React.useMemo(
+    () => new Map(visibleSections.map((item) => [item.id, item])),
+    [visibleSections]
+  );
 
-  const groupedSections = React.useMemo(() => {
-    const grouped = {};
-    for (const item of visibleSections) {
-      if (!grouped[item.group]) {
-        grouped[item.group] = [];
-      }
-      grouped[item.group].push(item);
-    }
-    return grouped;
-  }, [visibleSections]);
+  const groupedSidebarSections = React.useMemo(
+    () => SIDEBAR_GROUPS
+      .map((group) => ({
+        ...group,
+        sections: group.items
+          .map((id) => visibleSectionMap.get(id))
+          .filter(Boolean)
+      }))
+      .filter((group) => group.sections.length > 0),
+    [visibleSectionMap]
+  );
 
   const normalizedSearch = globalSearch.trim().toLowerCase();
 
@@ -260,6 +352,68 @@ export default function AdminPortal() {
     [activity, includesSearch, isWithinRange]
   );
 
+  const sectionBadges = React.useMemo(() => ({
+    overview: Number(overview?.activeToday || 0),
+    security_ops: Number(flaggedUsers.length || 0),
+    registration_approvals: filteredRegistrationApprovals.length,
+    approvals: filteredApprovals.length,
+    users: filteredUsers.length,
+    matches: filteredMatches.length,
+    chat_monitoring: filteredChats.length,
+    reports: filteredReports.length,
+    moderation: moderationPhotos.length,
+    payments: filteredPayments.filter((item) => String(item.status || '').toLowerCase() === 'pending').length,
+    support: filteredSupportTickets.length,
+    analytics: Number(analytics?.dailyActiveUsers || analytics?.activeUsers || 0),
+    activity: filteredActivity.length,
+    colleges: colleges.length,
+    settings: settings.length
+  }), [
+    overview,
+    flaggedUsers,
+    filteredRegistrationApprovals,
+    filteredApprovals,
+    filteredUsers,
+    filteredMatches,
+    filteredChats,
+    filteredReports,
+    moderationPhotos,
+    filteredPayments,
+    filteredSupportTickets,
+    analytics,
+    filteredActivity,
+    colleges,
+    settings
+  ]);
+
+  const pendingAlertCount = React.useMemo(
+    () => Number(sectionBadges.registration_approvals || 0)
+      + Number(sectionBadges.approvals || 0)
+      + Number(sectionBadges.reports || 0)
+      + Number(sectionBadges.payments || 0)
+      + Number(securityAlerts?.suspiciousSessions || 0),
+    [sectionBadges, securityAlerts]
+  );
+
+  const liveActivityItems = React.useMemo(() => {
+    const source = Array.isArray(overview?.recentActivity) && overview.recentActivity.length
+      ? overview.recentActivity
+      : filteredActivity;
+
+    if (!source.length) {
+      return [
+        { label: 'User registered', meta: 'Awaiting moderation review' },
+        { label: 'Profile approved', meta: 'Safety checks completed' },
+        { label: 'Payment received', meta: 'Pending verification queue' }
+      ];
+    }
+
+    return source.slice(0, 3).map((entry) => ({
+      label: entry?.message || entry?.action || entry?.title || 'Platform activity',
+      meta: entry?.createdAt || entry?.timestamp ? new Date(entry.createdAt || entry.timestamp).toLocaleString() : 'Just now'
+    }));
+  }, [overview, filteredActivity]);
+
   const handleLogout = () => {
     clearAuth();
     navigate('/', { replace: true });
@@ -300,8 +454,42 @@ export default function AdminPortal() {
             setOverview(response.data);
           }
         } catch {
-          console.log('🔄 Fetching real data from backend...');
           setOverview(EMPTY_DATA.overview);
+        }
+      }
+      if (section === 'security_ops') {
+        try {
+          const [alertsResponse, flaggedResponse, casesResponse, appealsResponse, deletionsResponse, sessionsResponse, immutableAuditResponse, screenshotEventsResponse, screenshotRiskResponse] = await Promise.all([
+            adminApi.getSecurityAlerts(),
+            adminApi.getFlaggedUsers({ limit: 50 }),
+            adminApi.getModerationCases({ limit: 50 }),
+            adminApi.getAppeals({}),
+            adminApi.getDeletionRequests({}),
+            adminApi.getAdminSessions(),
+            adminApi.getImmutableAuditLogs({ limit: 100 }),
+            adminApi.getScreenshotPrivacyEvents({ limit: 200 }),
+            adminApi.getScreenshotRiskProfiles({ limit: 100 })
+          ]);
+
+          setSecurityAlerts(alertsResponse?.data || alertsResponse || null);
+          setFlaggedUsers(normalizeCollection(flaggedResponse?.data));
+          setModerationCases(normalizeCollection(casesResponse?.data));
+          setAppealRequests(normalizeCollection(appealsResponse?.data));
+          setDeletionRequests(normalizeCollection(deletionsResponse?.data));
+          setAdminSessions(normalizeCollection(sessionsResponse?.data));
+          setImmutableAuditLogs(normalizeCollection(immutableAuditResponse?.data));
+          setScreenshotPrivacyEvents(normalizeCollection(screenshotEventsResponse?.data));
+          setScreenshotRiskProfiles(normalizeCollection(screenshotRiskResponse?.data));
+        } catch {
+          setSecurityAlerts(null);
+          setFlaggedUsers([]);
+          setModerationCases([]);
+          setAppealRequests([]);
+          setDeletionRequests([]);
+          setAdminSessions([]);
+          setImmutableAuditLogs([]);
+          setScreenshotPrivacyEvents([]);
+          setScreenshotRiskProfiles([]);
         }
       }
       if (section === 'users') {
@@ -311,12 +499,10 @@ export default function AdminPortal() {
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
           const userData = normalizeCollection(response?.data);
-          console.log('👥 Users fetched:', userData.length, 'items');
           if (Array.isArray(userData)) {
             setUsers(userData);
           }
         } catch {
-          console.log('🔄 Loading users from backend...');
           setUsers(EMPTY_DATA.users);
         }
       }
@@ -326,7 +512,6 @@ export default function AdminPortal() {
           const users = normalizeCollection(response?.data);
           setRegistrationApprovals(Array.isArray(users) ? users : []);
         } catch (e) {
-          console.error('❌ Failed to load pending registrations:', e.message, e);
           setError(e?.message || 'Failed to load pending registrations');
           setRegistrationApprovals([]);
         }
@@ -410,7 +595,6 @@ export default function AdminPortal() {
           const paymentData = normalizeCollection(response?.data);
           const summaryData = summaryResponse?.data || {};
           const settingsData = normalizeCollection(settingsResponse?.data);
-          console.log('💳 Payments fetched:', paymentData.length, 'items');
           setPayments(Array.isArray(paymentData) ? paymentData : []);
           setSettings(Array.isArray(settingsData) ? settingsData : []);
 
@@ -426,8 +610,7 @@ export default function AdminPortal() {
             approvedPayments: Number(summaryData.approvedPayments ?? fallbackSummary.approvedPayments),
             failedPayments: Number(summaryData.failedPayments ?? fallbackSummary.failedPayments)
           });
-        } catch (e) {
-          console.error('❌ Error fetching payments:', e.message);
+        } catch {
           setPayments(EMPTY_DATA.payments);
           setPaymentSummary(EMPTY_DATA.paymentSummary);
         }
@@ -485,8 +668,13 @@ export default function AdminPortal() {
       }
       if (section === 'analytics') {
         try {
+          const analyticsParams = {
+            range: dateRange,
+            from: customDateRange.from || undefined,
+            to: customDateRange.to || undefined
+          };
           const response = await Promise.race([
-            adminApi.getAnalytics(),
+            adminApi.getAnalytics(analyticsParams),
             new Promise((_, reject) => setTimeout(() => reject(new Error('API Timeout')), API_TIMEOUT_MS))
           ]);
           setAnalytics(response?.data);
@@ -523,7 +711,7 @@ export default function AdminPortal() {
         setLoading(false);
       }
     }
-  }, [section, API_TIMEOUT_MS, shouldPreferFullChatView, normalizeCollection, EMPTY_DATA]);
+  }, [section, API_TIMEOUT_MS, shouldPreferFullChatView, normalizeCollection, EMPTY_DATA, dateRange, customDateRange]);
 
   // Auto-refresh in the background at a safe cadence.
   React.useEffect(() => {
@@ -546,7 +734,6 @@ export default function AdminPortal() {
   }, [autoRefresh, loadData, AUTO_REFRESH_INTERVAL_MS]);
 
   React.useEffect(() => {
-    console.log(`📂 Section changed to: ${section}`);
     void loadData({ silent: false });
   }, [loadData, section]);
 
@@ -564,19 +751,84 @@ export default function AdminPortal() {
     return () => window.clearTimeout(timer);
   }, [section, HEAVY_RENDER_SECTIONS, HEAVY_SECTION_MOUNT_DELAY_MS]);
 
+  React.useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!profileMenuRef.current) return;
+      if (!profileMenuRef.current.contains(event.target)) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const handlePinDigitChange = (index, value) => {
+    const next = String(value || '').replace(/\D/g, '').slice(-1);
+    const draft = [...pinDigits];
+    draft[index] = next;
+    setPinDigits(draft);
+
+    if (next && index < 5) {
+      pinInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePinKeyDown = (index, event) => {
+    if (event.key === 'Backspace' && !pinDigits[index] && index > 0) {
+      pinInputRefs.current[index - 1]?.focus();
+    }
+    if (event.key === 'ArrowLeft' && index > 0) {
+      pinInputRefs.current[index - 1]?.focus();
+    }
+    if (event.key === 'ArrowRight' && index < 5) {
+      pinInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePinPaste = (event) => {
+    const pasted = String(event.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+    event.preventDefault();
+    const draft = ['', '', '', '', '', ''];
+    pasted.split('').forEach((digit, idx) => {
+      draft[idx] = digit;
+    });
+    setPinDigits(draft);
+    pinInputRefs.current[Math.min(5, pasted.length - 1)]?.focus();
+  };
+
   const verifyPin = async () => {
+    const code = pinDigits.join('');
+    if (code.length !== 6) {
+      setError('Enter full 6-digit Admin PIN');
+      setPinShake(true);
+      window.setTimeout(() => setPinShake(false), 320);
+      return;
+    }
+
+    setPinVerifying(true);
+    setPinSuccessFlash(false);
     try {
-      const response = await adminApi.verifyPin(pinAttempt);
+      const response = await adminApi.verifyPin(code);
       if (response?.data?.enabled) {
         setPinEnabled(true);
       }
-      setPinVerified(Boolean(response?.data?.verified));
-      setAdminPin(pinAttempt);
-      setPinAttempt('');
+      const verified = Boolean(response?.data?.verified);
+      setPinVerified(verified);
+      setAdminPin(code);
+      if (verified) {
+        setPinSuccessFlash(true);
+        window.setTimeout(() => setPinSuccessFlash(false), 1600);
+      }
     } catch {
       setPinEnabled(true);
       setPinVerified(false);
       setError('Admin PIN verification failed');
+      setPinShake(true);
+      window.setTimeout(() => setPinShake(false), 320);
+    } finally {
+      setPinVerifying(false);
     }
   };
 
@@ -607,6 +859,36 @@ export default function AdminPortal() {
     });
   };
 
+  const runQuickApproveUser = async () => {
+    const target = filteredRegistrationApprovals[0] || filteredApprovals[0];
+    const targetId = target?._id || target?.id || target?.userId;
+    if (!targetId) {
+      notify('No pending approval found right now.', 'error');
+      return;
+    }
+    await handleApprovalAction(targetId, 'approved');
+  };
+
+  const runQuickRejectProfile = async () => {
+    const target = filteredApprovals[0] || filteredRegistrationApprovals[0];
+    const targetId = target?._id || target?.id || target?.userId;
+    if (!targetId) {
+      notify('No profile awaiting review.', 'error');
+      return;
+    }
+    await handleApprovalAction(targetId, 'rejected');
+  };
+
+  const runQuickBlockUser = async () => {
+    const target = filteredUsers.find((item) => String(item?.status || '').toLowerCase() === 'active') || filteredUsers[0];
+    const targetId = target?._id || target?.id;
+    if (!targetId) {
+      notify('No user available for moderation action.', 'error');
+      return;
+    }
+    await handleModerationAction(targetId, 'ban');
+  };
+
   const handleDeleteUser = async (userId, userName) => {
     setDeleteDialog({ open: true, userId, userName });
   };
@@ -616,22 +898,7 @@ export default function AdminPortal() {
     
     try {
       setLoading(true);
-      const response = await fetch(`${API_ROOT}/api/admin/users/${deleteDialog.userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token') || localStorage.getItem('authToken')}`,
-          'x-admin-pin': adminPin || ''
-        },
-        body: JSON.stringify({ reason: deleteReason })
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData?.message || 'Failed to delete user');
-      }
-
-      await response.json();
+      await adminApi.deleteUser(deleteDialog.userId, { reason: deleteReason }, adminPin);
       
       // Remove from users list
       setUsers(prev => prev.filter(u => u._id !== deleteDialog.userId));
@@ -642,15 +909,14 @@ export default function AdminPortal() {
       setDeleteReason('');
       setLoading(false);
     } catch (err) {
-      console.error('Delete error:', err);
       notify(`Delete failed: ${err.message}`, 'error');
       setLoading(false);
     }
   };
 
-  const handleApprovalAction = async (userId, status) => {
+  const handleApprovalAction = async (userId, status, adminNotes = '') => {
     await requiresPinAction(async () => {
-      await adminApi.updateProfileApproval(userId, { status }, adminPin);
+      await adminApi.updateProfileApproval(userId, { status, adminNotes }, adminPin);
     });
   };
 
@@ -665,74 +931,30 @@ export default function AdminPortal() {
   };
 
   const handleRegistrationApproval = async (userId, action, options = {}) => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('authToken');
-    if (!token) {
-      console.error('❌ No auth token found');
-      notify('Admin session missing. Please sign in again.', 'error');
-      return;
+    if (pinEnabled && !pinVerified && !adminPin) {
+      notify('Verify admin PIN before registration actions.', 'error');
+      return false;
     }
-
-    console.log('🔐 Starting approval action:', action, 'for user:', userId);
-    
-    const endpoint = action === 'approve' 
-      ? `${API_ROOT}/api/admin/registrations/${userId}/approve`
-      : `${API_ROOT}/api/admin/registrations/${userId}/reject`;
 
     let reason = String(options?.reason || '').trim();
     if (action === 'reject' && !reason) {
       reason = window.prompt('Enter rejection reason:', 'Profile does not meet requirements') || '';
       if (!reason.trim()) {
-        console.log('ℹ️ Rejection cancelled by admin');
         return false;
       }
     }
 
     try {
-      console.log('📤 Sending request to:', endpoint);
-      console.log('🔐 Auth header:', `Bearer ${token.substring(0, 30)}...`);
-      
-      const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'x-admin-pin': adminPin || ''
-        },
-        body: JSON.stringify({ reason })
-      });
-
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response OK:', response.ok);
-      console.log('📡 Response headers:', response.headers);
-
-      // Try to parse response
-      let data;
-      try {
-        const text = await response.text();
-        console.log('📥 Response text:', text);
-        data = text ? JSON.parse(text) : {};
-      } catch (parseErr) {
-        console.error('❌ Failed to parse JSON:', parseErr);
-        data = { message: 'Server error - invalid response' };
+      if (action === 'approve') {
+        await adminApi.approveRegistration(userId, { adminNotes: String(options?.adminNotes || '').trim() }, adminPin);
+      } else {
+        await adminApi.rejectRegistration(userId, { reason }, adminPin);
       }
-
-      console.log('📥 Parsed data:', data);
-
-      if (!response.ok) {
-        const errorMsg = data.message || `HTTP ${response.status}: ${response.statusText}`;
-        console.error('❌ API error:', response.status, errorMsg);
-        notify(`Failed to ${action} user: ${errorMsg}`, 'error');
-        return false;
-      }
-
-      console.log(`✅ User ${action}ed successfully!`);
       
       // Remove from pending list immediately
       const removeRow = () => {
         setRegistrationApprovals((prev) => {
-          const updated = prev.filter((u) => u._id !== userId);
-          console.log(`📊 Updated pending approvals count: ${updated.length}`);
-          return updated;
+          return prev.filter((u) => u._id !== userId);
         });
       };
 
@@ -747,18 +969,201 @@ export default function AdminPortal() {
       return true;
       
     } catch (err) {
-      console.error('❌ Error during approval:', err);
-      console.error('❌ Error type:', err.constructor.name);
-      console.error('❌ Error message:', err.message);
-      console.error('❌ Full error:', err);
-      notify(`Network error while processing approval: ${err.message}`, 'error');
+      notify(err?.response?.data?.message || `Network error while processing approval: ${err.message}`, 'error');
       return false;
     }
   };
 
-  const handleResolveReport = async (reportId) => {
+  const handleRemoveMatch = async (matchId) => {
+    if (!window.confirm('Remove this match permanently?')) {
+      return;
+    }
+
+    try {
+      await adminApi.removeMatch(matchId, adminPin);
+      setMatches((prev) => prev.filter((item) => String(item._id) !== String(matchId)));
+      notify('Match removed successfully.');
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to remove match', 'error');
+    }
+  };
+
+  const handleCreateCollege = async (payload) => {
+    try {
+      const response = await adminApi.createCollege(payload, adminPin);
+      const created = response?.data || response;
+      if (created) {
+        setColleges((prev) => [created, ...prev]);
+      }
+      notify('College created successfully.');
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to create college', 'error');
+      throw err;
+    }
+  };
+
+  const handleUpdateCollege = async (collegeId, payload) => {
+    try {
+      const response = await adminApi.updateCollege(collegeId, payload, adminPin);
+      const updated = response?.data || response;
+      setColleges((prev) => prev.map((item) => (String(item._id) === String(collegeId) ? { ...item, ...updated } : item)));
+      notify('College updated successfully.');
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to update college', 'error');
+      throw err;
+    }
+  };
+
+  const handleUpdateSupportTicket = async (ticketId, payload) => {
+    try {
+      await adminApi.updateSupportTicket(ticketId, payload, adminPin);
+      setSupportTickets((prev) => prev.map((item) => (String(item._id) === String(ticketId) ? { ...item, ...payload } : item)));
+      notify('Support ticket updated successfully.');
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to update support ticket', 'error');
+      throw err;
+    }
+  };
+
+  const ensureStepUp = async (scope = 'critical:*') => {
+    if (stepUpToken) {
+      try {
+        const payloadPart = String(stepUpToken).split('.')[1] || '';
+        const decodedPayload = JSON.parse(atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')));
+        const expMs = Number(decodedPayload?.exp || 0) * 1000;
+        if (expMs > Date.now() + 5000) {
+          return stepUpToken;
+        }
+      } catch {
+        // Fall through and request a fresh step-up token.
+      }
+    }
+
+    const credential = window.prompt('Step-up verification required. Enter Admin PIN or password:') || '';
+    const value = credential.trim();
+    if (!value) {
+      throw new Error('Step-up verification cancelled');
+    }
+
+    const payload = {
+      scopes: [scope]
+    };
+
+    if (/^\d{4,8}$/.test(value)) {
+      payload.pin = value;
+    } else {
+      payload.password = value;
+    }
+
+    const response = await adminApi.verifyStepUp(payload);
+    const token = response?.data?.token || response?.token || '';
+    if (!token) {
+      throw new Error('Step-up verification failed');
+    }
+
+    setStepUpToken(token);
+    return token;
+  };
+
+  const handleAssignModerationCase = async (caseId) => {
+    try {
+      await adminApi.assignModerationCase(caseId, {
+        assignedTo: user?._id,
+        note: 'Assigned from admin security operations panel'
+      });
+      notify('Case assigned successfully.');
+      await loadData({ silent: false });
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to assign moderation case', 'error');
+    }
+  };
+
+  const handleEscalateModerationCase = async (caseId) => {
+    try {
+      const reason = window.prompt('Escalation reason (min 5 chars):', 'High severity risk requires escalation') || '';
+      if (!reason || reason.trim().length < 5) {
+        throw new Error('Escalation reason is required');
+      }
+
+      const token = await ensureStepUp('critical:*');
+      await adminApi.escalateModerationCase(caseId, { reason: reason.trim() }, token);
+      notify('Case escalated successfully.');
+      await loadData({ silent: false });
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to escalate moderation case', 'error');
+    }
+  };
+
+  const handleAppealStatusUpdate = async (appealId) => {
+    try {
+      const status = window.prompt('Set appeal status (pending | in_review | approved | rejected):', 'in_review') || '';
+      const normalizedStatus = String(status).trim();
+      if (!['pending', 'in_review', 'approved', 'rejected'].includes(normalizedStatus)) {
+        throw new Error('Invalid appeal status');
+      }
+
+      const note = window.prompt('Resolution note (optional):', '') || '';
+      await adminApi.updateAppeal(appealId, { status: normalizedStatus, resolutionNote: note });
+      notify('Appeal updated successfully.');
+      await loadData({ silent: false });
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to update appeal', 'error');
+    }
+  };
+
+  const handleDeletionRequestUpdate = async (requestId) => {
+    try {
+      const status = window.prompt('Set deletion request status (pending | approved | rejected | completed):', 'approved') || '';
+      const normalizedStatus = String(status).trim();
+      if (!['pending', 'approved', 'rejected', 'completed'].includes(normalizedStatus)) {
+        throw new Error('Invalid deletion request status');
+      }
+
+      const reviewNote = window.prompt('Review note (optional):', '') || '';
+      await adminApi.updateDeletionRequest(requestId, { status: normalizedStatus, reviewNote });
+      notify('Deletion request updated successfully.');
+      await loadData({ silent: false });
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to update deletion request', 'error');
+    }
+  };
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      if (!window.confirm('Revoke this session?')) {
+        return;
+      }
+      await adminApi.revokeAdminSession(sessionId);
+      notify('Session revoked successfully.');
+      await loadData({ silent: false });
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to revoke session', 'error');
+    }
+  };
+
+  const handleExportImmutableAuditLogs = async () => {
+    try {
+      const blob = await adminApi.exportImmutableAuditLogs({ limit: 2000 });
+      downloadBlob(blob, `immutable-audit-${Date.now()}.json`);
+      notify('Immutable audit export generated.');
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to export immutable audit logs', 'error');
+    }
+  };
+
+  const handleExportScreenshotPrivacyEvents = async () => {
+    try {
+      const blob = await adminApi.exportScreenshotPrivacyEvents({ limit: 5000 });
+      downloadBlob(blob, `screenshot-privacy-events-${Date.now()}.json`);
+      notify('Screenshot privacy event export generated.');
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to export screenshot privacy events', 'error');
+    }
+  };
+
+  const handleResolveReport = async (reportId, payload = { status: 'resolved', moderationNotes: 'Resolved by admin portal' }) => {
     await requiresPinAction(async () => {
-      await adminApi.resolveReport(reportId, { status: 'resolved', moderationNotes: 'Resolved by admin portal' }, adminPin);
+      await adminApi.resolveReport(reportId, payload, adminPin);
     });
   };
 
@@ -828,123 +1233,241 @@ export default function AdminPortal() {
     }
   };
 
+  const handleExportUsersExcel = async () => {
+    const blob = await adminApi.exportUsersExcel({ status: userFilters.status || undefined });
+    downloadBlob(blob, `users-${Date.now()}.xlsx`);
+  };
+
+  const activeSectionLabel = visibleSections.find((item) => item.id === section)?.label || 'Overview';
+  const adminInitials = user?.name
+    ? user.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+    : 'AD';
+  const roleLabel = String(userRole || 'admin').replace('_', ' ');
+
   return (
     <section className={`admin-portal relative min-h-screen overflow-hidden ${isAdminLightMode ? 'admin-portal--light' : 'admin-portal--dark'}`} style={{ background: 'var(--bg-primary)', color: 'var(--text-light)' }}>
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:42px_42px] opacity-[0.08]" />
-      <div className="relative z-10 flex h-screen w-full min-w-0">
+      <div className="relative z-10 flex h-screen w-full min-w-0 p-3 md:p-4 gap-3 md:gap-4">
         {/* SIDEBAR */}
-        <aside className="admin-surface w-[292px] border-r backdrop-blur-2xl flex flex-col overflow-hidden shadow-[28px_0_80px_rgba(2,12,27,0.55)]">
-          <div className="p-5 border-b border-cyan-300/15 bg-gradient-to-r from-cyan-500/20 via-sky-500/15 to-transparent">
+        <aside className={`admin-sidebar-shell admin-surface ${sidebarCollapsed ? 'w-[94px]' : 'w-[310px]'} shrink-0 border border-cyan-300/20 backdrop-blur-2xl flex flex-col overflow-hidden rounded-[20px] shadow-[0_26px_70px_rgba(3,12,30,0.5)] transition-all duration-300`}>
+          <div className="p-4 border-b border-cyan-300/15 bg-gradient-to-r from-cyan-500/18 via-blue-500/14 to-transparent">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 to-sky-500 flex items-center justify-center text-white text-xl shadow-[0_14px_35px_rgba(14,165,233,0.4)]">
-                👫
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-500 flex items-center justify-center text-white shadow-[0_14px_35px_rgba(56,189,248,0.45)]">
+                <Sparkles size={18} />
               </div>
-              <div>
-                <h1 className="text-base font-bold tracking-wide text-white">CU-Daters Ops</h1>
-                <p className="text-[11px] text-cyan-100/85 uppercase tracking-[0.18em]">Admin System</p>
-              </div>
+              {!sidebarCollapsed ? (
+                <div className="min-w-0">
+                  <h1 className="text-[15px] font-semibold tracking-tight text-white truncate">SeeU-Daters Admin Console</h1>
+                  <p className="text-[10px] text-cyan-100/80 uppercase tracking-[0.2em]">Production Ops</p>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed((prev) => !prev)}
+                className="ml-auto w-8 h-8 rounded-xl border border-cyan-200/25 bg-white/8 hover:bg-white/15 transition admin-ripple"
+                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {sidebarCollapsed ? <ChevronRight size={16} className="mx-auto text-cyan-100" /> : <ChevronLeft size={16} className="mx-auto text-cyan-100" />}
+              </button>
             </div>
           </div>
 
-          <div className="px-5 py-4 border-b border-cyan-200/10 bg-white/5">
-            <p className="text-[11px] text-cyan-200/70 uppercase tracking-[0.18em]">Signed In</p>
-            <p className="text-sm font-semibold text-white mt-1">{user?.name || 'Admin'}</p>
-            <p className="text-xs text-slate-300 truncate">{user?.email || 'admin@cudaters.in'}</p>
-            <p className="mt-2 inline-flex px-2 py-1 text-[10px] rounded-full border border-cyan-200/45 bg-cyan-400/15 text-cyan-100 uppercase tracking-wider">
-              Role: {userRole}
-            </p>
+          <div className={`px-4 py-4 border-b border-cyan-200/10 bg-white/5 ${sidebarCollapsed ? 'items-center text-center' : ''}`}>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500">
+                  <div className="w-full h-full rounded-full bg-[#0d1b35] flex items-center justify-center text-sm font-bold text-white">{adminInitials}</div>
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0d1b35] bg-emerald-400" />
+              </div>
+              {!sidebarCollapsed ? (
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{user?.name || 'Admin'}</p>
+                  <p className="text-xs text-slate-300 truncate">{user?.email || 'admin@seeudaters.in'}</p>
+                  <span className="mt-1 inline-flex px-2 py-1 text-[10px] rounded-full border border-cyan-200/40 bg-cyan-400/15 text-cyan-100 uppercase tracking-wider">{roleLabel}</span>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
-            {NAV_GROUP_ORDER.map((groupName) => (
-              groupedSections[groupName]?.length ? (
-                <div key={groupName}>
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-200/45 px-3 mb-2 font-semibold">{groupName}</p>
-                  <div className="space-y-1">
-                    {groupedSections[groupName].map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => setSection(item.id)}
-                        className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2.5 ${
-                          section === item.id
-                            ? 'bg-gradient-to-r from-cyan-500/90 to-sky-500/90 text-white shadow-lg shadow-cyan-900/45'
-                            : 'text-slate-200/85 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <span className="text-base">{item.icon}</span>
-                        <span className="truncate">{item.label}</span>
-                      </button>
-                    ))}
+            {groupedSidebarSections.map((group) => {
+              const GroupIcon = group.icon;
+              return (
+                <div key={group.key} className="space-y-2">
+                  <div className={`px-2 ${sidebarCollapsed ? 'flex justify-center' : 'flex items-center gap-2'}`}>
+                    <GroupIcon size={14} className="text-cyan-200/60" />
+                    {!sidebarCollapsed ? <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-200/50 font-semibold">{group.label}</p> : null}
+                  </div>
+                  <div className="space-y-1.5">
+                    {group.sections.map((item) => {
+                      const ItemIcon = SECTION_ICON_MAP[item.id] || Activity;
+                      const isActive = section === item.id;
+                      const badgeCount = Number(sectionBadges[item.id] || 0);
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setSection(item.id)}
+                          className={`admin-nav-item admin-ripple w-full text-left rounded-2xl text-sm font-medium transition-all duration-200 flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5 gap-2.5'} ${isActive ? 'is-active text-white' : 'text-slate-200/90 hover:text-white'}`}
+                          title={sidebarCollapsed ? `${item.label}${badgeCount ? ` (${badgeCount})` : ''}` : item.label}
+                        >
+                          <span className="shrink-0"><ItemIcon size={16} /></span>
+                          {!sidebarCollapsed ? <span className="truncate flex-1">{item.label}</span> : null}
+                          {!sidebarCollapsed && badgeCount > 0 ? <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/12 border border-white/20 text-cyan-100">{badgeCount}</span> : null}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              ) : null
-            ))}
+              );
+            })}
           </nav>
 
-          <div className="p-4 border-t border-cyan-200/10 bg-white/5 space-y-2.5">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-100/65">Admin PIN</p>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={pinAttempt}
-                onChange={(event) => setPinAttempt(event.target.value)}
-                placeholder="••••••"
-                className="flex-1 px-3 py-2 rounded-xl border border-cyan-200/20 bg-[#0c1a32]/80 text-white text-sm placeholder-slate-500 focus:border-cyan-300 focus:outline-none"
-              />
-              <button onClick={verifyPin} className="px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-white font-semibold transition shadow-lg shadow-cyan-900/40">
-                Verify
+          <div className={`p-4 border-t border-cyan-200/10 bg-white/5 ${pinShake ? 'admin-pin-shake' : ''}`}>
+            {!sidebarCollapsed ? (
+              <>
+                <p className="text-sm font-semibold text-white">Secure Access Required</p>
+                <p className="text-xs text-slate-300 mt-0.5">Enter Admin PIN to perform critical actions</p>
+                <div className="mt-3 flex gap-1.5" onPaste={handlePinPaste}>
+                  {pinDigits.map((digit, idx) => (
+                    <input
+                      key={`pin-${idx}`}
+                      ref={(element) => {
+                        pinInputRefs.current[idx] = element;
+                      }}
+                      inputMode="numeric"
+                      type="password"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(event) => handlePinDigitChange(idx, event.target.value)}
+                      onKeyDown={(event) => handlePinKeyDown(idx, event)}
+                      className={`w-9 h-10 rounded-xl border text-center text-sm bg-[#0d1f3c]/70 text-white focus:outline-none transition ${pinSuccessFlash ? 'border-emerald-300 shadow-[0_0_0_2px_rgba(52,211,153,0.25)]' : 'border-cyan-200/30 focus:border-cyan-300/70'}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={verifyPin}
+                  disabled={pinVerifying}
+                  className={`admin-ripple mt-3 w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-400 hover:to-violet-400 text-white text-sm font-semibold transition-all duration-200 shadow-[0_14px_30px_rgba(59,130,246,0.35)] disabled:opacity-60 ${pinSuccessFlash ? 'ring-2 ring-emerald-300/70' : ''}`}
+                >
+                  {pinVerifying ? <span className="inline-flex items-center gap-1.5"><Loader2 size={15} className="animate-spin" /> Verifying...</span> : pinVerified ? <span className="inline-flex items-center gap-1.5"><Check size={15} /> Verified</span> : 'Verify PIN'}
+                </button>
+                <p className={`mt-2 text-xs ${pinVerified ? 'text-emerald-300' : 'text-slate-300/70'}`}>
+                  {pinVerified ? 'PIN verified for sensitive actions' : 'Verification required for high-risk operations'}
+                </p>
+              </>
+            ) : (
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="w-full py-2 rounded-xl border border-cyan-200/20 bg-white/10 text-cyan-100 text-xs hover:bg-white/15 transition"
+                title="Expand to verify admin PIN"
+              >
+                PIN
               </button>
-            </div>
-            <p className={`text-xs ${pinVerified ? 'text-emerald-300' : 'text-slate-300/70'}`}>
-              {pinVerified ? 'PIN verified for sensitive actions' : 'Optional unless privileged action is required'}
-            </p>
-            <button
-              onClick={handleLogout}
-              className="w-full py-2.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white text-sm font-semibold transition-all"
-            >
-              Logout Admin
-            </button>
+            )}
           </div>
         </aside>
 
         {/* MAIN CONTENT */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden rounded-[20px] border border-cyan-300/20 admin-surface shadow-[0_24px_80px_rgba(2,12,27,0.35)]">
           {/* TOP BAR */}
-          <div className="admin-surface border-b px-6 xl:px-8 py-4 backdrop-blur-2xl">
+          <div className="border-b border-cyan-200/15 px-5 xl:px-7 py-4 backdrop-blur-2xl bg-white/[0.04]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">CU-Daters / Admin / {visibleSections.find((s) => s.id === section)?.label || 'Overview'}</p>
-                <h2 className="text-2xl font-bold text-white mt-1">{visibleSections.find((s) => s.id === section)?.label || 'Overview'}</h2>
-                <p className="text-sm text-slate-200/85 mt-1">Operational controls, moderation safety workflows, and platform governance.</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">SeeU-Daters / Admin / {activeSectionLabel}</p>
+                <h2 className="text-2xl font-semibold tracking-tight text-white mt-1">{activeSectionLabel}</h2>
+                <p className="text-sm text-slate-200/85 mt-1">Powerful controls for moderation, growth operations, and platform security.</p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0" ref={profileMenuRef}>
                 <StatusChip tone="info">Live</StatusChip>
                 <button
                   type="button"
-                  className="w-10 h-10 rounded-xl border border-cyan-100/20 bg-white/10 hover:bg-white/15 transition"
-                  title="Notifications"
+                  className="relative w-10 h-10 rounded-xl border border-cyan-100/20 bg-white/10 hover:bg-white/15 transition admin-ripple"
+                  title={`Notifications (${pendingAlertCount} pending)`}
                 >
-                  🔔
+                  <Bell size={17} className="mx-auto text-cyan-100" />
+                  {pendingAlertCount > 0 ? <span className="admin-pulse-dot absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-[10px] text-white font-semibold leading-[18px]">{pendingAlertCount}</span> : null}
                 </button>
                 <button
                   onClick={() => setThemePanelOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm font-semibold transition border border-cyan-100/20"
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm font-semibold transition border border-cyan-100/20 admin-ripple"
                 >
                   Theme: {currentThemeName}
                 </button>
-                <button onClick={() => loadData()} className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm font-semibold transition border border-cyan-100/20">
+                <button onClick={() => loadData()} className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm font-semibold transition border border-cyan-100/20 admin-ripple">
                   Refresh
                 </button>
-                <button onClick={() => exportCurrentSection()} className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold hover:opacity-95 transition shadow-lg shadow-cyan-900/40">
+                <button onClick={() => exportCurrentSection()} className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold hover:opacity-95 transition shadow-lg shadow-cyan-900/40 admin-ripple">
                   Export
                 </button>
-                <button
-                  type="button"
-                  className="px-3 py-2 rounded-xl border border-cyan-100/20 bg-white/10 hover:bg-white/15 text-sm font-medium"
-                  title="Admin profile"
-                >
-                  {user?.name ? user.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() : 'AD'}
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setProfileMenuOpen((prev) => !prev)}
+                    className="px-3 py-2 rounded-xl border border-cyan-100/20 bg-white/10 hover:bg-white/15 text-sm font-medium inline-flex items-center gap-2 admin-ripple"
+                    title="Admin profile"
+                  >
+                    <span className="inline-flex w-7 h-7 rounded-full p-[1px] bg-gradient-to-r from-cyan-400 to-violet-500">
+                      <span className="w-full h-full rounded-full bg-[#10233f] text-[11px] font-bold text-white flex items-center justify-center">{adminInitials}</span>
+                    </span>
+                    <span className="hidden md:inline text-slate-100">{user?.name || 'Admin'}</span>
+                  </button>
+                  {profileMenuOpen ? (
+                    <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-cyan-200/20 bg-[#0f223f]/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(2,12,27,0.55)] p-2 z-30">
+                      <button
+                        onClick={() => {
+                          setSection('settings');
+                          setProfileMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-sm text-slate-100 hover:bg-white/10 transition"
+                      >
+                        Settings
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSection('activity');
+                          setProfileMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-sm text-slate-100 hover:bg-white/10 transition"
+                      >
+                        Activity Logs
+                      </button>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-3 py-2 rounded-xl text-sm text-rose-200 hover:bg-rose-500/20 transition inline-flex items-center gap-2"
+                      >
+                        <LogOut size={14} /> Logout
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-5 xl:px-7 py-4 border-b border-cyan-200/12 bg-white/[0.03]">
+            <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-4">
+              <div className="rounded-2xl border border-cyan-200/15 bg-white/6 p-3.5">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-cyan-100/70">Quick Actions</p>
+                <div className="mt-2.5 grid sm:grid-cols-3 gap-2">
+                  <button onClick={() => void runQuickApproveUser()} className="admin-ripple px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-300/30 text-emerald-100 text-sm font-semibold hover:bg-emerald-500/30 transition inline-flex items-center justify-center gap-1.5"><UserCheck size={14} /> Approve User</button>
+                  <button onClick={() => void runQuickRejectProfile()} className="admin-ripple px-3 py-2 rounded-xl bg-amber-500/20 border border-amber-300/35 text-amber-100 text-sm font-semibold hover:bg-amber-500/30 transition inline-flex items-center justify-center gap-1.5"><UserX size={14} /> Reject Profile</button>
+                  <button onClick={() => void runQuickBlockUser()} className="admin-ripple px-3 py-2 rounded-xl bg-rose-500/20 border border-rose-300/30 text-rose-100 text-sm font-semibold hover:bg-rose-500/30 transition inline-flex items-center justify-center gap-1.5"><UserMinus size={14} /> Block User</button>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-cyan-200/15 bg-white/6 p-3.5">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-cyan-100/70">Live Activity Feed</p>
+                <div className="mt-2.5 space-y-2">
+                  {liveActivityItems.map((entry, idx) => (
+                    <div key={`${entry.label}-${idx}`} className="flex items-start gap-2 rounded-xl bg-white/6 border border-cyan-200/10 px-2.5 py-2">
+                      <span className="mt-0.5 w-2 h-2 rounded-full bg-cyan-300 shadow-[0_0_0_5px_rgba(34,211,238,0.12)]" />
+                      <div className="min-w-0">
+                        <p className="text-sm text-slate-100 truncate">{entry.label}</p>
+                        <p className="text-[11px] text-slate-400 truncate">{entry.meta}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -1085,6 +1608,27 @@ export default function AdminPortal() {
                     onSectionChange={setSection}
                   />
                 ) : null}
+                {!loading && renderSection === 'security_ops' ? (
+                  <SecurityOpsPanel
+                    alerts={securityAlerts}
+                    flaggedUsers={flaggedUsers}
+                    cases={moderationCases}
+                    appeals={appealRequests}
+                    deletionRequests={deletionRequests}
+                    sessions={adminSessions}
+                    immutableAuditLogs={immutableAuditLogs}
+                    screenshotEvents={screenshotPrivacyEvents}
+                    screenshotRiskProfiles={screenshotRiskProfiles}
+                    onAssignCase={handleAssignModerationCase}
+                    onEscalateCase={handleEscalateModerationCase}
+                    onUpdateAppeal={handleAppealStatusUpdate}
+                    onUpdateDeletionRequest={handleDeletionRequestUpdate}
+                    onRevokeSession={handleRevokeSession}
+                    onExportImmutableAuditLogs={handleExportImmutableAuditLogs}
+                    onExportScreenshotEvents={handleExportScreenshotPrivacyEvents}
+                    onRefresh={() => loadData({ silent: false })}
+                  />
+                ) : null}
                 {!loading && renderSection === 'registration_approvals' ? (
                   <RegistrationApprovalsPanel
                     registrations={filteredRegistrationApprovals}
@@ -1096,16 +1640,16 @@ export default function AdminPortal() {
                     adminPin={adminPin}
                   />
                 ) : null}
-                {!loading && renderSection === 'users' ? <UsersPanel users={filteredUsers} onModerate={handleModerationAction} onDelete={handleDeleteUser} onOpenDetail={openDetailDrawer} onViewActivity={handleViewUserActivity} onNotify={notify} /> : null}
+                {!loading && renderSection === 'users' ? <UsersPanel users={filteredUsers} onModerate={handleModerationAction} onDelete={handleDeleteUser} onOpenDetail={openDetailDrawer} onViewActivity={handleViewUserActivity} onNotify={notify} onExportUsers={handleExportUsersExcel} /> : null}
                 {!loading && renderSection === 'approvals' ? <ApprovalsPanel approvals={filteredApprovals} onApprove={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
-                {!loading && renderSection === 'matches' ? <MatchesPanel matches={filteredMatches} onOpenDetail={openDetailDrawer} /> : null}
+                {!loading && renderSection === 'matches' ? <MatchesPanel matches={filteredMatches} onOpenDetail={openDetailDrawer} onRemoveMatch={handleRemoveMatch} /> : null}
                 {!loading && renderSection === 'chat_monitoring' ? <ChatsPanel chats={filteredChats} moderationFilter={moderationFilter} currentRole={userRole} onOpenDetail={openDetailDrawer} visibilityMode={chatVisibilityMode} /> : null}
                 {!loading && renderSection === 'payments' ? <PaymentsPanel payments={filteredPayments} summary={paymentSummary} onOpenDetail={openDetailDrawer} onRefresh={loadData} onUpdateSetting={handleUpdateSetting} settings={settings} adminPin={adminPin} onNotify={notify} /> : null}
                 {!loading && renderSection === 'reports' ? <ReportsPanel reports={filteredReports} onResolve={handleResolveReport} onOpenDetail={openDetailDrawer} /> : null}
-                {!loading && renderSection === 'moderation' ? <ModerationPanel photos={moderationPhotos} /> : null}
-                {!loading && renderSection === 'colleges' ? <CollegesPanel colleges={colleges} /> : null}
-                {!loading && renderSection === 'support' ? <SupportPanel tickets={filteredSupportTickets} settings={settings} onUpdateSetting={handleUpdateSetting} onNotify={notify} /> : null}
-                {!loading && renderSection === 'analytics' ? <AnalyticsPanel analytics={analytics} /> : null}
+                {!loading && renderSection === 'moderation' ? <ModerationPanel photos={moderationPhotos} onApproveProfile={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
+                {!loading && renderSection === 'colleges' ? <CollegesPanel colleges={colleges} onCreateCollege={handleCreateCollege} onUpdateCollege={handleUpdateCollege} /> : null}
+                {!loading && renderSection === 'support' ? <SupportPanel tickets={filteredSupportTickets} settings={settings} onUpdateSetting={handleUpdateSetting} onNotify={notify} onUpdateTicket={handleUpdateSupportTicket} /> : null}
+                {!loading && renderSection === 'analytics' ? <AnalyticsPanel analytics={analytics} dateRange={dateRange} /> : null}
                 {!loading && renderSection === 'settings' ? <SettingsPanel settings={settings} onUpdate={handleUpdateSetting} /> : null}
                 {!loading && renderSection === 'activity' ? <ActivityPanel logs={filteredActivity} /> : null}
               </>
@@ -1201,6 +1745,286 @@ export default function AdminPortal() {
         onClose={() => setThemePanelOpen(false)}
       />
     </section>
+  );
+}
+
+function SecurityOpsPanel({
+  alerts,
+  flaggedUsers = [],
+  cases = [],
+  appeals = [],
+  deletionRequests = [],
+  sessions = [],
+  immutableAuditLogs = [],
+  screenshotEvents = [],
+  screenshotRiskProfiles = [],
+  onAssignCase,
+  onEscalateCase,
+  onUpdateAppeal,
+  onUpdateDeletionRequest,
+  onRevokeSession,
+  onExportImmutableAuditLogs,
+  onExportScreenshotEvents,
+  onRefresh
+}) {
+  const severityChipClass = (value) => {
+    const level = String(value || '').toLowerCase();
+    if (level === 'high' || level === 'critical') return 'bg-rose-500/20 text-rose-200 border border-rose-300/30';
+    if (level === 'medium') return 'bg-amber-500/20 text-amber-200 border border-amber-300/30';
+    return 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30';
+  };
+
+  const [privacySearch, setPrivacySearch] = React.useState('');
+  const [privacyPlatformFilter, setPrivacyPlatformFilter] = React.useState('all');
+
+  const filteredScreenshotEvents = React.useMemo(() => {
+    const normalized = String(privacySearch || '').trim().toLowerCase();
+    return screenshotEvents.filter((entry) => {
+      if (privacyPlatformFilter !== 'all' && String(entry?.platform || '').toLowerCase() !== privacyPlatformFilter) {
+        return false;
+      }
+      if (!normalized) {
+        return true;
+      }
+
+      const actor = `${entry?.actorUserId?.name || ''} ${entry?.actorUserId?.email || ''}`.toLowerCase();
+      const target = `${entry?.targetUserId?.name || ''} ${entry?.targetUserId?.email || ''}`.toLowerCase();
+      const convo = String(entry?.conversationId || '').toLowerCase();
+      return actor.includes(normalized) || target.includes(normalized) || convo.includes(normalized);
+    });
+  }, [privacySearch, privacyPlatformFilter, screenshotEvents]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard title="Suspicious Sessions" value={Number(alerts?.suspiciousSessions || 0)} icon={<Shield size={16} />} />
+        <StatCard title="Mass Messaging Signals" value={Number(alerts?.massMessagingSignals || 0)} icon={<Activity size={16} />} />
+        <StatCard title="Privacy Spike" value={`${Number(alerts?.privacySpike || 0).toFixed(1)}%`} icon={<Bell size={16} />} />
+        <StatCard title="Report Spike" value={`${Number(alerts?.reportSpike || 0).toFixed(1)}%`} icon={<BarChart3 size={16} />} />
+      </div>
+
+      <PremiumSurface className="p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h3 className="text-lg font-semibold text-[color:var(--text-light)]">Security Actions</h3>
+          <div className="flex gap-2">
+            <button onClick={onRefresh} className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/10 text-sm text-slate-100 hover:bg-white/15 transition">Refresh</button>
+            <button onClick={onExportImmutableAuditLogs} className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-cyan-500/20 text-sm text-cyan-100 hover:bg-cyan-500/30 transition">Export Immutable Audit</button>
+            <button onClick={onExportScreenshotEvents} className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-violet-500/20 text-sm text-violet-100 hover:bg-violet-500/30 transition">Export Screenshot Logs</button>
+          </div>
+        </div>
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+            <p className="text-sm font-semibold text-slate-100 mb-2">Admin Sessions ({sessions.length})</p>
+            <div className="max-h-56 overflow-auto space-y-2">
+              {sessions.slice(0, 20).map((session) => (
+                <div key={session.sessionId || session._id} className="rounded-lg border border-cyan-200/10 bg-white/5 p-2 text-xs text-slate-200 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate">{session.ipAddress || 'unknown-ip'} • {session.deviceInfo || 'unknown-device'}</p>
+                    <p className="text-slate-400">{session.lastActivityAt ? new Date(session.lastActivityAt).toLocaleString() : 'No activity timestamp'}</p>
+                  </div>
+                  {!session.isCurrent && !session.revokedAt ? (
+                    <button onClick={() => onRevokeSession(session.sessionId || session._id)} className="px-2 py-1 rounded-lg bg-rose-500/20 text-rose-200 border border-rose-300/30 hover:bg-rose-500/30 transition">Revoke</button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+            <p className="text-sm font-semibold text-slate-100 mb-2">Flagged Users ({flaggedUsers.length})</p>
+            <div className="max-h-56 overflow-auto space-y-2">
+              {flaggedUsers.slice(0, 20).map((entry) => (
+                <div key={entry._id || entry.id || entry.email} className="rounded-lg border border-cyan-200/10 bg-white/5 p-2 text-xs text-slate-200">
+                  <p className="font-semibold truncate">{entry.name || 'Unknown User'} ({entry.email || 'no-email'})</p>
+                  <p className="text-slate-300">Risk: {Number(entry.riskScore || 0)} • Open Reports: {Number(entry.openReportCount || 0)} • Warnings: {Number(entry.warnings_count || 0)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </PremiumSurface>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <PremiumSurface className="p-4">
+          <p className="text-sm font-semibold text-slate-100 mb-3">Trust & Safety Cases ({cases.length})</p>
+          <div className="max-h-80 overflow-auto space-y-2">
+            {cases.slice(0, 25).map((item) => (
+              <div key={item._id} className="rounded-xl border border-cyan-200/10 bg-white/5 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 truncate">{item.summary || 'Moderation Case'}</p>
+                    <p className="text-xs text-slate-400">{item.sourceType} • Status: {item.status} • Target: {item.targetUserId?.email || item.targetUserId || 'n/a'}</p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-[10px] uppercase tracking-wide ${severityChipClass(item.severity)}`}>{item.severity || 'low'}</span>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => onAssignCase(item._id)} className="px-2.5 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-100 border border-cyan-300/30 text-xs hover:bg-cyan-500/30 transition">Assign To Me</button>
+                  <button onClick={() => onEscalateCase(item._id)} className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-100 border border-amber-300/30 text-xs hover:bg-amber-500/30 transition">Escalate</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </PremiumSurface>
+
+        <PremiumSurface className="p-4">
+          <p className="text-sm font-semibold text-slate-100 mb-3">Appeals & Deletion Requests</p>
+          <div className="grid gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-400 mb-2">Appeals ({appeals.length})</p>
+              <div className="max-h-36 overflow-auto space-y-2">
+                {appeals.slice(0, 12).map((appeal) => (
+                  <div key={appeal._id} className="rounded-lg border border-cyan-200/10 bg-white/5 p-2 text-xs text-slate-200 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate">{appeal.relatedAction || 'appeal'} • {appeal.status}</p>
+                      <p className="text-slate-400 truncate">{appeal.userId?.email || appeal.userId || 'unknown user'}</p>
+                    </div>
+                    <button onClick={() => onUpdateAppeal(appeal._id)} className="px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-100 border border-cyan-300/30 hover:bg-cyan-500/30 transition">Update</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-400 mb-2">Deletion Requests ({deletionRequests.length})</p>
+              <div className="max-h-36 overflow-auto space-y-2">
+                {deletionRequests.slice(0, 12).map((request) => (
+                  <div key={request._id} className="rounded-lg border border-cyan-200/10 bg-white/5 p-2 text-xs text-slate-200 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate">{request.status} • retention {Number(request.retentionDays || 0)} days</p>
+                      <p className="text-slate-400 truncate">{request.userId?.email || request.userId || 'unknown user'}</p>
+                    </div>
+                    <button onClick={() => onUpdateDeletionRequest(request._id)} className="px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-100 border border-cyan-300/30 hover:bg-cyan-500/30 transition">Update</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </PremiumSurface>
+      </div>
+
+      <PremiumSurface className="p-4">
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <p className="text-sm font-semibold text-slate-100">Screenshot / Privacy Events ({filteredScreenshotEvents.length})</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              value={privacySearch}
+              onChange={(event) => setPrivacySearch(event.target.value)}
+              placeholder="Search actor/target/conversation"
+              className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-xs text-slate-100"
+            />
+            <select
+              value={privacyPlatformFilter}
+              onChange={(event) => setPrivacyPlatformFilter(event.target.value)}
+              className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-xs text-slate-100"
+            >
+              <option value="all">All Platforms</option>
+              <option value="android">Android</option>
+              <option value="ios">iOS</option>
+              <option value="web">Web</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+        </div>
+        <div className="overflow-auto">
+          <table className="w-full min-w-[980px] text-xs text-slate-200">
+            <thead>
+              <tr className="text-left text-slate-400 border-b border-cyan-200/10">
+                <th className="py-2 pr-3">Actor</th>
+                <th className="py-2 pr-3">Target</th>
+                <th className="py-2 pr-3">Platform</th>
+                <th className="py-2 pr-3">Signal</th>
+                <th className="py-2 pr-3">Time</th>
+                <th className="py-2 pr-3">Frequency (7d)</th>
+                <th className="py-2 pr-3">Risk</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredScreenshotEvents.slice(0, 80).map((entry) => (
+                <tr key={entry._id} className="border-b border-cyan-200/5">
+                  <td className="py-2 pr-3">{entry.actorUserId?.name || 'Unknown'} ({entry.actorUserId?.email || 'no-email'})</td>
+                  <td className="py-2 pr-3">{entry.targetUserId?.name || 'Unknown'} ({entry.targetUserId?.email || 'n/a'})</td>
+                  <td className="py-2 pr-3 uppercase">{entry.platform || 'unknown'}</td>
+                  <td className="py-2 pr-3">{entry.detectionSignal || 'unknown'}</td>
+                  <td className="py-2 pr-3 text-slate-300">{entry.occurredAt ? new Date(entry.occurredAt).toLocaleString() : 'n/a'}</td>
+                  <td className="py-2 pr-3">{Number(entry.frequency7d || 0)}</td>
+                  <td className="py-2 pr-3">
+                    <span className={`px-2 py-1 rounded-full ${Number(entry.riskScore || 0) >= 65 ? 'bg-rose-500/20 text-rose-200 border border-rose-300/30' : Number(entry.riskScore || 0) >= 35 ? 'bg-amber-500/20 text-amber-200 border border-amber-300/30' : 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30'}`}>
+                      {Number(entry.riskScore || 0)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </PremiumSurface>
+
+      <PremiumSurface className="p-4">
+        <p className="text-sm font-semibold text-slate-100 mb-3">Suspicious Screenshot Risk Profiles ({screenshotRiskProfiles.length})</p>
+        <div className="overflow-auto">
+          <table className="w-full min-w-[920px] text-xs text-slate-200">
+            <thead>
+              <tr className="text-left text-slate-400 border-b border-cyan-200/10">
+                <th className="py-2 pr-3">Actor</th>
+                <th className="py-2 pr-3">Total Screenshots</th>
+                <th className="py-2 pr-3">24h</th>
+                <th className="py-2 pr-3">Unique Targets</th>
+                <th className="py-2 pr-3">Max Single Target</th>
+                <th className="py-2 pr-3">Avg Risk</th>
+                <th className="py-2 pr-3">Risk Score</th>
+                <th className="py-2 pr-3">Last Seen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {screenshotRiskProfiles.slice(0, 80).map((entry) => (
+                <tr key={entry.actorUserId || entry._id} className="border-b border-cyan-200/5">
+                  <td className="py-2 pr-3">{entry.actor?.name || 'Unknown'} ({entry.actor?.email || 'no-email'})</td>
+                  <td className="py-2 pr-3">{Number(entry.totalScreenshots || 0)}</td>
+                  <td className="py-2 pr-3">{Number(entry.screenshots24h || 0)}</td>
+                  <td className="py-2 pr-3">{Number(entry.uniqueTargets || 0)}</td>
+                  <td className="py-2 pr-3">{Number(entry.maxTargetCount || 0)}</td>
+                  <td className="py-2 pr-3">{Number(entry.averageRiskScore || 0).toFixed(1)}</td>
+                  <td className="py-2 pr-3">
+                    <span className={`px-2 py-1 rounded-full ${entry.suspicious ? 'bg-rose-500/20 text-rose-200 border border-rose-300/30' : 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30'}`}>
+                      {Number(entry.riskScore || 0)}
+                    </span>
+                  </td>
+                  <td className="py-2 pr-3 text-slate-300">{entry.lastOccurredAt ? new Date(entry.lastOccurredAt).toLocaleString() : 'n/a'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </PremiumSurface>
+
+      <PremiumSurface className="p-4">
+        <p className="text-sm font-semibold text-slate-100 mb-3">Immutable Audit Logs ({immutableAuditLogs.length})</p>
+        <div className="overflow-auto">
+          <table className="w-full min-w-[760px] text-xs text-slate-200">
+            <thead>
+              <tr className="text-left text-slate-400 border-b border-cyan-200/10">
+                <th className="py-2 pr-3">Timestamp</th>
+                <th className="py-2 pr-3">Actor</th>
+                <th className="py-2 pr-3">Action</th>
+                <th className="py-2 pr-3">Target</th>
+                <th className="py-2 pr-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {immutableAuditLogs.slice(0, 40).map((entry) => (
+                <tr key={entry._id} className="border-b border-cyan-200/5">
+                  <td className="py-2 pr-3 text-slate-300">{entry.occurredAt ? new Date(entry.occurredAt).toLocaleString() : 'n/a'}</td>
+                  <td className="py-2 pr-3">{entry.actorId?.email || entry.actorId || 'unknown'}</td>
+                  <td className="py-2 pr-3">{entry.action || 'n/a'}</td>
+                  <td className="py-2 pr-3">{entry.targetType || 'n/a'}:{entry.targetId || '-'}</td>
+                  <td className="py-2 pr-3">{entry.status || 'n/a'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </PremiumSurface>
+    </div>
   );
 }
 
@@ -2127,58 +2951,12 @@ function OverviewPanel({
   );
 }
 
-function UsersPanel({ users, onModerate, onDelete, onOpenDetail, onViewActivity, onNotify }) {
-  const exportUsers = () => {
-    if (!users || users.length === 0) {
-      onNotify?.('No user data to export', 'error');
-      return;
-    }
-
+function UsersPanel({ users, onModerate, onDelete, onOpenDetail, onViewActivity, onNotify, onExportUsers }) {
+  const exportUsers = async () => {
     try {
-      // Prepare export data
-      const exportData = users.map(u => ({
-        'User ID': u._id || '',
-        'Name': u.name || '',
-        'Email': u.email || '',
-        'Status': u.status || 'active',
-        'profile_approval_status': u.profile_approval_status || 'pending',
-        'Subscription': u.subscription_status || 'none',
-        'College': u.college?.name || u.college || '',
-        'Course': u.course || '',
-        'Joined Date': u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '',
-        'Photos Verified': u.photosVerified ? 'Yes' : 'No',
-        'Email Verified': u.isEmailVerified ? 'Yes' : 'No'
-      }));
-
-      // Export to CSV
-      const headers = Object.keys(exportData[0]);
-      const csvContent = [
-        headers.join(','),
-        ...exportData.map(row => 
-          headers.map(h => {
-            const val = row[h];
-            if (val === null || val === undefined) return '';
-            const str = String(val);
-            return str.includes(',') || str.includes('"') || str.includes('\n') 
-              ? `"${str.replace(/"/g, '""')}"` 
-              : str;
-          }).join(',')
-        )
-      ].join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `users_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      await onExportUsers?.();
     } catch (err) {
-      console.error('Export error:', err);
-      onNotify?.('Failed to export users', 'error');
+      onNotify?.(err?.message || 'Failed to export users', 'error');
     }
   };
 
@@ -2746,6 +3524,28 @@ function RegistrationApprovalsPanel({
 }
 
 function ApprovalsPanel({ approvals, onApprove, onOpenDetail }) {
+  const [pendingActionId, setPendingActionId] = React.useState('');
+
+  const runAction = async (user, status) => {
+    const notePrompt = status === 'approved'
+      ? 'Optional moderation note for approval:'
+      : status === 'needs_correction'
+        ? 'Correction note for user (required, min 5 chars):'
+        : 'Rejection reason (required, min 5 chars):';
+
+    const note = window.prompt(notePrompt, status === 'needs_correction' ? 'Please update your profile photos and bio.' : '') || '';
+    if (['needs_correction', 'rejected'].includes(status) && String(note).trim().length < 5) {
+      return;
+    }
+
+    try {
+      setPendingActionId(`${user._id}:${status}`);
+      await onApprove(user._id, status, String(note).trim());
+    } finally {
+      setPendingActionId('');
+    }
+  };
+
   return (
     <TablePanel
       title="Profile Approval Queue"
@@ -2758,9 +3558,9 @@ function ApprovalsPanel({ approvals, onApprove, onOpenDetail }) {
         new Date(user.updated_at || user.created_at).toLocaleString(),
         <div key={user._id} className="flex gap-2 flex-wrap">
           <button className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700" onClick={() => onOpenDetail('Profile Approval Detail', user)}>Detail</button>
-          <button className="text-xs px-2 py-1 rounded bg-green-100 text-green-700" onClick={() => onApprove(user._id, 'approved')}>Approve</button>
-          <button className="text-xs px-2 py-1 rounded bg-red-100 text-red-700" onClick={() => onApprove(user._id, 'rejected')}>Reject</button>
-          <button className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" onClick={() => onApprove(user._id, 'needs_correction')}>Correction</button>
+          <button disabled={pendingActionId === `${user._id}:approved`} className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 disabled:opacity-50" onClick={() => runAction(user, 'approved')}>{pendingActionId === `${user._id}:approved` ? 'Saving...' : 'Approve'}</button>
+          <button disabled={pendingActionId === `${user._id}:rejected`} className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 disabled:opacity-50" onClick={() => runAction(user, 'rejected')}>{pendingActionId === `${user._id}:rejected` ? 'Saving...' : 'Reject'}</button>
+          <button disabled={pendingActionId === `${user._id}:needs_correction`} className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700 disabled:opacity-50" onClick={() => runAction(user, 'needs_correction')}>{pendingActionId === `${user._id}:needs_correction` ? 'Saving...' : 'Correction'}</button>
         </div>
       ])}
       pageSize={10}
@@ -2768,11 +3568,15 @@ function ApprovalsPanel({ approvals, onApprove, onOpenDetail }) {
   );
 }
 
-function MatchesPanel({ matches, onOpenDetail }) {
-  return <TablePanel title="Match Control" columns={['Users', 'Status', 'Matched At']} rows={matches.map((m) => [
+function MatchesPanel({ matches, onOpenDetail, onRemoveMatch }) {
+  return <TablePanel title="Match Control" columns={['Users', 'Status', 'Matched At', 'Actions']} rows={matches.map((m) => [
     (m.users || []).map((u) => u.name).join(' & '),
     m.status,
-    new Date(m.matchedAt || m.updatedAt).toLocaleString()
+    new Date(m.matchedAt || m.updatedAt).toLocaleString(),
+    <div key={m._id} className="flex gap-2">
+      <button className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700" onClick={() => onOpenDetail('Match Detail', m)}>Detail</button>
+      <button className="text-xs px-2 py-1 rounded bg-rose-100 text-rose-700" onClick={() => onRemoveMatch?.(m._id)}>Remove</button>
+    </div>
   ])} pageSize={12} onRowClick={(rowIndex) => onOpenDetail('Match Detail', matches[rowIndex])} />;
 }
 
@@ -2899,7 +3703,13 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
   };
 
   const toggleSelect = (chatId) => {
-    setSelectedIds((prev) => (prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId]));
+    setSelectedIds((prev) => {
+      const next = prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId];
+      if (workspaceOpen && !prev.includes(chatId)) {
+        setWorkspaceSelectedId(chatId);
+      }
+      return next;
+    });
   };
 
   const runBulkStatusUpdate = (status) => {
@@ -3401,6 +4211,7 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
   });
   const [savingConfig, setSavingConfig] = React.useState(false);
   const [runningMembershipAction, setRunningMembershipAction] = React.useState(false);
+  const [processingPaymentId, setProcessingPaymentId] = React.useState('');
 
   React.useEffect(() => {
     setBillingDraft((prev) => ({
@@ -3505,106 +4316,47 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
 
   const handlePaymentAction = async (paymentId, action) => {
     try {
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('authToken');
-      if (!token) {
-        onNotify?.('Admin not authenticated', 'error');
-        return;
-      }
-
       let rejectionReason = '';
       if (action === 'reject') {
         rejectionReason = window.prompt('Enter rejection reason:', 'Payment proof is not valid') || '';
-        if (!rejectionReason) {
+        if (!rejectionReason || String(rejectionReason).trim().length < 10) {
+          onNotify?.('Rejection reason must be at least 10 characters.', 'error');
           return;
         }
       }
 
-      // Call the correct endpoint
-      const endpoint = action === 'approve'
-        ? `${API_ROOT}/api/admin/subscriptions/${paymentId}/approve`
-        : `${API_ROOT}/api/admin/subscriptions/${paymentId}/reject`;
-
-      const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          ...(adminPin ? { 'x-admin-pin': adminPin } : {})
-        },
-        body: JSON.stringify({ 
-          adminNotes: '',
-          rejectionReason: rejectionReason || undefined
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        onNotify?.(`Payment ${action === 'approve' ? 'approved' : 'rejected'} successfully.`);
-        await onRefresh?.({ silent: false });
+      setProcessingPaymentId(paymentId);
+      if (action === 'approve') {
+        await adminApi.approveSubscription(paymentId, { adminNotes: 'Approved by finance panel' }, adminPin);
       } else {
-        onNotify?.(`Failed to ${action} payment: ${data.message || 'Unknown error'}`, 'error');
+        await adminApi.rejectSubscription(paymentId, {
+          rejectionReason: String(rejectionReason).trim(),
+          adminNotes: 'Rejected by finance panel'
+        }, adminPin);
       }
+
+      onNotify?.(`Payment ${action === 'approve' ? 'approved' : 'rejected'} successfully.`);
+      await onRefresh?.({ silent: false });
     } catch (err) {
-      console.error('Error:', err);
-      onNotify?.(`Error updating payment: ${err.message}`, 'error');
+      onNotify?.(err?.response?.data?.message || `Error updating payment: ${err.message}`, 'error');
+    } finally {
+      setProcessingPaymentId('');
     }
   };
 
-  const exportPayments = () => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('authToken');
-    if (!token) {
-      onNotify?.('Admin not authenticated', 'error');
-      return;
-    }
-
-    if (!payments || payments.length === 0) {
-      onNotify?.('No payment data to export', 'error');
-      return;
-    }
-
+  const exportPayments = async () => {
     try {
-      // Prepare export data
-      const exportData = payments.map(p => ({
-        'Payment ID': p._id || '',
-        'User Name': p.user_id?.name || 'Unknown',
-        'User Email': p.user_id?.email || '',
-        'Plan': p.plan || '',
-        'Amount (₹)': p.amount || 0,
-        'Status': p.status || 'pending',
-        'Payment Proof': p.paymentProof ? 'Yes' : 'No',
-        'Submitted Date': p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '',
-        'Updated Date': p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''
-      }));
-
-      // Export to CSV
-      const headers = Object.keys(exportData[0]);
-      const csvContent = [
-        headers.join(','),
-        ...exportData.map(row => 
-          headers.map(h => {
-            const val = row[h];
-            if (val === null || val === undefined) return '';
-            const str = String(val);
-            return str.includes(',') || str.includes('"') || str.includes('\n') 
-              ? `"${str.replace(/"/g, '""')}"` 
-              : str;
-          }).join(',')
-        )
-      ].join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = await adminApi.exportSubscriptionsExcel({});
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `payments_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `subscriptions_${new Date().toISOString().split('T')[0]}.xlsx`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Export error:', err);
+    } catch {
       onNotify?.('Failed to export payments', 'error');
     }
   };
@@ -3723,7 +4475,7 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
 
           <div className="grid sm:grid-cols-2 gap-3 mb-3">
             <label className="text-xs text-slate-300">Account holder
-              <input value={billingDraft.accountHolder} onChange={(event) => setBillingDraft((prev) => ({ ...prev, accountHolder: event.target.value }))} placeholder="CU Daters Pvt Ltd" className={inputClass} />
+              <input value={billingDraft.accountHolder} onChange={(event) => setBillingDraft((prev) => ({ ...prev, accountHolder: event.target.value }))} placeholder="SeeU-Daters Pvt Ltd" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Bank name
               <input value={billingDraft.bankName} onChange={(event) => setBillingDraft((prev) => ({ ...prev, bankName: event.target.value }))} placeholder="HDFC Bank" className={inputClass} />
@@ -3816,8 +4568,8 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
                     <td className="py-3 px-3 text-xs text-slate-300">{new Date(payment.created_at || payment.createdAt).toLocaleString()}</td>
                     <td className="py-3 px-3">
                       <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => handlePaymentAction(payment._id, 'approve')} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-400 transition font-semibold">Approve</button>
-                        <button onClick={() => handlePaymentAction(payment._id, 'reject')} className="text-xs px-3 py-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition font-semibold">Reject</button>
+                        <button disabled={processingPaymentId === payment._id} onClick={() => handlePaymentAction(payment._id, 'approve')} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-400 transition font-semibold disabled:opacity-60">{processingPaymentId === payment._id ? 'Saving...' : 'Approve'}</button>
+                        <button disabled={processingPaymentId === payment._id} onClick={() => handlePaymentAction(payment._id, 'reject')} className="text-xs px-3 py-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition font-semibold disabled:opacity-60">{processingPaymentId === payment._id ? 'Saving...' : 'Reject'}</button>
                         <button onClick={() => onOpenDetail('Payment Detail', payment)} className="text-xs px-3 py-1.5 rounded-lg border border-cyan-300/35 bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/30 transition font-semibold">View</button>
                       </div>
                     </td>
@@ -3879,32 +4631,100 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
 }
 
 function ReportsPanel({ reports, onResolve, onOpenDetail }) {
+  const runReportAction = async (report, status) => {
+    const moderationNotes = window.prompt('Moderation note (required, min 5 chars):', status === 'resolved' ? 'Issue reviewed and resolved.' : 'Escalating for deeper review.') || '';
+    if (String(moderationNotes).trim().length < 5) {
+      return;
+    }
+    await onResolve(report._id, { status, moderationNotes });
+  };
+
   return <TablePanel title="Reports and Safety Queue" columns={['Target', 'Type', 'Reason', 'Priority', 'Status', 'Action']} rows={reports.map((report) => [
     report.target_user_id?.email || report.target_id || '-',
     report.target_type,
     report.reason,
     report.priority,
     report.status,
-    report.status === 'resolved' ? 'Resolved' : <button key={report._id} className="text-xs px-2 py-1 rounded bg-green-100 text-green-700" onClick={() => onResolve(report._id)}>Resolve</button>
+    <div key={report._id} className="flex gap-2 flex-wrap">
+      {report.status === 'resolved' ? <span className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700">Resolved</span> : (
+        <>
+          <button className="text-xs px-2 py-1 rounded bg-green-100 text-green-700" onClick={() => runReportAction(report, 'resolved')}>Resolve</button>
+          <button className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" onClick={() => runReportAction(report, 'investigating')}>Investigate</button>
+        </>
+      )}
+      <button className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700" onClick={() => onOpenDetail('Report Detail', report)}>Detail</button>
+    </div>
   ])} pageSize={10} onRowClick={(rowIndex) => onOpenDetail('Report Detail', reports[rowIndex])} />;
 }
 
-function ModerationPanel({ photos }) {
-  return <TablePanel title="Content Moderation Queue" columns={['User', 'Email', 'Profile Status', 'Has Live Photo', 'Has ID Card']} rows={photos.map((item) => [
+function ModerationPanel({ photos, onApproveProfile, onOpenDetail }) {
+  return <TablePanel title="Content Moderation Queue" columns={['User', 'Email', 'Profile Status', 'Has Live Photo', 'Has ID Card', 'Actions']} rows={photos.map((item) => [
     item.name,
     item.email,
     item.profile_approval_status,
     item.livePhoto ? 'Yes' : 'No',
-    item.idCard ? 'Yes' : 'No'
+    item.idCard ? 'Yes' : 'No',
+    <div key={item._id} className="flex gap-2 flex-wrap">
+      <button className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700" onClick={() => onOpenDetail?.('Moderation Profile Detail', item)}>Detail</button>
+      <button className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700" onClick={() => onApproveProfile?.(item._id, 'approved', 'Approved after content moderation review')}>Approve</button>
+      <button className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" onClick={() => onApproveProfile?.(item._id, 'needs_correction', 'Please upload clearer live photo and ID image')}>Needs Correction</button>
+      <button className="text-xs px-2 py-1 rounded bg-rose-100 text-rose-700" onClick={() => onApproveProfile?.(item._id, 'rejected', 'Rejected in content moderation due to policy mismatch')}>Reject</button>
+    </div>
   ])} />;
 }
 
-function CollegesPanel({ colleges }) {
+function CollegesPanel({ colleges, onCreateCollege, onUpdateCollege }) {
+  const [draft, setDraft] = React.useState({
+    name: '',
+    domain: '',
+    verification_required: true,
+    onboarding_enabled: true,
+    campus_notes: ''
+  });
+  const [saving, setSaving] = React.useState(false);
+  const [editingId, setEditingId] = React.useState('');
   const total = colleges.length;
   const activeCount = colleges.filter((college) => college.is_active).length;
   const verificationRequiredCount = colleges.filter((college) => college.verification_required).length;
   const onboardingEnabledCount = colleges.filter((college) => college.onboarding_enabled).length;
   const inactiveCount = total - activeCount;
+
+  const submitCreate = async () => {
+    const name = String(draft.name || '').trim();
+    const domain = String(draft.domain || '').trim().toLowerCase();
+    if (!name || !domain) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await onCreateCollege?.({
+        name,
+        domain,
+        verification_required: Boolean(draft.verification_required),
+        onboarding_enabled: Boolean(draft.onboarding_enabled),
+        campus_notes: String(draft.campus_notes || '').trim()
+      });
+      setDraft({
+        name: '',
+        domain: '',
+        verification_required: true,
+        onboarding_enabled: true,
+        campus_notes: ''
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleCollege = async (college, patch) => {
+    try {
+      setEditingId(String(college._id));
+      await onUpdateCollege?.(college._id, patch);
+    } finally {
+      setEditingId('');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -3925,6 +4745,20 @@ function CollegesPanel({ colleges }) {
         <MetricCard label="Active" value={activeCount} tone="emerald" />
         <MetricCard label="Verification Required" value={verificationRequiredCount} tone="amber" />
         <MetricCard label="Onboarding Enabled" value={onboardingEnabledCount} tone="rose" />
+      </div>
+
+      <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4">
+        <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Add Campus</h3>
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <input value={draft.name} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} placeholder="Campus name" className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100" />
+          <input value={draft.domain} onChange={(event) => setDraft((prev) => ({ ...prev, domain: event.target.value }))} placeholder="college.edu" className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100" />
+          <input value={draft.campus_notes} onChange={(event) => setDraft((prev) => ({ ...prev, campus_notes: event.target.value }))} placeholder="Campus notes" className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100" />
+          <button disabled={saving} onClick={submitCreate} className="px-3 py-2 rounded-xl bg-cyan-600 text-white text-sm font-semibold disabled:opacity-60">{saving ? 'Saving...' : 'Create Campus'}</button>
+        </div>
+        <div className="mt-3 flex gap-3 text-xs text-slate-200">
+          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={draft.verification_required} onChange={(event) => setDraft((prev) => ({ ...prev, verification_required: event.target.checked }))} />Verification required</label>
+          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={draft.onboarding_enabled} onChange={(event) => setDraft((prev) => ({ ...prev, onboarding_enabled: event.target.checked }))} />Onboarding enabled</label>
+        </div>
       </div>
 
       {total > 0 ? (
@@ -3955,6 +4789,22 @@ function CollegesPanel({ colleges }) {
               <div className="mt-4 flex flex-wrap gap-2">
                 <span className="text-[11px] px-2.5 py-1 rounded-full border border-cyan-300/25 bg-cyan-500/12 text-cyan-100">Domain: {college.domain || 'N/A'}</span>
                 <span className="text-[11px] px-2.5 py-1 rounded-full border border-slate-300/20 bg-slate-500/10 text-slate-200">ID: {college._id || 'N/A'}</span>
+              </div>
+              <div className="mt-3 flex gap-2 flex-wrap">
+                <button
+                  disabled={editingId === String(college._id)}
+                  onClick={() => toggleCollege(college, { onboarding_enabled: !college.onboarding_enabled })}
+                  className="px-2.5 py-1.5 rounded-lg text-xs border border-cyan-300/30 bg-cyan-500/15 text-cyan-100 disabled:opacity-50"
+                >
+                  {college.onboarding_enabled ? 'Disable Onboarding' : 'Enable Onboarding'}
+                </button>
+                <button
+                  disabled={editingId === String(college._id)}
+                  onClick={() => toggleCollege(college, { verification_required: !college.verification_required })}
+                  className="px-2.5 py-1.5 rounded-lg text-xs border border-amber-300/30 bg-amber-500/15 text-amber-100 disabled:opacity-50"
+                >
+                  {college.verification_required ? 'Make Verification Optional' : 'Require Verification'}
+                </button>
               </div>
             </div>
           ))}
@@ -3992,7 +4842,7 @@ function CollegesPanel({ colleges }) {
   );
 }
 
-function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify }) {
+function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify, onUpdateTicket }) {
   const contactSetting = settings.find((item) => item.key === 'support_contact_config');
   const rawContact = contactSetting?.value;
   const parsedContact = React.useMemo(() => {
@@ -4022,6 +4872,7 @@ function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify }) {
     responseSlaHours: ''
   });
   const [savingContact, setSavingContact] = React.useState(false);
+  const [updatingTicketId, setUpdatingTicketId] = React.useState('');
 
   React.useEffect(() => {
     setContactDraft((prev) => ({
@@ -4069,6 +4920,15 @@ function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify }) {
   };
 
   const inputClass = 'mt-1 w-full rounded-xl bg-white/8 border border-cyan-200/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/40';
+
+  const updateTicket = async (ticket, patch) => {
+    try {
+      setUpdatingTicketId(String(ticket._id || ''));
+      await onUpdateTicket?.(ticket._id, patch);
+    } finally {
+      setUpdatingTicketId('');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -4124,6 +4984,49 @@ function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify }) {
                       </div>
                     </div>
                     <p className="text-xs text-slate-400 mt-2">Updated {new Date(ticket.updated_at || ticket.created_at || Date.now()).toLocaleString()}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <select
+                        value={status}
+                        disabled={updatingTicketId === String(ticket._id)}
+                        onChange={(event) => updateTicket(ticket, { status: event.target.value })}
+                        className="px-2 py-1.5 rounded-lg border border-cyan-200/20 bg-white/8 text-xs text-slate-100 disabled:opacity-60"
+                      >
+                        <option value="open">Open</option>
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                      <select
+                        value={priority}
+                        disabled={updatingTicketId === String(ticket._id)}
+                        onChange={(event) => updateTicket(ticket, { priority: event.target.value })}
+                        className="px-2 py-1.5 rounded-lg border border-cyan-200/20 bg-white/8 text-xs text-slate-100 disabled:opacity-60"
+                      >
+                        <option value="low">Low</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                      <button
+                        disabled={updatingTicketId === String(ticket._id)}
+                        onClick={() => updateTicket(ticket, { assigned_to: 'current_admin' })}
+                        className="px-2.5 py-1.5 rounded-lg text-xs border border-cyan-300/35 bg-cyan-500/15 text-cyan-100 disabled:opacity-60"
+                      >
+                        {updatingTicketId === String(ticket._id) ? 'Saving...' : 'Assign To Me'}
+                      </button>
+                      <button
+                        disabled={updatingTicketId === String(ticket._id)}
+                        onClick={() => {
+                          const reply = window.prompt('Reply / resolution note:', '') || '';
+                          if (!String(reply).trim()) return;
+                          updateTicket(ticket, { admin_reply: reply, status: 'resolved' });
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg text-xs border border-emerald-300/35 bg-emerald-500/15 text-emerald-100 disabled:opacity-60"
+                      >
+                        Resolve + Reply
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -4146,10 +5049,10 @@ function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify }) {
           </div>
           <div className="space-y-3 max-h-[56vh] overflow-auto pr-1">
             <label className="text-xs text-slate-300">Primary Support Email
-              <input value={contactDraft.supportEmail} onChange={(event) => setContactDraft((prev) => ({ ...prev, supportEmail: event.target.value }))} placeholder="support@cudaters.com" className={inputClass} />
+              <input value={contactDraft.supportEmail} onChange={(event) => setContactDraft((prev) => ({ ...prev, supportEmail: event.target.value }))} placeholder="support@seeudaters.com" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Escalation Email
-              <input value={contactDraft.escalationEmail} onChange={(event) => setContactDraft((prev) => ({ ...prev, escalationEmail: event.target.value }))} placeholder="escalations@cudaters.com" className={inputClass} />
+              <input value={contactDraft.escalationEmail} onChange={(event) => setContactDraft((prev) => ({ ...prev, escalationEmail: event.target.value }))} placeholder="escalations@seeudaters.com" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Support Phone
               <input value={contactDraft.supportPhone} onChange={(event) => setContactDraft((prev) => ({ ...prev, supportPhone: event.target.value }))} placeholder="+91 98XXXXXX10" className={inputClass} />
@@ -4161,13 +5064,13 @@ function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify }) {
               <input value={contactDraft.instagramId} onChange={(event) => setContactDraft((prev) => ({ ...prev, instagramId: event.target.value }))} placeholder="@cu_daters_support" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Telegram ID
-              <input value={contactDraft.telegramId} onChange={(event) => setContactDraft((prev) => ({ ...prev, telegramId: event.target.value }))} placeholder="@cudatershelp" className={inputClass} />
+              <input value={contactDraft.telegramId} onChange={(event) => setContactDraft((prev) => ({ ...prev, telegramId: event.target.value }))} placeholder="@seeudatershelp" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Support Handle / Contact ID
-              <input value={contactDraft.supportHandle} onChange={(event) => setContactDraft((prev) => ({ ...prev, supportHandle: event.target.value }))} placeholder="CU-Daters Support Ops" className={inputClass} />
+              <input value={contactDraft.supportHandle} onChange={(event) => setContactDraft((prev) => ({ ...prev, supportHandle: event.target.value }))} placeholder="SeeU-Daters Support Ops" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Help Center URL
-              <input value={contactDraft.helpCenterUrl} onChange={(event) => setContactDraft((prev) => ({ ...prev, helpCenterUrl: event.target.value }))} placeholder="https://help.cudaters.com" className={inputClass} />
+              <input value={contactDraft.helpCenterUrl} onChange={(event) => setContactDraft((prev) => ({ ...prev, helpCenterUrl: event.target.value }))} placeholder="https://help.seeudaters.com" className={inputClass} />
             </label>
             <label className="text-xs text-slate-300">Office Hours
               <input value={contactDraft.officeHours} onChange={(event) => setContactDraft((prev) => ({ ...prev, officeHours: event.target.value }))} placeholder="Mon-Sat, 9:00 AM - 8:00 PM" className={inputClass} />
@@ -4182,7 +5085,7 @@ function SupportPanel({ tickets, settings = [], onUpdateSetting, onNotify }) {
   );
 }
 
-function AnalyticsPanel({ analytics }) {
+function AnalyticsPanel({ analytics, dateRange = '7d' }) {
   if (!analytics) {
     return <p className="text-slate-300">No analytics data available.</p>;
   }
@@ -4196,50 +5099,61 @@ function AnalyticsPanel({ analytics }) {
   const matchRate = Number(analytics.matchRate) || 0;
   const retention = Number(analytics.retentionHint) || 0;
 
-  const trendSeries = Array.isArray(analytics.engagementTrend) && analytics.engagementTrend.length >= 5
-    ? analytics.engagementTrend.map((value) => Number(value) || 0).slice(-7)
-    : [
-        Math.max(0, Math.round(dau * 0.72)),
-        Math.max(0, Math.round(dau * 0.81)),
-        Math.max(0, Math.round(dau * 0.76)),
-        Math.max(0, Math.round(dau * 0.9)),
-        Math.max(0, Math.round(dau * 0.95)),
-        Math.max(0, Math.round(dau * 0.88)),
-        Math.max(0, dau)
-      ];
+  const parseSeries = (source) => {
+    if (!Array.isArray(source)) return [];
+    return source
+      .map((entry, index) => {
+        if (typeof entry === 'number') {
+          return { label: `P${index + 1}`, value: Number(entry) || 0 };
+        }
+        return {
+          label: String(entry?.label || entry?.date || entry?.name || `P${index + 1}`),
+          value: Number(entry?.value ?? entry?.count ?? entry?.total ?? 0)
+        };
+      })
+      .filter((entry) => Number.isFinite(entry.value));
+  };
 
-  const trendMax = Math.max(...trendSeries, 1);
-  const linePoints = trendSeries.map((value, idx) => {
-    const x = (idx / Math.max(trendSeries.length - 1, 1)) * 100;
-    const y = 100 - (value / trendMax) * 100;
-    return `${x},${y}`;
-  }).join(' ');
-  const areaPoints = `0,100 ${linePoints} 100,100`;
+  const engagementSeries = parseSeries(analytics.engagementTrend);
+  const revenueSeries = parseSeries(analytics.revenueTrend);
+  const conversionSeries = parseSeries(analytics.conversionTrend);
 
-  const kpiBars = [
-    { label: 'DAU', value: dau },
-    { label: 'WAU', value: wau },
-    { label: 'MAU', value: mau },
-    { label: 'Signups', value: signups },
-    { label: 'Messages', value: messages }
-  ];
-  const kpiMax = Math.max(...kpiBars.map((item) => item.value), 1);
+  const ChartCard = ({ title, series, color }) => {
+    if (!series.length) {
+      return (
+        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">{title}</h3>
+          <p className="text-sm text-slate-400">No backend series returned for this range.</p>
+        </div>
+      );
+    }
 
-  const acquisition = Math.max(signups, 1);
-  const premiumUsers = Math.max(Math.round((premiumConversion / 100) * signups), 0);
-  const conversionSegments = [
-    { label: 'Free', value: Math.max(acquisition - premiumUsers, 0), color: '#0ea5e9' },
-    { label: 'Premium', value: premiumUsers, color: '#f59e0b' }
-  ];
-  const segmentTotal = Math.max(conversionSegments.reduce((sum, item) => sum + item.value, 0), 1);
-  let runningOffset = 0;
-  const donutSegments = conversionSegments.map((segment) => {
-    const dash = (segment.value / segmentTotal) * 100;
-    const strokeDasharray = `${dash} ${100 - dash}`;
-    const strokeDashoffset = -runningOffset;
-    runningOffset += dash;
-    return { ...segment, strokeDasharray, strokeDashoffset };
-  });
+    const max = Math.max(1, ...series.map((item) => Number(item.value) || 0));
+    const points = series.map((item, index) => {
+      const x = (index / Math.max(series.length - 1, 1)) * 100;
+      const y = 100 - ((Number(item.value) || 0) / max) * 100;
+      return `${x},${y}`;
+    }).join(' ');
+
+    return (
+      <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5">
+        <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">{title}</h3>
+        <div className="h-48 rounded-xl border border-cyan-200/15 bg-black/20 p-3">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+            <polyline points={points} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+          </svg>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+          {series.slice(-6).map((entry) => (
+            <div key={`${title}-${entry.label}`} className="rounded-lg border border-cyan-200/10 bg-white/5 px-2 py-1.5 text-slate-200">
+              <p className="truncate text-slate-400">{entry.label}</p>
+              <p className="font-semibold text-white">{entry.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -4247,10 +5161,10 @@ function AnalyticsPanel({ analytics }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Growth Intelligence</p>
-            <p className="text-sm text-slate-200">Core product health, trend momentum, and conversion quality in one analytics surface.</p>
+            <p className="text-sm text-slate-200">Analytics range: {String(dateRange || '7d').toUpperCase()}</p>
           </div>
           <span className="inline-flex items-center rounded-full border border-cyan-200/30 bg-cyan-400/12 px-3 py-1 text-xs font-semibold text-cyan-100">
-            Live dashboard mode
+            Backend data only
           </span>
         </div>
       </div>
@@ -4266,87 +5180,10 @@ function AnalyticsPanel({ analytics }) {
         <MetricCard label="Retention Indicator" value={`${retention}%`} tone="emerald" />
       </div>
 
-      <div className="grid xl:grid-cols-[1.6fr_1fr] gap-4">
-        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-white">7-Day Engagement Trend</h3>
-            <span className="text-xs text-cyan-100/75">Area + line analysis</span>
-          </div>
-          <div className="h-56 rounded-xl border border-cyan-200/15 bg-black/25 p-3">
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-              <defs>
-                <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.02" />
-                </linearGradient>
-              </defs>
-              {[20, 40, 60, 80].map((grid) => (
-                <line key={grid} x1="0" y1={grid} x2="100" y2={grid} stroke="rgba(148,163,184,0.18)" strokeWidth="0.4" />
-              ))}
-              <polygon points={areaPoints} fill="url(#trendFill)" />
-              <polyline points={linePoints} fill="none" stroke="#22d3ee" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div className="grid grid-cols-7 gap-2 mt-3">
-            {trendSeries.map((value, idx) => (
-              <div key={`day-${idx}`} className="text-center">
-                <p className="text-[10px] text-slate-400">D-{6 - idx}</p>
-                <p className="text-xs font-semibold text-slate-100">{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Plan Mix</h3>
-          <div className="flex items-center justify-center py-2">
-            <svg viewBox="0 0 42 42" className="w-44 h-44 -rotate-90">
-              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.2)" strokeWidth="4" />
-              {donutSegments.map((segment) => (
-                <circle
-                  key={segment.label}
-                  cx="21"
-                  cy="21"
-                  r="15.915"
-                  fill="none"
-                  stroke={segment.color}
-                  strokeWidth="4"
-                  strokeDasharray={segment.strokeDasharray}
-                  strokeDashoffset={segment.strokeDashoffset}
-                  strokeLinecap="round"
-                />
-              ))}
-            </svg>
-          </div>
-          <div className="space-y-2 mt-1">
-            {conversionSegments.map((segment) => (
-              <div key={segment.label} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-slate-200">
-                  <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
-                  <span>{segment.label}</span>
-                </div>
-                <span className="font-semibold text-white">{segment.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Comparative KPI Bars</h3>
-        <div className="space-y-3">
-          {kpiBars.map((item) => (
-            <div key={item.label}>
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
-                <span>{item.label}</span>
-                <span>{item.value}</span>
-              </div>
-              <div className="h-2.5 rounded-full bg-slate-900/60 overflow-hidden">
-                <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-500" style={{ width: `${Math.max(6, (item.value / kpiMax) * 100)}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="grid xl:grid-cols-3 gap-4">
+        <ChartCard title="Engagement Trend" series={engagementSeries} color="#22d3ee" />
+        <ChartCard title="Revenue Trend" series={revenueSeries} color="#34d399" />
+        <ChartCard title="Conversion Trend" series={conversionSeries} color="#f59e0b" />
       </div>
     </div>
   );
@@ -4355,6 +5192,8 @@ function AnalyticsPanel({ analytics }) {
 function SettingsPanel({ settings, onUpdate }) {
   const [draftKey, setDraftKey] = React.useState('');
   const [draftValue, setDraftValue] = React.useState('');
+  const screenshotSilentSetting = settings.find((item) => item.key === 'privacy_screenshot_silent_mode');
+  const [screenshotSilentMode, setScreenshotSilentMode] = React.useState(false);
   const legalSetting = settings.find((item) => item.key === 'legal_content_config');
   const legalRaw = legalSetting?.value;
   const parsedLegal = React.useMemo(() => {
@@ -4410,13 +5249,13 @@ function SettingsPanel({ settings, onUpdate }) {
   React.useEffect(() => {
     setLegalDraft((prev) => ({
       ...prev,
-      appName: parsedLegal.appName || 'CU-Daters',
-      companyName: parsedLegal.companyName || 'CU-Daters',
+      appName: parsedLegal.appName || 'SeeU-Daters',
+      companyName: parsedLegal.companyName || 'SeeU-Daters',
       termsLastUpdated: parsedLegal.termsLastUpdated || 'March 2026',
       privacyLastUpdated: parsedLegal.privacyLastUpdated || 'March 2026',
-      legalEmail: parsedLegal.legalEmail || 'legal@cudaters.in',
-      privacyEmail: parsedLegal.privacyEmail || 'privacy@cudaters.in',
-      supportEmail: parsedLegal.supportEmail || 'support@cudaters.in',
+      legalEmail: parsedLegal.legalEmail || 'legal@seeudaters.in',
+      privacyEmail: parsedLegal.privacyEmail || 'privacy@seeudaters.in',
+      supportEmail: parsedLegal.supportEmail || 'support@seeudaters.in',
       disputeResponseDays: parsedLegal.disputeResponseDays || '7',
       arbitrationCity: parsedLegal.arbitrationCity || 'Chandigarh, India',
       governingLaw: parsedLegal.governingLaw || 'Laws of India',
@@ -4425,6 +5264,12 @@ function SettingsPanel({ settings, onUpdate }) {
       privacyBlocks: normalizeBlocks(parsedLegal.privacyBlocks, defaultPrivacyBlocks)
     }));
   }, [defaultPrivacyBlocks, defaultTermsBlocks, normalizeBlocks, parsedLegal]);
+
+  React.useEffect(() => {
+    const raw = screenshotSilentSetting?.value;
+    const normalized = raw === true || String(raw || '').toLowerCase() === 'true';
+    setScreenshotSilentMode(Boolean(normalized));
+  }, [screenshotSilentSetting?.value]);
 
   const updateBlock = (field, id, patch) => {
     setLegalDraft((prev) => ({
@@ -4481,6 +5326,31 @@ function SettingsPanel({ settings, onUpdate }) {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-white">Privacy Screenshot Notification Policy</h3>
+            <p className="text-xs text-cyan-100/75 mt-1">Best-effort alerts to target users when screenshot activity is detected on supported platforms.</p>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              const next = !screenshotSilentMode;
+              setScreenshotSilentMode(next);
+              await onUpdate('privacy_screenshot_silent_mode', next);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${screenshotSilentMode ? 'bg-amber-500/20 text-amber-100 border border-amber-300/40' : 'bg-emerald-500/20 text-emerald-100 border border-emerald-300/40'}`}
+          >
+            {screenshotSilentMode ? 'Silent Mode ON' : 'Silent Mode OFF'}
+          </button>
+        </div>
+        <p className="text-xs text-slate-300 mt-3">
+          {screenshotSilentMode
+            ? 'Target-user privacy capture alerts are currently suppressed. Admin monitoring and risk scoring remain active.'
+            : 'Target-user privacy capture alerts are currently enabled when supported detection signals are received.'}
+        </p>
+      </div>
+
       <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
@@ -4588,6 +5458,9 @@ function SettingsPanel({ settings, onUpdate }) {
 }
 
 function ActivityPanel({ logs }) {
+  const [query, setQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [selectedEvent, setSelectedEvent] = React.useState(null);
   const normalizedLogs = React.useMemo(() => {
     return (logs || []).map((log, index) => {
       const action = String(log?.action || log?.event || log?.type || 'activity').trim();
@@ -4608,22 +5481,49 @@ function ActivityPanel({ logs }) {
     }).sort((a, b) => b.timestamp - a.timestamp);
   }, [logs]);
 
-  const totalEvents = normalizedLogs.length;
-  const criticalEvents = normalizedLogs.filter((item) => /failed|error|reject|denied|blocked/.test(item.status) || /delete|ban|suspend|reject/.test(item.action.toLowerCase()));
-  const sensitiveEvents = normalizedLogs.filter((item) => /delete|ban|suspend|reject|pin|payment|settings|config|approve/.test(item.action.toLowerCase()));
-  const uniqueActors = new Set(normalizedLogs.map((item) => item.actor)).size;
-  const latestEvent = normalizedLogs[0];
+  const filteredLogs = React.useMemo(() => {
+    const q = String(query || '').trim().toLowerCase();
+    return normalizedLogs.filter((item) => {
+      const byQuery = !q || `${item.action} ${item.actor} ${item.description} ${item.status}`.toLowerCase().includes(q);
+      const byStatus = statusFilter === 'all' || item.status === statusFilter;
+      return byQuery && byStatus;
+    });
+  }, [normalizedLogs, query, statusFilter]);
+
+  const totalEvents = filteredLogs.length;
+  const criticalEvents = filteredLogs.filter((item) => /failed|error|reject|denied|blocked/.test(item.status) || /delete|ban|suspend|reject/.test(item.action.toLowerCase()));
+  const sensitiveEvents = filteredLogs.filter((item) => /delete|ban|suspend|reject|pin|payment|settings|config|approve/.test(item.action.toLowerCase()));
+  const uniqueActors = new Set(filteredLogs.map((item) => item.actor)).size;
+  const latestEvent = filteredLogs[0];
 
   const actorDistribution = React.useMemo(() => {
     const tally = new Map();
-    normalizedLogs.forEach((item) => {
+    filteredLogs.forEach((item) => {
       tally.set(item.actor, (tally.get(item.actor) || 0) + 1);
     });
     return Array.from(tally.entries())
       .map(([actor, count]) => ({ actor, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 6);
-  }, [normalizedLogs]);
+  }, [filteredLogs]);
+
+  const exportAuditCsv = () => {
+    if (!filteredLogs.length) {
+      return;
+    }
+    const headers = ['action', 'status', 'actor', 'timestamp', 'description'];
+    const rows = filteredLogs.map((item) => [item.action, item.status, item.actor, item.readableTime, item.description || '']);
+    const content = [headers.join(','), ...rows.map((row) => row.map((cell) => `"${String(cell || '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `audit-log-${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -4637,6 +5537,27 @@ function ActivityPanel({ logs }) {
             {totalEvents} events in current window
           </span>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 flex flex-wrap items-center gap-2">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search action, actor, or description"
+          className="flex-1 min-w-[240px] px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100"
+        />
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100"
+        >
+          <option value="all">All Status</option>
+          <option value="success">Success</option>
+          <option value="failure">Failure</option>
+          <option value="pending">Pending</option>
+          <option value="info">Info</option>
+        </select>
+        <button onClick={exportAuditCsv} className="px-3 py-2 rounded-xl border border-cyan-300/30 bg-cyan-500/20 text-sm text-cyan-100 hover:bg-cyan-500/30 transition">Export CSV</button>
       </div>
 
       <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3">
@@ -4702,10 +5623,10 @@ function ActivityPanel({ logs }) {
           <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 md:p-5 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
             <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Audit Event Stream</h3>
             <div className="space-y-2.5 max-h-[56vh] overflow-auto pr-1">
-              {normalizedLogs.slice(0, 40).map((item) => {
+              {filteredLogs.slice(0, 40).map((item) => {
                 const isCritical = /failed|error|reject|denied|blocked/.test(item.status) || /delete|ban|suspend|reject/.test(item.action.toLowerCase());
                 return (
-                  <div key={item.id} className={`rounded-xl border px-3 py-3 ${isCritical ? 'border-rose-300/30 bg-rose-500/10' : 'border-cyan-200/15 bg-white/5'}`}>
+                  <button key={item.id} onClick={() => setSelectedEvent(item)} className={`w-full text-left rounded-xl border px-3 py-3 ${isCritical ? 'border-rose-300/30 bg-rose-500/10' : 'border-cyan-200/15 bg-white/5'}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-slate-100">{item.action}</p>
                       <div className="flex items-center gap-2">
@@ -4715,13 +5636,31 @@ function ActivityPanel({ logs }) {
                     </div>
                     <p className="text-xs text-cyan-100/75 mt-1">Actor: {item.actor}</p>
                     {item.description ? <p className="text-xs text-slate-300 mt-1">{item.description}</p> : null}
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
         </>
       )}
+
+      {selectedEvent ? (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
+          <div className="w-full max-w-2xl rounded-2xl border border-cyan-200/20 bg-slate-950 p-5" onClick={(event) => event.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-2">Audit Event Detail</h3>
+            <div className="space-y-2 text-sm text-slate-200">
+              <p><span className="text-slate-400">Action:</span> {selectedEvent.action}</p>
+              <p><span className="text-slate-400">Status:</span> {selectedEvent.status}</p>
+              <p><span className="text-slate-400">Actor:</span> {selectedEvent.actor}</p>
+              <p><span className="text-slate-400">When:</span> {selectedEvent.readableTime}</p>
+              <p><span className="text-slate-400">Description:</span> {selectedEvent.description || '-'}</p>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setSelectedEvent(null)} className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/10 text-slate-100">Close</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -5156,3 +6095,4 @@ function MetricCard({ label, value, tone = 'slate' }) {
     </div>
   );
 }
+

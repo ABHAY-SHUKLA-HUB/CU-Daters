@@ -7,10 +7,11 @@ import {
   clearStoredAuthState,
   getStoredAuthState,
   patchStoredUser,
-  persistAuthState
+  persistAuthState,
+  persistCsrfToken
 } from '../utils/authStorage';
 
-const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin'];
+const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'];
 
 const AuthContext = React.createContext(null);
 
@@ -105,8 +106,9 @@ export function AuthProvider({ children }) {
     void restoreSession();
   }, []);
 
-  const setAuth = React.useCallback(({ token, user }) => {
+  const setAuth = React.useCallback(({ token, user, csrfToken = '' }) => {
     persistAuthState({ token, user });
+    persistCsrfToken(csrfToken || '');
   }, []);
 
   const clearAuth = React.useCallback(() => {

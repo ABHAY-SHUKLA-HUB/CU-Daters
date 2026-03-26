@@ -88,7 +88,7 @@ function AppContent() {
         <React.Suspense
           fallback={
             <div className="min-h-[60vh] flex items-center justify-center text-softBrown">
-              Loading CU-Daters...
+              Loading SeeU-Daters...
             </div>
           }
         >
@@ -144,4 +144,5 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
 

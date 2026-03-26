@@ -50,9 +50,14 @@ export const registerNotificationSocket = (io) => {
 
   io.of('/notifications').on('connection', (socket) => {
     const userId = socket.user._id.toString();
+    const role = String(socket.user.role || '').toLowerCase();
 
     // Join user-specific room for notifications
     socket.join(`notifications:${userId}`);
+
+    if (['admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'].includes(role)) {
+      socket.join('notifications:admins');
+    }
     console.log(`✓ User ${userId} connected to notifications`);
 
     socket.on('disconnect', () => {
@@ -102,5 +107,27 @@ export const sendMatchNotification = (io, userId1, user1Name, userId2, user2Name
     console.log(`✓ Match notification sent to ${userId1} and ${userId2}`);
   } catch (error) {
     console.error('Error sending match notification:', error);
+  }
+};
+
+export const sendAdminSecurityNotification = (io, payload = {}) => {
+  try {
+    io.of('/notifications').to('notifications:admins').emit('security_alert', {
+      ...payload,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error sending admin security notification:', error);
+  }
+};
+
+export const sendPrivacyCaptureNotification = (io, userId, payload = {}) => {
+  try {
+    io.of('/notifications').to(`notifications:${userId}`).emit('privacy_capture_alert', {
+      ...payload,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error sending privacy capture notification:', error);
   }
 };

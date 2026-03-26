@@ -70,7 +70,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="card text-center">
           <div className="text-5xl mb-4">💕</div>
-          <h1 className="text-3xl font-bold gradient-text mb-2">CU DATERS</h1>
+          <h1 className="text-3xl font-bold gradient-text mb-2">SEEU-DATERS</h1>
           <p className="text-softBrown mb-8">Login to find your perfect match</p>
 
           {error && (
@@ -155,3 +155,4 @@ export default function Login() {
     </div>
   );
 }
+

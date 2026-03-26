@@ -4,12 +4,14 @@ import { io } from 'socket.io-client';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { getStoredToken } from '../utils/authStorage';
 
-export function useNotificationSocket(onNewLike, onNewMatch, onRequestUpdate, onRequestReceived, onError) {
+export function useNotificationSocket(onNewLike, onNewMatch, onRequestUpdate, onRequestReceived, onPrivacyCaptureAlert, onSecurityAlert, onError) {
   const handlersRef = React.useRef({
     onNewLike,
     onNewMatch,
     onRequestUpdate,
     onRequestReceived,
+    onPrivacyCaptureAlert,
+    onSecurityAlert,
     onError
   });
 
@@ -19,9 +21,11 @@ export function useNotificationSocket(onNewLike, onNewMatch, onRequestUpdate, on
       onNewMatch,
       onRequestUpdate,
       onRequestReceived,
+      onPrivacyCaptureAlert,
+      onSecurityAlert,
       onError
     };
-  }, [onNewLike, onNewMatch, onRequestUpdate, onRequestReceived, onError]);
+  }, [onNewLike, onNewMatch, onRequestUpdate, onRequestReceived, onPrivacyCaptureAlert, onSecurityAlert, onError]);
 
   useEffect(() => {
     let socket = null;
@@ -89,6 +93,16 @@ export function useNotificationSocket(onNewLike, onNewMatch, onRequestUpdate, on
       socket.on('chat_request_received', (data) => {
         console.log('💬 New request received:', data);
         handlersRef.current.onRequestReceived?.(data);
+      });
+
+      socket.on('privacy_capture_alert', (data) => {
+        console.log('🛡️ Privacy capture alert received:', data);
+        handlersRef.current.onPrivacyCaptureAlert?.(data);
+      });
+
+      socket.on('security_alert', (data) => {
+        console.log('🚨 Security alert received:', data);
+        handlersRef.current.onSecurityAlert?.(data);
       });
 
       // Error handling

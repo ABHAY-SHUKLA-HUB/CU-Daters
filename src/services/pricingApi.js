@@ -85,7 +85,7 @@ const DEFAULT_PRICING_CONFIG = {
       qr: { enabled: true },
       bank: {
         enabled: true,
-        accountHolder: 'CU Daters Pvt Ltd',
+        accountHolder: 'SeeU-Daters Pvt Ltd',
         bankName: 'HDFC Bank',
         accountNumber: '1234567890123456',
         ifscCode: 'HDFC0005678'
@@ -201,3 +201,4 @@ export const pricingApi = {
 };
 
 export default pricingApi;
+

@@ -3,7 +3,7 @@ import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function About() {
   const contactConfig = useSupportContactConfig();
-  const supportEmail = contactConfig.supportEmail || 'support@cudaters.in';
+  const supportEmail = contactConfig.supportEmail || 'support@seeudaters.in';
   const escalationEmail = contactConfig.escalationEmail || supportEmail;
 
   const team = [
@@ -42,7 +42,7 @@ export default function About() {
       <section className="bg-gradient-to-br from-creamyWhite to-warmCream py-16 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-5xl md:text-6xl font-bold text-darkBrown mb-6">
-            About <span className="gradient-text">CU DATERS</span>
+            About <span className="gradient-text">SEEU-DATERS</span>
           </h1>
           <p className="text-xl text-softBrown max-w-2xl mx-auto">
             We're a student-driven dating app built for Chandigarh University students. By students, for students. Made with ❤️
@@ -59,7 +59,7 @@ export default function About() {
               To create a safe, verified, and fun dating platform where CU students can find meaningful connections without compromising privacy or safety.
             </p>
             <p className="text-softBrown leading-relaxed">
-              We believe everyone deserves to explore connections with genuine people. CU DATERS makes that possible through strict verification and innovative anonymous chat features.
+              We believe everyone deserves to explore connections with genuine people. SEEU-DATERS makes that possible through strict verification and innovative anonymous chat features.
             </p>
           </div>
           <div>
@@ -197,3 +197,4 @@ export default function About() {
     </div>
   );
 }
+

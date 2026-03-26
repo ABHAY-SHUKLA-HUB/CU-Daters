@@ -26,9 +26,9 @@ const FALLBACK_PRIVACY_BLOCKS = [
 export default function Privacy() {
   const legal = useLegalContentConfig();
 
-  const appName = legal.appName || 'CU-Daters';
+  const appName = legal.appName || 'SeeU-Daters';
   const companyName = legal.companyName || appName;
-  const privacyEmail = legal.privacyEmail || 'privacy@cudaters.in';
+  const privacyEmail = legal.privacyEmail || 'privacy@seeudaters.in';
   const privacyLastUpdated = legal.privacyLastUpdated || 'March 2026';
   const mailingAddress = legal.mailingAddress || 'Chandigarh University, Chandigarh, India';
 
@@ -82,3 +82,4 @@ export default function Privacy() {
     </div>
   );
 }
+

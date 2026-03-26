@@ -9,7 +9,7 @@ export default function TrustSection() {
           Verified. Safe. Real.
         </h2>
         <p className="text-center text-softBrown mb-12 max-w-2xl mx-auto">
-          CU Daters uses the strictest verification process. Every profile is checked for authenticity. That's why we have <strong>zero fake profiles reported in the last 90 days.</strong>
+          SeeU-Daters uses the strictest verification process. Every profile is checked for authenticity. That's why we have <strong>zero fake profiles reported in the last 90 days.</strong>
         </p>
         
         {/* 4-Step Verification Process */}
@@ -64,3 +64,4 @@ export default function TrustSection() {
     </section>
   );
 }
+

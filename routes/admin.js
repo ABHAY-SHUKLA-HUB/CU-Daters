@@ -11,9 +11,29 @@ import College from '../models/College.js';
 import SupportTicket from '../models/SupportTicket.js';
 import AppSetting from '../models/AppSetting.js';
 import Like from '../models/Like.js';
-import { verifyAdmin, verifyAdminRole, logActivity, generateToken, getClientInfo, ADMIN_ROLES } from '../utils/auth.js';
+import AdminSession from '../models/AdminSession.js';
+import ImmutableAuditLog from '../models/ImmutableAuditLog.js';
+import ModerationCase from '../models/ModerationCase.js';
+import AppealRequest from '../models/AppealRequest.js';
+import PrivacyEvent from '../models/PrivacyEvent.js';
+import DataDeletionRequest from '../models/DataDeletionRequest.js';
+import ScreenshotLog from '../models/ScreenshotLog.js';
+import { verifyAdmin, verifyAdminRole, logActivity, getClientInfo, ADMIN_ROLES } from '../utils/auth.js';
 import { sanitizeUser, errorResponse, successResponse } from '../utils/validation.js';
 import { sendApprovalEmail, sendRejectionEmail } from '../utils/emailService.js';
+import { requirePermission } from '../middleware/authorization.js';
+import { adminCriticalLimiter, enforceAdminSessionSecurity, sanitizeRequestStrings } from '../middleware/adminSecurity.js';
+import {
+  buildStepUpToken,
+  createAdminSession,
+  rotateAdminSession,
+  revokeSession,
+  revokeAllSessionsForAdmin,
+  getRefreshTokenFromRequest,
+  setAdminAuthCookies,
+  clearAdminAuthCookies,
+  verifyStepUpToken
+} from '../services/securityService.js';
 import ExcelJS from 'exceljs';
 
 const router = express.Router();
@@ -21,7 +41,9 @@ const router = express.Router();
 const FINANCE_ROLES = ['admin', 'super_admin', 'finance_admin'];
 const MODERATION_ROLES = ['admin', 'super_admin', 'moderator'];
 const SUPER_ROLES = ['admin', 'super_admin'];
-const CHAT_REVIEW_ROLES = ['super_admin', 'moderator'];
+const CHAT_REVIEW_ROLES = ['super_admin', 'moderator', 'admin'];
+const SUPPORT_ROLES = ['super_admin', 'admin', 'support_admin'];
+const ANALYST_ROLES = ['super_admin', 'admin', 'analyst'];
 
 const isAdminFullChatViewEnabled = () => String(process.env.ENABLE_ADMIN_FULL_CHAT_VIEW || '').toLowerCase() === 'true';
 
@@ -52,6 +74,38 @@ const requireSensitiveReason = (res, { reason, action, label = 'Reason' }) => {
     return false;
   }
 
+  return true;
+};
+
+const hasStepUpScope = (req, scope = 'critical:*') => {
+  const pin = req.headers['x-admin-pin'];
+  if (pin && process.env.ADMIN_PIN && pin === process.env.ADMIN_PIN) {
+    return true;
+  }
+
+  const token = req.headers['x-step-up-token'] || req.body?.stepUpToken;
+  if (!token) {
+    return false;
+  }
+
+  const decoded = verifyStepUpToken(token);
+  if (!decoded) {
+    return false;
+  }
+
+  if (String(decoded.userId) !== String(req.user?._id || '')) {
+    return false;
+  }
+
+  const scopes = Array.isArray(decoded.scopes) ? decoded.scopes : [];
+  return scopes.includes('critical:*') || scopes.includes(scope);
+};
+
+const enforceStepUp = (req, res, scope, message = 'Step-up verification required') => {
+  if (!hasStepUpScope(req, scope)) {
+    res.status(403).json(errorResponse(message));
+    return false;
+  }
   return true;
 };
 
@@ -93,14 +147,29 @@ router.post('/login', async (req, res) => {
       status: 'success'
     });
 
-    const token = generateToken(admin._id);
+    const { session, accessToken, refreshToken, csrfToken, suspicious } = await createAdminSession({
+      admin,
+      req,
+      mfaVerified: false
+    });
+
+    setAdminAuthCookies(res, { refreshToken, csrfToken });
 
     console.log(`✓ Admin logged in: ${admin._id} (${email})`);
 
     res.json(
       successResponse('Admin login successful', {
-        token,
-        user: sanitizeUser(admin)
+        token: accessToken,
+        accessToken,
+        csrfToken,
+        user: sanitizeUser(admin),
+        session: {
+          sessionId: session._id,
+          expiresAt: session.expiresAt,
+          ipAddress: session.ipAddress,
+          deviceInfo: session.deviceInfo,
+          suspicious
+        }
       })
     );
   } catch (error) {
@@ -135,8 +204,181 @@ router.post('/verify-pin', verifyAdmin, async (req, res) => {
   }
 });
 
+router.post('/refresh', async (req, res) => {
+  try {
+    const refreshToken = getRefreshTokenFromRequest(req);
+    if (!refreshToken) {
+      clearAdminAuthCookies(res);
+      return res.status(401).json(errorResponse('Refresh token missing'));
+    }
+
+    const rotated = await rotateAdminSession({ refreshToken, req });
+    if (!rotated) {
+      clearAdminAuthCookies(res);
+      return res.status(401).json(errorResponse('Refresh token invalid or expired'));
+    }
+
+    setAdminAuthCookies(res, {
+      refreshToken: rotated.refreshToken,
+      csrfToken: rotated.csrfToken
+    });
+
+    return res.json(successResponse('Admin token refreshed', {
+      token: rotated.accessToken,
+      accessToken: rotated.accessToken,
+      csrfToken: rotated.csrfToken,
+      sessionId: rotated.session._id
+    }));
+  } catch (error) {
+    console.error('❌ Admin Refresh Error:', error);
+    clearAdminAuthCookies(res);
+    return res.status(500).json(errorResponse('Failed to refresh admin session'));
+  }
+});
+
+router.post('/logout', verifyAdmin, async (req, res) => {
+  try {
+    if (req.authSessionId) {
+      await revokeSession({ sessionId: req.authSessionId, reason: 'logout' });
+    }
+    clearAdminAuthCookies(res);
+    return res.json(successResponse('Logged out from current session'));
+  } catch (error) {
+    console.error('❌ Admin Logout Error:', error);
+    return res.status(500).json(errorResponse('Failed to logout admin session'));
+  }
+});
+
+router.post('/logout-all', verifyAdmin, async (req, res) => {
+  try {
+    await revokeAllSessionsForAdmin({ adminId: req.user._id, reason: 'logout_all_by_admin' });
+    clearAdminAuthCookies(res);
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'admin_logout_all_sessions',
+      description: 'Admin logged out all active sessions',
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('All sessions logged out successfully'));
+  } catch (error) {
+    console.error('❌ Admin Logout All Error:', error);
+    return res.status(500).json(errorResponse('Failed to logout all sessions'));
+  }
+});
+
+router.get('/sessions', verifyAdmin, async (req, res) => {
+  try {
+    const sessions = await AdminSession.find({ adminId: req.user._id })
+      .sort({ lastActivityAt: -1 })
+      .limit(100)
+      .lean();
+
+    return res.json(successResponse('Admin sessions fetched', {
+      sessions: sessions.map((session) => ({
+        sessionId: session._id,
+        role: session.role,
+        ipAddress: session.ipAddress,
+        deviceInfo: session.deviceInfo,
+        userAgent: session.userAgent,
+        lastActivityAt: session.lastActivityAt,
+        expiresAt: session.expiresAt,
+        revokedAt: session.revokedAt,
+        suspicious: Boolean(session.suspicious),
+        isCurrent: String(session._id) === String(req.authSessionId || '')
+      }))
+    }));
+  } catch (error) {
+    console.error('❌ Admin Sessions Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch admin sessions'));
+  }
+});
+
+router.delete('/sessions/:sessionId', verifyAdmin, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await AdminSession.findOne({ _id: sessionId, adminId: req.user._id });
+    if (!session) {
+      return res.status(404).json(errorResponse('Session not found'));
+    }
+
+    await revokeSession({ sessionId, reason: 'manual_session_revoke' });
+    return res.json(successResponse('Session revoked successfully'));
+  } catch (error) {
+    console.error('❌ Revoke Session Error:', error);
+    return res.status(500).json(errorResponse('Failed to revoke session'));
+  }
+});
+
+router.post('/step-up/verify', verifyAdmin, async (req, res) => {
+  try {
+    const { pin, password, scopes = [] } = req.body || {};
+    const allowedScopes = [
+      'critical:delete_user',
+      'critical:ban_user',
+      'critical:freeze_chat',
+      'critical:pricing_change',
+      'critical:payment_override',
+      'critical:view_private_chat',
+      'critical:settings_change',
+      'critical:*'
+    ];
+
+    const requestedScopes = Array.isArray(scopes) && scopes.length
+      ? scopes.filter((scope) => allowedScopes.includes(scope))
+      : ['critical:*'];
+
+    let verified = false;
+    let method = 'none';
+
+    if (pin && process.env.ADMIN_PIN && String(pin) === String(process.env.ADMIN_PIN)) {
+      verified = true;
+      method = 'pin';
+    }
+
+    if (!verified && password) {
+      verified = await req.user.comparePassword(String(password));
+      method = verified ? 'password' : 'none';
+    }
+
+    if (!verified) {
+      return res.status(403).json(errorResponse('Step-up verification failed'));
+    }
+
+    const token = buildStepUpToken({
+      userId: req.user._id.toString(),
+      role: req.user.role,
+      sessionId: req.authSessionId,
+      scopes: requestedScopes
+    });
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'admin_step_up_verified',
+      description: `Admin completed step-up verification via ${method}`,
+      metadata: { method, requestedScopes },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('Step-up verified', {
+      token,
+      method,
+      scopes: requestedScopes,
+      expiresInSeconds: 300
+    }));
+  } catch (error) {
+    console.error('❌ Step-up Verify Error:', error);
+    return res.status(500).json(errorResponse('Failed to complete step-up verification'));
+  }
+});
+
+router.use(verifyAdmin, adminCriticalLimiter, sanitizeRequestStrings, enforceAdminSessionSecurity);
+
 // ===== OVERVIEW STATS =====
-router.get('/stats/overview', verifyAdmin, async (req, res) => {
+router.get('/stats/overview', requirePermission('admin.dashboard.read'), async (req, res) => {
   try {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -248,7 +490,7 @@ router.get('/stats/overview', verifyAdmin, async (req, res) => {
 });
 
 // ===== PROFILE APPROVAL QUEUE =====
-router.get('/profile-approvals', verifyAdmin, async (req, res) => {
+router.get('/profile-approvals', requirePermission('admin.users.read'), async (req, res) => {
   try {
     const status = req.query.status || 'pending';
     const allowed = ['pending', 'approved', 'rejected', 'needs_correction', 'all'];
@@ -275,7 +517,7 @@ router.get('/profile-approvals', verifyAdmin, async (req, res) => {
 });
 
 // ===== GET PENDING REGISTRATIONS FOR APPROVAL =====
-router.get('/registration-approvals', verifyAdmin, async (req, res) => {
+router.get('/registration-approvals', requirePermission('admin.users.read'), async (req, res) => {
   try {
     // Get users with status = 'pending' (pending signup approval)
     const pendingUsers = await User.find({ status: 'pending', role: 'user' })
@@ -294,7 +536,7 @@ router.get('/registration-approvals', verifyAdmin, async (req, res) => {
 });
 
 // ===== APPROVE PENDING USER REGISTRATION =====
-router.put('/registrations/:userId/approve', verifyAdmin, verifyAdminPin, async (req, res) => {
+router.put('/registrations/:userId/approve', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
   try {
     const { adminNotes } = req.body;
 
@@ -302,6 +544,13 @@ router.put('/registrations/:userId/approve', verifyAdmin, verifyAdminPin, async 
     if (!user) {
       return res.status(404).json(errorResponse('User not found'));
     }
+
+    const beforeState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
 
     if (user.status !== 'pending') {
       return res.status(400).json(errorResponse('User registration is not pending'));
@@ -313,6 +562,13 @@ router.put('/registrations/:userId/approve', verifyAdmin, verifyAdminPin, async 
     user.profile_approval_status = 'approved';
     user.updated_at = new Date();
     await user.save();
+
+    const afterState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
 
     console.log(`✓ User registration approved: ${user.email}`);
 
@@ -332,6 +588,8 @@ router.put('/registrations/:userId/approve', verifyAdmin, verifyAdminPin, async 
       target_user_id: user._id,
       target_type: 'user',
       target_id: user._id,
+      before_state: beforeState,
+      after_state: afterState,
       metadata: { adminNotes },
       ...getClientInfo(req),
       status: 'success'
@@ -345,7 +603,7 @@ router.put('/registrations/:userId/approve', verifyAdmin, verifyAdminPin, async 
 });
 
 // ===== REJECT PENDING USER REGISTRATION =====
-router.put('/registrations/:userId/reject', verifyAdmin, verifyAdminPin, async (req, res) => {
+router.put('/registrations/:userId/reject', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
   try {
     const { reason } = req.body;
 
@@ -358,6 +616,13 @@ router.put('/registrations/:userId/reject', verifyAdmin, verifyAdminPin, async (
       return res.status(404).json(errorResponse('User not found'));
     }
 
+    const beforeState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
+
     if (user.status !== 'pending') {
       return res.status(400).json(errorResponse('User registration is not pending'));
     }
@@ -368,6 +633,13 @@ router.put('/registrations/:userId/reject', verifyAdmin, verifyAdminPin, async (
     user.is_verified = false;
     user.updated_at = new Date();
     await user.save();
+
+    const afterState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
 
     console.log(`✓ User registration rejected: ${user.email} - Reason: ${reason}`);
 
@@ -387,6 +659,8 @@ router.put('/registrations/:userId/reject', verifyAdmin, verifyAdminPin, async (
       target_user_id: user._id,
       target_type: 'user',
       target_id: user._id,
+      before_state: beforeState,
+      after_state: afterState,
       metadata: { reason },
       ...getClientInfo(req),
       status: 'success'
@@ -399,7 +673,7 @@ router.put('/registrations/:userId/reject', verifyAdmin, verifyAdminPin, async (
   }
 });
 
-router.put('/users/:userId/profile-approval', verifyAdmin, verifyAdminPin, async (req, res) => {
+router.put('/users/:userId/profile-approval', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
   try {
     const { status, adminNotes } = req.body;
     if (!['approved', 'rejected', 'needs_correction', 'pending'].includes(status)) {
@@ -411,12 +685,26 @@ router.put('/users/:userId/profile-approval', verifyAdmin, verifyAdminPin, async
       return res.status(404).json(errorResponse('User not found'));
     }
 
+    const beforeState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
+
     user.profile_approval_status = status;
     user.profile_admin_notes = adminNotes || '';
     user.is_verified = status === 'approved';
     user.status = status === 'approved' ? 'active' : user.status;
     user.updated_at = new Date();
     await user.save();
+
+    const afterState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
 
     await logActivity({
       admin_id: req.user._id,
@@ -425,6 +713,8 @@ router.put('/users/:userId/profile-approval', verifyAdmin, verifyAdminPin, async
       target_user_id: user._id,
       target_type: 'user',
       target_id: user._id,
+      before_state: beforeState,
+      after_state: afterState,
       metadata: { status, adminNotes },
       ...getClientInfo(req)
     });
@@ -437,13 +727,26 @@ router.put('/users/:userId/profile-approval', verifyAdmin, verifyAdminPin, async
 });
 
 // ===== USER MODERATION ACTIONS =====
-router.put('/users/:userId/moderation', verifyAdmin, verifyAdminPin, async (req, res) => {
+router.put('/users/:userId/moderation', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
   try {
     const { action, reason, suspendedUntil } = req.body;
     const allowed = ['ban', 'unban', 'suspend', 'unsuspend', 'warn', 'freeze_chat', 'unfreeze_chat', 'delete'];
+    const criticalActions = new Set(['ban', 'suspend', 'freeze_chat', 'delete']);
 
     if (!allowed.includes(action)) {
       return res.status(400).json(errorResponse('Invalid moderation action'));
+    }
+
+    if (criticalActions.has(String(action))) {
+      const actionScopeMap = {
+        ban: 'critical:ban_user',
+        suspend: 'critical:ban_user',
+        freeze_chat: 'critical:freeze_chat',
+        delete: 'critical:delete_user'
+      };
+      if (!enforceStepUp(req, res, actionScopeMap[action], `Step-up verification required for ${action}`)) {
+        return;
+      }
     }
 
     if (!requireSensitiveReason(res, { reason, action })) {
@@ -454,6 +757,13 @@ router.put('/users/:userId/moderation', verifyAdmin, verifyAdminPin, async (req,
     if (!user) {
       return res.status(404).json(errorResponse('User not found'));
     }
+
+    const beforeState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
 
     if (action === 'ban') user.status = 'banned';
     if (action === 'unban') user.status = 'active';
@@ -473,6 +783,13 @@ router.put('/users/:userId/moderation', verifyAdmin, verifyAdminPin, async (req,
     user.updated_at = new Date();
     await user.save();
 
+    const afterState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
+
     await logActivity({
       admin_id: req.user._id,
       action: `admin_${action}`,
@@ -480,6 +797,9 @@ router.put('/users/:userId/moderation', verifyAdmin, verifyAdminPin, async (req,
       target_user_id: user._id,
       target_type: 'user',
       target_id: user._id,
+      reason,
+      before_state: beforeState,
+      after_state: afterState,
       metadata: { reason, suspendedUntil },
       ...getClientInfo(req)
     });
@@ -492,7 +812,7 @@ router.put('/users/:userId/moderation', verifyAdmin, verifyAdminPin, async (req,
 });
 
 // ===== MATCH CONTROL =====
-router.get('/matches', verifyAdmin, async (req, res) => {
+router.get('/matches', requirePermission('admin.users.read'), async (req, res) => {
   try {
     const matches = await Match.find({})
       .populate('users', 'name email status')
@@ -507,7 +827,7 @@ router.get('/matches', verifyAdmin, async (req, res) => {
   }
 });
 
-router.delete('/matches/:matchId', verifyAdmin, verifyAdminPin, async (req, res) => {
+router.delete('/matches/:matchId', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
   try {
     const match = await Match.findById(req.params.matchId);
     if (!match) {
@@ -536,7 +856,7 @@ router.delete('/matches/:matchId', verifyAdmin, verifyAdminPin, async (req, res)
 });
 
 // ===== CHAT METADATA / MODERATION =====
-router.get('/chats/metadata', verifyAdmin, async (req, res) => {
+router.get('/chats/metadata', requirePermission('admin.chat.read_metadata'), async (req, res) => {
   try {
     const chats = await Conversation.find({})
       .populate('participants', 'name email status chat_frozen')
@@ -568,7 +888,7 @@ router.get('/chats/metadata', verifyAdmin, async (req, res) => {
 });
 
 // ===== PAYMENTS / SUBSCRIPTION CONTROL =====
-router.get('/payments', verifyAdmin, verifyAdminRole(FINANCE_ROLES), async (req, res) => {
+router.get('/payments', requirePermission('admin.payments.read'), verifyAdminRole(FINANCE_ROLES), async (req, res) => {
   try {
     const { status, plan, from, to } = req.query;
     const filter = {};
@@ -593,7 +913,7 @@ router.get('/payments', verifyAdmin, verifyAdminRole(FINANCE_ROLES), async (req,
   }
 });
 
-router.get('/payments/summary', verifyAdmin, verifyAdminRole(FINANCE_ROLES), async (req, res) => {
+router.get('/payments/summary', requirePermission('admin.payments.read'), verifyAdminRole(FINANCE_ROLES), async (req, res) => {
   try {
     const [summary] = await Subscription.aggregate([
       {
@@ -627,8 +947,12 @@ router.get('/payments/summary', verifyAdmin, verifyAdminRole(FINANCE_ROLES), asy
   }
 });
 
-router.post('/payments/membership-action', verifyAdmin, verifyAdminRole(FINANCE_ROLES), verifyAdminPin, async (req, res) => {
+router.post('/payments/membership-action', requirePermission('admin.payments.override'), verifyAdminRole(FINANCE_ROLES), verifyAdminPin, async (req, res) => {
   try {
+    if (!enforceStepUp(req, res, 'critical:payment_override', 'Step-up verification required for payment override')) {
+      return;
+    }
+
     const {
       userId,
       action = 'grant',
@@ -654,6 +978,13 @@ router.post('/payments/membership-action', verifyAdmin, verifyAdminRole(FINANCE_
     if (!user) {
       return res.status(404).json(errorResponse('User not found'));
     }
+
+    const beforeState = {
+      subscription_status: user.subscription_status,
+      subscription_plan: user.subscription_plan,
+      subscription_start_date: user.subscription_start_date,
+      subscription_expiry_date: user.subscription_expiry_date
+    };
 
     let nextStatus = user.subscription_status || 'none';
     let nextStartDate = user.subscription_start_date || null;
@@ -701,6 +1032,13 @@ router.post('/payments/membership-action', verifyAdmin, verifyAdminRole(FINANCE_
     user.updated_at = new Date();
     await user.save();
 
+    const afterState = {
+      subscription_status: user.subscription_status,
+      subscription_plan: user.subscription_plan,
+      subscription_start_date: user.subscription_start_date,
+      subscription_expiry_date: user.subscription_expiry_date
+    };
+
     await logActivity({
       admin_id: req.user._id,
       action: `membership_${action}`,
@@ -708,6 +1046,9 @@ router.post('/payments/membership-action', verifyAdmin, verifyAdminRole(FINANCE_
       target_type: 'user',
       target_id: user._id.toString(),
       target_user_id: user._id,
+      reason: note,
+      before_state: beforeState,
+      after_state: afterState,
       metadata: {
         action,
         plan,
@@ -733,7 +1074,7 @@ router.post('/payments/membership-action', verifyAdmin, verifyAdminRole(FINANCE_
 });
 
 // ===== REPORTS & SAFETY =====
-router.get('/reports', verifyAdmin, verifyAdminRole(MODERATION_ROLES), async (req, res) => {
+router.get('/reports', requirePermission('admin.reports.read'), verifyAdminRole(MODERATION_ROLES), async (req, res) => {
   try {
     const { status, priority, targetType } = req.query;
     const filter = {};
@@ -756,7 +1097,7 @@ router.get('/reports', verifyAdmin, verifyAdminRole(MODERATION_ROLES), async (re
   }
 });
 
-router.post('/reports/:reportId/resolve', verifyAdmin, verifyAdminRole(MODERATION_ROLES), verifyAdminPin, async (req, res) => {
+router.post('/reports/:reportId/resolve', requirePermission('admin.reports.resolve'), verifyAdminRole(MODERATION_ROLES), verifyAdminPin, async (req, res) => {
   try {
     const { status = 'resolved', moderationNotes = '' } = req.body;
     if (!requireSensitiveReason(res, { reason: moderationNotes, action: status, label: 'Moderation note' })) {
@@ -793,7 +1134,7 @@ router.post('/reports/:reportId/resolve', verifyAdmin, verifyAdminRole(MODERATIO
 });
 
 // ===== CONTENT MODERATION =====
-router.get('/moderation/photos', verifyAdmin, verifyAdminRole(MODERATION_ROLES), async (req, res) => {
+router.get('/moderation/photos', requirePermission('admin.reports.read'), verifyAdminRole(MODERATION_ROLES), async (req, res) => {
   try {
     const users = await User.find({
       role: 'user',
@@ -812,7 +1153,7 @@ router.get('/moderation/photos', verifyAdmin, verifyAdminRole(MODERATION_ROLES),
 });
 
 // ===== COLLEGE / CAMPUS MANAGEMENT =====
-router.get('/colleges', verifyAdmin, async (req, res) => {
+router.get('/colleges', requirePermission('admin.settings.read'), async (req, res) => {
   try {
     const colleges = await College.find({}).sort({ name: 1 }).lean();
     return res.json(successResponse('Colleges fetched', { data: colleges }));
@@ -822,7 +1163,7 @@ router.get('/colleges', verifyAdmin, async (req, res) => {
   }
 });
 
-router.post('/colleges', verifyAdmin, verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
+router.post('/colleges', requirePermission('admin.colleges.write'), verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
   try {
     const { name, domain, verification_required = true, onboarding_enabled = true, campus_notes = '' } = req.body;
     if (!name || !domain) {
@@ -847,7 +1188,7 @@ router.post('/colleges', verifyAdmin, verifyAdminRole(SUPER_ROLES), verifyAdminP
   }
 });
 
-router.put('/colleges/:collegeId', verifyAdmin, verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
+router.put('/colleges/:collegeId', requirePermission('admin.colleges.write'), verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
   try {
     const updated = await College.findByIdAndUpdate(req.params.collegeId, req.body, { new: true, runValidators: true });
     if (!updated) {
@@ -871,7 +1212,7 @@ router.put('/colleges/:collegeId', verifyAdmin, verifyAdminRole(SUPER_ROLES), ve
 });
 
 // ===== SUPPORT / OPS =====
-router.get('/support/tickets', verifyAdmin, verifyAdminRole(MODERATION_ROLES), async (req, res) => {
+router.get('/support/tickets', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
   try {
     const { status, priority } = req.query;
     const filter = {};
@@ -892,7 +1233,7 @@ router.get('/support/tickets', verifyAdmin, verifyAdminRole(MODERATION_ROLES), a
   }
 });
 
-router.put('/support/tickets/:ticketId', verifyAdmin, verifyAdminRole(MODERATION_ROLES), verifyAdminPin, async (req, res) => {
+router.put('/support/tickets/:ticketId', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), verifyAdminPin, async (req, res) => {
   try {
     const ticket = await SupportTicket.findByIdAndUpdate(req.params.ticketId, req.body, { new: true, runValidators: true });
     if (!ticket) {
@@ -917,7 +1258,7 @@ router.put('/support/tickets/:ticketId', verifyAdmin, verifyAdminRole(MODERATION
 });
 
 // ===== ANALYTICS =====
-router.get('/analytics/engagement', verifyAdmin, async (req, res) => {
+router.get('/analytics/engagement', requirePermission('admin.dashboard.read'), async (req, res) => {
   try {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -953,7 +1294,7 @@ router.get('/analytics/engagement', verifyAdmin, async (req, res) => {
 });
 
 // ===== PLATFORM SETTINGS =====
-router.get('/settings', verifyAdmin, async (req, res) => {
+router.get('/settings', requirePermission('admin.settings.read'), async (req, res) => {
   try {
     const settings = await AppSetting.find({}).sort({ key: 1 }).lean();
     return res.json(successResponse('Platform settings fetched', { data: settings }));
@@ -963,12 +1304,18 @@ router.get('/settings', verifyAdmin, async (req, res) => {
   }
 });
 
-router.put('/settings', verifyAdmin, verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
+router.put('/settings', requirePermission('admin.settings.write'), verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
   try {
+    if (!enforceStepUp(req, res, 'critical:settings_change', 'Step-up verification required for settings updates')) {
+      return;
+    }
+
     const { key, value, description } = req.body;
     if (!key) {
       return res.status(400).json(errorResponse('Setting key is required'));
     }
+
+    const existing = await AppSetting.findOne({ key }).lean();
 
     const setting = await AppSetting.findOneAndUpdate(
       { key },
@@ -982,6 +1329,9 @@ router.put('/settings', verifyAdmin, verifyAdminRole(SUPER_ROLES), verifyAdminPi
       description: `Platform setting ${key} updated`,
       target_type: 'setting',
       target_id: setting._id.toString(),
+      reason: description || 'admin_setting_change',
+      before_state: existing ? { value: existing.value, description: existing.description } : null,
+      after_state: { value: setting.value, description: setting.description },
       metadata: { key, value },
       ...getClientInfo(req)
     });
@@ -994,7 +1344,7 @@ router.put('/settings', verifyAdmin, verifyAdminRole(SUPER_ROLES), verifyAdminPi
 });
 
 // ===== GET ALL USERS =====
-router.get('/users', verifyAdmin, async (req, res) => {
+router.get('/users', requirePermission('admin.users.read'), async (req, res) => {
   try {
     const { status, role, search } = req.query;
     const page = parseInt(req.query.page) || 1;
@@ -1037,7 +1387,7 @@ router.get('/users', verifyAdmin, async (req, res) => {
 });
 
 // ===== GET USER DETAIL =====
-router.get('/users/:userId', verifyAdmin, async (req, res) => {
+router.get('/users/:userId', requirePermission('admin.users.read'), async (req, res) => {
   try {
     const user = await User.findById(req.params.userId)
       .select('-password');
@@ -1069,7 +1419,7 @@ router.get('/users/:userId', verifyAdmin, async (req, res) => {
 });
 
 // ===== USER ACTIVITY (MATCHES, PENDING LIKES, CHATS) =====
-router.get('/users/:userId/activity', verifyAdmin, async (req, res) => {
+router.get('/users/:userId/activity', requirePermission('admin.users.read'), async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findById(userId).select('_id name email role status');
@@ -1133,7 +1483,7 @@ router.get('/users/:userId/activity', verifyAdmin, async (req, res) => {
 });
 
 // ===== CONVERSATION SAFETY METADATA (NO MESSAGE BODIES) =====
-router.get('/chats/read-only', verifyAdmin, async (req, res) => {
+router.get('/chats/read-only', requirePermission('admin.chat.read_metadata'), async (req, res) => {
   try {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit || 20)));
     const conversations = await Conversation.find({})
@@ -1212,8 +1562,17 @@ router.get('/chats/read-only', verifyAdmin, async (req, res) => {
 });
 
 // ===== TEST MODE FULL CONVERSATION VISIBILITY (FEATURE FLAGGED) =====
-router.get('/chats/full-view', verifyAdmin, verifyAdminRole(MODERATION_ROLES), async (req, res) => {
+router.get('/chats/full-view', requirePermission('admin.chat.read_sensitive'), verifyAdminRole(MODERATION_ROLES), async (req, res) => {
   try {
+    if (!enforceStepUp(req, res, 'critical:view_private_chat', 'Step-up verification required to view private chats')) {
+      return;
+    }
+
+    const accessReason = String(req.query.reason || '').trim();
+    if (!accessReason || accessReason.length < 5) {
+      return res.status(400).json(errorResponse('Reason is required to access private chat full view (min 5 chars)'));
+    }
+
     if (!isAdminFullChatViewEnabled()) {
       return res.status(403).json(errorResponse('Full chat visibility is disabled. Set ENABLE_ADMIN_FULL_CHAT_VIEW=true for test environments only.'));
     }
@@ -1316,6 +1675,7 @@ router.get('/chats/full-view', verifyAdmin, verifyAdminRole(MODERATION_ROLES), a
       target_type: 'chat',
       metadata: {
         mode: 'full',
+        reason: accessReason,
         limit,
         messageLimit,
         featureFlag: 'ENABLE_ADMIN_FULL_CHAT_VIEW'
@@ -1338,9 +1698,13 @@ router.get('/chats/full-view', verifyAdmin, verifyAdminRole(MODERATION_ROLES), a
 });
 
 // ===== SENSITIVE CONVERSATION REVIEW (ROLE + REASON + AUDIT REQUIRED) =====
-router.post('/chats/review-access', verifyAdmin, verifyAdminRole(CHAT_REVIEW_ROLES), async (req, res) => {
+router.post('/chats/review-access', requirePermission('admin.chat.read_sensitive'), verifyAdminRole(CHAT_REVIEW_ROLES), async (req, res) => {
   try {
     const { conversationId, reason, notes } = req.body;
+
+    if (!enforceStepUp(req, res, 'critical:view_private_chat', 'Step-up verification required for sensitive conversation review')) {
+      return;
+    }
 
     if (!conversationId) {
       return res.status(400).json(errorResponse('conversationId is required'));
@@ -1408,6 +1772,11 @@ router.post('/chats/review-access', verifyAdmin, verifyAdminRole(CHAT_REVIEW_ROL
       reportCount: relatedReports.length,
       messageCount,
       messages: messages.reverse(),
+      accessGrantedBy: {
+        adminId: req.user._id,
+        role: req.user.role,
+        at: new Date().toISOString()
+      },
       auditLogged: true
     }));
   } catch (error) {
@@ -1417,9 +1786,13 @@ router.post('/chats/review-access', verifyAdmin, verifyAdminRole(CHAT_REVIEW_ROL
 });
 
 // ===== BAN/UNBAN USER =====
-router.put('/users/:userId/ban', verifyAdmin, async (req, res) => {
+router.put('/users/:userId/ban', requirePermission('admin.users.moderate'), async (req, res) => {
   try {
     const { action, reason } = req.body; // action: 'ban' or 'unban'
+
+    if (action === 'ban' && !enforceStepUp(req, res, 'critical:ban_user', 'Step-up verification required before banning user')) {
+      return;
+    }
 
     if (!['ban', 'unban'].includes(action)) {
       return res.status(400).json(errorResponse('Invalid action'));
@@ -1430,9 +1803,13 @@ router.put('/users/:userId/ban', verifyAdmin, async (req, res) => {
       return res.status(404).json(errorResponse('User not found'));
     }
 
+    const beforeState = { status: user.status };
+
     user.status = action === 'ban' ? 'banned' : 'active';
     user.updated_at = new Date();
     await user.save();
+
+    const afterState = { status: user.status };
 
     // Log activity
     await logActivity({
@@ -1442,6 +1819,9 @@ router.put('/users/:userId/ban', verifyAdmin, async (req, res) => {
       target_user_id: user._id,
       target_type: 'user',
       target_id: user._id,
+      reason: reason || `${action}_user`,
+      before_state: beforeState,
+      after_state: afterState,
       ...getClientInfo(req),
       status: 'success',
       metadata: { reason }
@@ -1457,8 +1837,12 @@ router.put('/users/:userId/ban', verifyAdmin, async (req, res) => {
 });
 
 // ===== DELETE USER (PERMANENT HARD DELETE WITH CASCADE) =====
-router.delete('/users/:userId', verifyAdmin, verifyAdminPin, async (req, res) => {
+router.delete('/users/:userId', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
   try {
+    if (!enforceStepUp(req, res, 'critical:delete_user', 'Step-up verification required before deleting user')) {
+      return;
+    }
+
     const { reason } = req.body;
     const userId = req.params.userId;
 
@@ -1518,6 +1902,18 @@ router.delete('/users/:userId', verifyAdmin, verifyAdminPin, async (req, res) =>
       target_user_id: user._id,
       target_type: 'user',
       target_id: user._id,
+      reason: reason || 'No reason provided',
+      before_state: {
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        status: user.status,
+        role: user.role,
+        warnings_count: user.warnings_count,
+        chat_frozen: user.chat_frozen,
+        subscription_status: user.subscription_status
+      },
+      after_state: null,
       ...getClientInfo(req),
       status: 'success',
       metadata: {
@@ -1565,7 +1961,7 @@ router.delete('/users/:userId', verifyAdmin, verifyAdminPin, async (req, res) =>
 });
 
 // ===== GET ALL SUBSCRIPTIONS =====
-router.get('/subscriptions', verifyAdmin, verifyAdminRole(FINANCE_ROLES), async (req, res) => {
+router.get('/subscriptions', requirePermission('admin.payments.read'), verifyAdminRole(FINANCE_ROLES), async (req, res) => {
   try {
     const { status, plan } = req.query;
     const page = parseInt(req.query.page) || 1;
@@ -1601,8 +1997,12 @@ router.get('/subscriptions', verifyAdmin, verifyAdminRole(FINANCE_ROLES), async 
 });
 
 // ===== APPROVE SUBSCRIPTION =====
-router.put('/subscriptions/:subscriptionId/approve', verifyAdmin, verifyAdminRole(FINANCE_ROLES), async (req, res) => {
+router.put('/subscriptions/:subscriptionId/approve', requirePermission('admin.payments.override'), verifyAdminRole(FINANCE_ROLES), async (req, res) => {
   try {
+    if (!enforceStepUp(req, res, 'critical:payment_override', 'Step-up verification required for manual premium approval')) {
+      return;
+    }
+
     const { adminNotes } = req.body;
 
     const subscription = await Subscription.findById(req.params.subscriptionId);
@@ -1661,8 +2061,12 @@ router.put('/subscriptions/:subscriptionId/approve', verifyAdmin, verifyAdminRol
 });
 
 // ===== REJECT SUBSCRIPTION =====
-router.put('/subscriptions/:subscriptionId/reject', verifyAdmin, verifyAdminRole(FINANCE_ROLES), async (req, res) => {
+router.put('/subscriptions/:subscriptionId/reject', requirePermission('admin.payments.override'), verifyAdminRole(FINANCE_ROLES), async (req, res) => {
   try {
+    if (!enforceStepUp(req, res, 'critical:payment_override', 'Step-up verification required for subscription rejection')) {
+      return;
+    }
+
     const { rejectionReason, adminNotes } = req.body;
 
     if (!rejectionReason) {
@@ -1713,7 +2117,7 @@ router.put('/subscriptions/:subscriptionId/reject', verifyAdmin, verifyAdminRole
 });
 
 // ===== GET ACTIVITY LOGS =====
-router.get('/activity-logs', verifyAdmin, async (req, res) => {
+router.get('/activity-logs', requirePermission('admin.audit.read'), async (req, res) => {
   try {
     const { action, userId, adminId } = req.query;
     const page = parseInt(req.query.page) || 1;
@@ -1749,8 +2153,637 @@ router.get('/activity-logs', verifyAdmin, async (req, res) => {
   }
 });
 
+router.get('/privacy-events/screenshots', requirePermission('admin.audit.read'), async (req, res) => {
+  try {
+    const {
+      actorUserId,
+      targetUserId,
+      conversationId,
+      platform,
+      suspicious,
+      from,
+      to,
+      page = 1,
+      limit = 50
+    } = req.query;
+
+    const safeLimit = Math.min(200, Math.max(1, Number(limit)));
+    const safePage = Math.max(1, Number(page));
+    const skip = (safePage - 1) * safeLimit;
+
+    const filter = {};
+    if (actorUserId) filter.actorUserId = actorUserId;
+    if (targetUserId) filter.targetUserId = targetUserId;
+    if (conversationId) filter.conversationId = conversationId;
+    if (platform) filter.platform = String(platform).toLowerCase();
+    if (suspicious !== undefined) {
+      filter.suspicious = String(suspicious).toLowerCase() === 'true';
+    }
+    if (from || to) {
+      filter.occurredAt = {};
+      if (from) filter.occurredAt.$gte = new Date(from);
+      if (to) filter.occurredAt.$lte = new Date(to);
+    }
+
+    const [total, rows] = await Promise.all([
+      ScreenshotLog.countDocuments(filter),
+      ScreenshotLog.find(filter)
+        .populate('actorUserId', 'name email role')
+        .populate('targetUserId', 'name email status')
+        .sort({ occurredAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean()
+    ]);
+
+    const actorIds = [...new Set(rows.map((row) => String(row.actorUserId?._id || row.actorUserId || '')).filter(Boolean))];
+    const frequencyRows = actorIds.length
+      ? await ScreenshotLog.aggregate([
+          {
+            $match: {
+              actorUserId: { $in: actorIds.map((id) => new mongoose.Types.ObjectId(id)) },
+              occurredAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+            }
+          },
+          {
+            $group: {
+              _id: '$actorUserId',
+              count7d: { $sum: 1 }
+            }
+          }
+        ])
+      : [];
+
+    const frequencyMap = new Map(frequencyRows.map((row) => [String(row._id), Number(row.count7d || 0)]));
+    const data = rows.map((row) => ({
+      ...row,
+      frequency7d: frequencyMap.get(String(row.actorUserId?._id || row.actorUserId || '')) || 0
+    }));
+
+    return res.json(successResponse('Screenshot privacy events fetched', {
+      total,
+      page: safePage,
+      limit: safeLimit,
+      pages: Math.ceil(total / safeLimit),
+      data
+    }));
+  } catch (error) {
+    console.error('❌ Screenshot Events Fetch Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch screenshot privacy events'));
+  }
+});
+
+router.get('/privacy-events/screenshots/risk', requirePermission('admin.audit.read'), async (req, res) => {
+  try {
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit || 100)));
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [grouped, perTarget] = await Promise.all([
+      ScreenshotLog.aggregate([
+        {
+          $group: {
+            _id: '$actorUserId',
+            totalScreenshots: { $sum: 1 },
+            uniqueTargets: { $addToSet: '$targetUserId' },
+            screenshots24h: {
+              $sum: {
+                $cond: [{ $gte: ['$occurredAt', since24h] }, 1, 0]
+              }
+            },
+            averageRiskScore: { $avg: '$riskScore' },
+            suspiciousCount: {
+              $sum: {
+                $cond: ['$suspicious', 1, 0]
+              }
+            },
+            lastOccurredAt: { $max: '$occurredAt' }
+          }
+        },
+        {
+          $project: {
+            totalScreenshots: 1,
+            screenshots24h: 1,
+            uniqueTargets: {
+              $size: {
+                $filter: {
+                  input: '$uniqueTargets',
+                  as: 'targetId',
+                  cond: { $ne: ['$$targetId', null] }
+                }
+              }
+            },
+            averageRiskScore: { $round: ['$averageRiskScore', 2] },
+            suspiciousCount: 1,
+            lastOccurredAt: 1
+          }
+        }
+      ]),
+      ScreenshotLog.aggregate([
+        {
+          $group: {
+            _id: { actorUserId: '$actorUserId', targetUserId: '$targetUserId' },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $group: {
+            _id: '$_id.actorUserId',
+            maxTargetCount: { $max: '$count' }
+          }
+        }
+      ])
+    ]);
+
+    const maxTargetMap = new Map(perTarget.map((row) => [String(row._id), Number(row.maxTargetCount || 0)]));
+
+    const actorIds = grouped
+      .map((row) => row._id)
+      .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+
+    const actorUsers = actorIds.length
+      ? await User.find({ _id: { $in: actorIds } }).select('name email role status').lean()
+      : [];
+
+    const actorMap = new Map(actorUsers.map((user) => [String(user._id), user]));
+
+    const withRisk = grouped.map((row) => {
+      const actorId = String(row._id || '');
+      const maxTargetCount = maxTargetMap.get(actorId) || 0;
+      const computedRiskScore = Math.min(
+        100,
+        (Number(row.totalScreenshots || 0) * 8)
+          + (Number(row.uniqueTargets || 0) * 12)
+          + (Number(row.screenshots24h || 0) * 15)
+          + (maxTargetCount * 10)
+          + Math.round(Number(row.averageRiskScore || 0) * 0.35)
+      );
+
+      return {
+        actorUserId: actorId,
+        actor: actorMap.get(actorId) || null,
+        totalScreenshots: Number(row.totalScreenshots || 0),
+        screenshots24h: Number(row.screenshots24h || 0),
+        uniqueTargets: Number(row.uniqueTargets || 0),
+        suspiciousCount: Number(row.suspiciousCount || 0),
+        averageRiskScore: Number(row.averageRiskScore || 0),
+        maxTargetCount,
+        riskScore: computedRiskScore,
+        suspicious: computedRiskScore >= 65 || Number(row.screenshots24h || 0) >= 3 || maxTargetCount >= 4,
+        lastOccurredAt: row.lastOccurredAt || null
+      };
+    });
+
+    withRisk.sort((a, b) => b.riskScore - a.riskScore);
+
+    return res.json(successResponse('Screenshot risk profiles fetched', {
+      data: withRisk.slice(0, limit)
+    }));
+  } catch (error) {
+    console.error('❌ Screenshot Risk Summary Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch screenshot risk profiles'));
+  }
+});
+
+router.get('/privacy-events/screenshots/export', requirePermission('admin.audit.export'), async (req, res) => {
+  try {
+    const limit = Math.min(10000, Math.max(1, Number(req.query.limit || 5000)));
+    const rows = await ScreenshotLog.find({})
+      .populate('actorUserId', 'name email role')
+      .populate('targetUserId', 'name email status')
+      .sort({ occurredAt: -1, _id: -1 })
+      .limit(limit)
+      .lean();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'screenshot_privacy_events_export',
+      description: `Exported ${rows.length} screenshot privacy events`,
+      ...getClientInfo(req),
+      status: 'success',
+      metadata: { count: rows.length }
+    });
+
+    res.setHeader('Content-Disposition', `attachment; filename="screenshot-privacy-events-${Date.now()}.json"`);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(JSON.stringify({ success: true, data: rows }, null, 2));
+  } catch (error) {
+    console.error('❌ Screenshot Events Export Error:', error);
+    return res.status(500).json(errorResponse('Failed to export screenshot privacy events'));
+  }
+});
+
+router.get('/audit-logs/immutable', requirePermission('admin.audit.read'), async (req, res) => {
+  try {
+    const {
+      action,
+      actorId,
+      targetId,
+      status,
+      from,
+      to,
+      page = 1,
+      limit = 50
+    } = req.query;
+
+    const safeLimit = Math.min(200, Math.max(1, Number(limit)));
+    const safePage = Math.max(1, Number(page));
+    const skip = (safePage - 1) * safeLimit;
+
+    const filter = {};
+    if (action) filter.action = String(action).toLowerCase();
+    if (actorId) filter.actorId = actorId;
+    if (targetId) filter.targetId = String(targetId);
+    if (status) filter.status = status;
+    if (from || to) {
+      filter.occurredAt = {};
+      if (from) filter.occurredAt.$gte = new Date(from);
+      if (to) filter.occurredAt.$lte = new Date(to);
+    }
+
+    const [total, rows] = await Promise.all([
+      ImmutableAuditLog.countDocuments(filter),
+      ImmutableAuditLog.find(filter)
+        .populate('actorId', 'name email role')
+        .sort({ occurredAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean()
+    ]);
+
+    return res.json(successResponse('Immutable audit logs fetched', {
+      total,
+      page: safePage,
+      limit: safeLimit,
+      pages: Math.ceil(total / safeLimit),
+      data: rows
+    }));
+  } catch (error) {
+    console.error('❌ Immutable Audit Fetch Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch immutable audit logs'));
+  }
+});
+
+router.get('/audit-logs/immutable/export', requirePermission('admin.audit.export'), async (req, res) => {
+  try {
+    const safeLimit = Math.min(5000, Math.max(1, Number(req.query.limit || 2000)));
+    const rows = await ImmutableAuditLog.find({})
+      .sort({ occurredAt: -1, _id: -1 })
+      .limit(safeLimit)
+      .lean();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'immutable_audit_export',
+      description: `Exported ${rows.length} immutable audit logs`,
+      ...getClientInfo(req),
+      status: 'success',
+      metadata: { count: rows.length }
+    });
+
+    res.setHeader('Content-Disposition', `attachment; filename="immutable-audit-${Date.now()}.json"`);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(JSON.stringify({ success: true, data: rows }, null, 2));
+  } catch (error) {
+    console.error('❌ Immutable Audit Export Error:', error);
+    return res.status(500).json(errorResponse('Failed to export immutable audit logs'));
+  }
+});
+
+router.get('/trust-safety/cases', requirePermission('admin.reports.read'), async (req, res) => {
+  try {
+    const severity = req.query.severity ? String(req.query.severity) : '';
+    const status = req.query.status ? String(req.query.status) : '';
+    const assignedTo = req.query.assignedTo ? String(req.query.assignedTo) : '';
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit || 50)));
+
+    const filter = {};
+    if (severity) filter.severity = severity;
+    if (status) filter.status = status;
+    if (assignedTo) filter.assignedTo = assignedTo;
+
+    const cases = await ModerationCase.find(filter)
+      .populate('targetUserId', 'name email status warnings_count')
+      .populate('assignedTo', 'name email role')
+      .sort({ severity: -1, createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    return res.json(successResponse('Moderation cases fetched', { data: cases }));
+  } catch (error) {
+    console.error('❌ Moderation Cases Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch moderation cases'));
+  }
+});
+
+router.post('/trust-safety/cases/:caseId/assign', requirePermission('admin.cases.assign'), async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const { assignedTo, note = '' } = req.body || {};
+
+    if (!assignedTo) {
+      return res.status(400).json(errorResponse('assignedTo is required'));
+    }
+
+    const caseDoc = await ModerationCase.findById(caseId);
+    if (!caseDoc) {
+      return res.status(404).json(errorResponse('Moderation case not found'));
+    }
+
+    caseDoc.assignedTo = assignedTo;
+    caseDoc.status = 'in_review';
+    caseDoc.lastActionAt = new Date();
+    if (note) {
+      caseDoc.notes.push({ actorId: req.user._id, body: note });
+    }
+    await caseDoc.save();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'moderation_case_assigned',
+      description: `Assigned moderation case ${caseDoc._id} to ${assignedTo}`,
+      target_type: 'moderation_case',
+      target_id: caseDoc._id.toString(),
+      metadata: { assignedTo, note },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('Case assigned', caseDoc));
+  } catch (error) {
+    console.error('❌ Case Assign Error:', error);
+    return res.status(500).json(errorResponse('Failed to assign case'));
+  }
+});
+
+router.post('/trust-safety/cases/:caseId/escalate', requirePermission('admin.cases.assign'), async (req, res) => {
+  try {
+    if (!enforceStepUp(req, res, 'critical:*', 'Step-up verification required for escalation')) {
+      return;
+    }
+
+    const { caseId } = req.params;
+    const { reason } = req.body || {};
+    if (!reason || String(reason).trim().length < 5) {
+      return res.status(400).json(errorResponse('Escalation reason is required (min 5 chars)'));
+    }
+
+    const caseDoc = await ModerationCase.findById(caseId);
+    if (!caseDoc) {
+      return res.status(404).json(errorResponse('Moderation case not found'));
+    }
+
+    caseDoc.status = 'escalated';
+    caseDoc.escalationLevel = Math.min(5, Number(caseDoc.escalationLevel || 0) + 1);
+    caseDoc.lastActionAt = new Date();
+    caseDoc.notes.push({ actorId: req.user._id, body: `Escalated: ${String(reason).trim()}` });
+    await caseDoc.save();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'moderation_case_escalated',
+      description: `Escalated moderation case ${caseDoc._id}`,
+      target_type: 'moderation_case',
+      target_id: caseDoc._id.toString(),
+      metadata: { reason, escalationLevel: caseDoc.escalationLevel },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('Case escalated', caseDoc));
+  } catch (error) {
+    console.error('❌ Case Escalate Error:', error);
+    return res.status(500).json(errorResponse('Failed to escalate case'));
+  }
+});
+
+router.get('/appeals', requirePermission('admin.appeals.manage'), verifyAdminRole([...SUPER_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const status = req.query.status ? String(req.query.status) : '';
+    const filter = status ? { status } : {};
+
+    const appeals = await AppealRequest.find(filter)
+      .populate('userId', 'name email status')
+      .populate('assignedTo', 'name email role')
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean();
+
+    return res.json(successResponse('Appeals fetched', { data: appeals }));
+  } catch (error) {
+    console.error('❌ Appeals Fetch Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch appeals'));
+  }
+});
+
+router.put('/appeals/:appealId', requirePermission('admin.appeals.manage'), verifyAdminRole([...SUPER_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const { appealId } = req.params;
+    const { status, resolutionNote = '' } = req.body || {};
+
+    if (!['pending', 'in_review', 'approved', 'rejected'].includes(String(status))) {
+      return res.status(400).json(errorResponse('Invalid appeal status'));
+    }
+
+    const appeal = await AppealRequest.findById(appealId);
+    if (!appeal) {
+      return res.status(404).json(errorResponse('Appeal not found'));
+    }
+
+    appeal.status = status;
+    appeal.assignedTo = req.user._id;
+    appeal.resolutionNote = resolutionNote;
+    appeal.resolvedAt = ['approved', 'rejected'].includes(status) ? new Date() : null;
+    await appeal.save();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'appeal_status_update',
+      description: `Appeal ${appeal._id} moved to ${status}`,
+      target_type: 'appeal',
+      target_id: appeal._id.toString(),
+      metadata: { status, resolutionNote },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('Appeal updated', appeal));
+  } catch (error) {
+    console.error('❌ Appeal Update Error:', error);
+    return res.status(500).json(errorResponse('Failed to update appeal'));
+  }
+});
+
+router.get('/security/alerts', requirePermission('admin.audit.read'), async (req, res) => {
+  try {
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const previous24h = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+    const [suspiciousSessions, privacyEvents24h, privacyEventsPrev24h, newReports24h, newReportsPrev24h, massMessagingSignals] = await Promise.all([
+      AdminSession.countDocuments({ suspicious: true, createdAt: { $gte: since24h } }),
+      PrivacyEvent.countDocuments({ createdAt: { $gte: since24h } }),
+      PrivacyEvent.countDocuments({ createdAt: { $gte: previous24h, $lt: since24h } }),
+      Report.countDocuments({ created_at: { $gte: since24h } }),
+      Report.countDocuments({ created_at: { $gte: previous24h, $lt: since24h } }),
+      Message.aggregate([
+        { $match: { createdAt: { $gte: since24h } } },
+        {
+          $group: {
+            _id: '$senderId',
+            totalMessages: { $sum: 1 },
+            uniqueReceivers: { $addToSet: '$receiverId' }
+          }
+        },
+        {
+          $project: {
+            totalMessages: 1,
+            uniqueReceiverCount: { $size: '$uniqueReceivers' }
+          }
+        },
+        {
+          $match: {
+            totalMessages: { $gte: 80 },
+            uniqueReceiverCount: { $gte: 25 }
+          }
+        },
+        { $limit: 100 }
+      ])
+    ]);
+
+    const reportSpike = newReportsPrev24h > 0
+      ? Number((((newReports24h - newReportsPrev24h) / newReportsPrev24h) * 100).toFixed(2))
+      : (newReports24h > 0 ? 100 : 0);
+
+    const privacySpike = privacyEventsPrev24h > 0
+      ? Number((((privacyEvents24h - privacyEventsPrev24h) / privacyEventsPrev24h) * 100).toFixed(2))
+      : (privacyEvents24h > 0 ? 100 : 0);
+
+    return res.json(successResponse('Security alerts calculated', {
+      suspiciousSessions,
+      massMessagingSignals: massMessagingSignals.length,
+      privacyEvents24h,
+      privacySpike,
+      reportVolume24h: newReports24h,
+      reportSpike,
+      severity: {
+        suspiciousLogins: suspiciousSessions > 5 ? 'high' : suspiciousSessions > 0 ? 'medium' : 'low',
+        reportSpike: reportSpike > 70 ? 'high' : reportSpike > 25 ? 'medium' : 'low',
+        privacySpike: privacySpike > 70 ? 'high' : privacySpike > 25 ? 'medium' : 'low',
+        massMessaging: massMessagingSignals.length > 5 ? 'high' : massMessagingSignals.length > 0 ? 'medium' : 'low'
+      }
+    }));
+  } catch (error) {
+    console.error('❌ Security Alerts Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch security alerts'));
+  }
+});
+
+router.get('/flagged-users', requirePermission('admin.users.read'), async (req, res) => {
+  try {
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit || 100)));
+
+    const users = await User.aggregate([
+      { $match: { role: 'user' } },
+      {
+        $lookup: {
+          from: 'reports',
+          let: { userId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$target_user_id', '$$userId'] } } },
+            { $group: { _id: null, reportCount: { $sum: 1 }, openCount: { $sum: { $cond: [{ $in: ['$status', ['open', 'investigating']] }, 1, 0] } } } }
+          ],
+          as: 'reportAgg'
+        }
+      },
+      {
+        $addFields: {
+          reportCount: { $ifNull: [{ $arrayElemAt: ['$reportAgg.reportCount', 0] }, 0] },
+          openReportCount: { $ifNull: [{ $arrayElemAt: ['$reportAgg.openCount', 0] }, 0] },
+          riskScore: {
+            $min: [100, { $add: [
+              { $multiply: [{ $ifNull: ['$warnings_count', 0] }, 18] },
+              { $multiply: [{ $ifNull: [{ $arrayElemAt: ['$reportAgg.reportCount', 0] }, 0] }, 14] },
+              { $cond: [{ $eq: ['$status', 'banned'] }, 40, 0] }
+            ] }]
+          }
+        }
+      },
+      { $match: { $or: [{ riskScore: { $gte: 50 } }, { openReportCount: { $gte: 1 } }, { status: 'banned' }] } },
+      { $project: { name: 1, email: 1, status: 1, warnings_count: 1, reportCount: 1, openReportCount: 1, riskScore: 1, last_login: 1 } },
+      { $sort: { riskScore: -1, openReportCount: -1, updated_at: -1 } },
+      { $limit: limit }
+    ]);
+
+    return res.json(successResponse('Flagged users fetched', { data: users }));
+  } catch (error) {
+    console.error('❌ Flagged Users Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch flagged users'));
+  }
+});
+
+router.get('/deletion-requests', requirePermission('admin.appeals.manage'), verifyAdminRole([...SUPER_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const status = req.query.status ? String(req.query.status) : '';
+    const filter = status ? { status } : {};
+    const rows = await DataDeletionRequest.find(filter)
+      .populate('userId', 'name email status')
+      .populate('reviewedBy', 'name email role')
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean();
+
+    return res.json(successResponse('Deletion requests fetched', { data: rows }));
+  } catch (error) {
+    console.error('❌ Deletion Request Fetch Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch deletion requests'));
+  }
+});
+
+router.put('/deletion-requests/:requestId', requirePermission('admin.appeals.manage'), verifyAdminRole([...SUPER_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { status, reviewNote = '', retentionDays } = req.body || {};
+
+    if (!['pending', 'approved', 'rejected', 'completed'].includes(String(status))) {
+      return res.status(400).json(errorResponse('Invalid deletion request status'));
+    }
+
+    const row = await DataDeletionRequest.findById(requestId);
+    if (!row) {
+      return res.status(404).json(errorResponse('Deletion request not found'));
+    }
+
+    row.status = status;
+    row.reviewedBy = req.user._id;
+    row.reviewNote = reviewNote;
+    if (retentionDays !== undefined) {
+      row.retentionDays = Math.max(0, Math.min(365, Number(retentionDays) || row.retentionDays));
+    }
+    row.scheduledFor = status === 'approved'
+      ? new Date(Date.now() + row.retentionDays * 24 * 60 * 60 * 1000)
+      : row.scheduledFor;
+    row.completedAt = status === 'completed' ? new Date() : row.completedAt;
+    await row.save();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'data_deletion_request_update',
+      description: `Data deletion request ${row._id} moved to ${status}`,
+      target_type: 'data_deletion_request',
+      target_id: row._id.toString(),
+      metadata: { status, reviewNote, retentionDays: row.retentionDays },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('Deletion request updated', row));
+  } catch (error) {
+    console.error('❌ Deletion Request Update Error:', error);
+    return res.status(500).json(errorResponse('Failed to update deletion request'));
+  }
+});
+
 // ===== EXPORT USERS TO EXCEL =====
-router.get('/export/users', verifyAdmin, verifyAdminRole(SUPER_ROLES), async (req, res) => {
+router.get('/export/users', requirePermission('admin.audit.export'), verifyAdminRole(SUPER_ROLES), async (req, res) => {
   try {
     const { status } = req.query;
 
@@ -1802,7 +2835,7 @@ router.get('/export/users', verifyAdmin, verifyAdminRole(SUPER_ROLES), async (re
     worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
 
     // Generate file
-    const filename = `cu-daters-users-${Date.now()}.xlsx`;
+    const filename = `seeu-daters-users-${Date.now()}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
@@ -1826,7 +2859,7 @@ router.get('/export/users', verifyAdmin, verifyAdminRole(SUPER_ROLES), async (re
 });
 
 // ===== EXPORT SUBSCRIPTIONS TO EXCEL =====
-router.get('/export/subscriptions', verifyAdmin, verifyAdminRole(FINANCE_ROLES), async (req, res) => {
+router.get('/export/subscriptions', requirePermission('admin.audit.export'), verifyAdminRole(FINANCE_ROLES), async (req, res) => {
   try {
     const { status } = req.query;
 
@@ -1878,7 +2911,7 @@ router.get('/export/subscriptions', verifyAdmin, verifyAdminRole(FINANCE_ROLES),
     worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0070C0' } };
 
     // Generate file
-    const filename = `cu-daters-subscriptions-${Date.now()}.xlsx`;
+    const filename = `seeu-daters-subscriptions-${Date.now()}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
@@ -1902,7 +2935,7 @@ router.get('/export/subscriptions', verifyAdmin, verifyAdminRole(FINANCE_ROLES),
 });
 
 // ===== ADMIN CHAT MONITORING =====
-router.get('/monitor-chats', verifyAdmin, async (req, res) => {
+router.get('/monitor-chats', requirePermission('admin.chat.read_sensitive'), async (req, res) => {
   try {
     // Get all conversations with participant details
     const conversations = await Conversation.find()
@@ -1931,9 +2964,18 @@ router.get('/monitor-chats', verifyAdmin, async (req, res) => {
 });
 
 // ===== GET CHAT MESSAGES (for monitoring) =====
-router.get('/monitor-chats/:conversationId', verifyAdmin, async (req, res) => {
+router.get('/monitor-chats/:conversationId', requirePermission('admin.chat.read_sensitive'), async (req, res) => {
   try {
     const { conversationId } = req.params;
+    const accessReason = String(req.query.reason || req.body?.reason || '').trim();
+
+    if (!accessReason || accessReason.length < 5) {
+      return res.status(400).json(errorResponse('Reason is required before viewing private conversations (min 5 chars)'));
+    }
+
+    if (!enforceStepUp(req, res, 'critical:view_private_chat', 'Step-up verification required for chat monitoring')) {
+      return;
+    }
 
     // Get conversation details
     const conversation = await Conversation.findById(conversationId)
@@ -1961,6 +3003,7 @@ router.get('/monitor-chats/:conversationId', verifyAdmin, async (req, res) => {
       status: 'success',
       metadata: {
         conversationId,
+        reason: accessReason,
         messageCount: messages.length,
         participants: conversation.participants.map(p => p.name)
       }
@@ -1993,8 +3036,12 @@ router.get('/monitor-chats/:conversationId', verifyAdmin, async (req, res) => {
  * - All Subscriptions
  * - All Activity Logs
  */
-router.post('/cleanup/delete-user', verifyAdmin, async (req, res) => {
+router.post('/cleanup/delete-user', requirePermission('admin.users.moderate'), async (req, res) => {
   try {
+    if (!enforceStepUp(req, res, 'critical:delete_user', 'Step-up verification required for hard user deletion')) {
+      return;
+    }
+
     const { email } = req.body;
 
     if (!email) {
@@ -2098,3 +3145,4 @@ router.post('/cleanup/delete-user', verifyAdmin, async (req, res) => {
 });
 
 export default router;
+

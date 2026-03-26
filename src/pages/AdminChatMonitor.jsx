@@ -21,7 +21,7 @@ export default function AdminChatMonitor() {
     
     try {
       const user = JSON.parse(currentUser);
-      if (!['admin', 'super_admin', 'moderator'].includes(user.role)) {
+      if (!['admin', 'super_admin', 'moderator', 'support_admin', 'analyst'].includes(user.role)) {
         navigate('/admin-login');
         return;
       }
@@ -62,7 +62,12 @@ export default function AdminChatMonitor() {
     try {
       setLoadingMessages(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/admin/monitor-chats/${conversationId}`, {
+      const reason = window.prompt('Reason for viewing this private conversation (required):', 'moderation review') || '';
+      if (!reason || reason.trim().length < 5) {
+        throw new Error('A reason (min 5 chars) is required to view private conversation data.');
+      }
+
+      const response = await fetch(`/api/admin/monitor-chats/${conversationId}?reason=${encodeURIComponent(reason.trim())}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

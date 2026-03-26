@@ -4,9 +4,18 @@ import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import useSupportContactConfig from '../hooks/useSupportContactConfig';
 import pricingApi from '../services/pricingApi';
 
+const FALLBACK_PLAN = {
+  id: 'premium',
+  name: 'Premium',
+  price: 99,
+  currency: '₹',
+  period: '/month',
+  duration: '30 days',
+};
+
 const PaymentCheckoutFinal = () => {
   const contactConfig = useSupportContactConfig();
-  const supportEmail = contactConfig.supportEmail || 'support@cudaters.in';
+  const supportEmail = contactConfig.supportEmail || 'support@seeudaters.in';
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -14,21 +23,12 @@ const PaymentCheckoutFinal = () => {
   console.log('Location state:', location.state);
   
   const selectedPlanInput = location.state?.plan;
-  const fallbackPlan = {
-    id: 'premium',
-    name: 'Premium',
-    price: 99,
-    currency: '₹',
-    period: '/month',
-    duration: '30 days',
-  };
-
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [configLoading, setConfigLoading] = useState(true);
   const [error, setError] = useState('');
   const [paymentConfig, setPaymentConfig] = useState(null);
-  const [resolvedPlan, setResolvedPlan] = useState(fallbackPlan);
+  const [resolvedPlan, setResolvedPlan] = useState(FALLBACK_PLAN);
   const [paymentId, setPaymentId] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState('');
@@ -60,10 +60,10 @@ const PaymentCheckoutFinal = () => {
                 String(planItem?.name || '').toLowerCase() === normalizedInput
             ) ||
             plans.premium ||
-            fallbackPlan;
+            FALLBACK_PLAN;
 
           setResolvedPlan({
-            ...fallbackPlan,
+            ...FALLBACK_PLAN,
             ...(typeof selectedPlanInput === 'object' ? selectedPlanInput : {}),
             ...(selectedPlan || {})
           });
@@ -92,7 +92,7 @@ const PaymentCheckoutFinal = () => {
   const isUpiEnabled = upiMethod.enabled !== false;
   const isQrEnabled = qrMethod.enabled !== false;
   const upiId = upiMethod.id || 'campusconnect@upi';
-  const accountHolder = bankMethod.accountHolder || 'CU Daters Pvt Ltd';
+  const accountHolder = bankMethod.accountHolder || 'SeeU-Daters Pvt Ltd';
   const bankName = bankMethod.bankName || 'HDFC Bank';
   const accountNumber = bankMethod.accountNumber || '1234567890123456';
   const ifscCode = bankMethod.ifscCode || 'HDFC0005678';
@@ -503,3 +503,4 @@ const PaymentCheckoutFinal = () => {
 };
 
 export default PaymentCheckoutFinal;
+

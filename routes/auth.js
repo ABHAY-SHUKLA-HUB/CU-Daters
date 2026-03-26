@@ -1,5 +1,6 @@
 import express from 'express';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
+import rateLimit from 'express-rate-limit';
 import User from '../models/User.js';
 import { generateToken, logActivity, getClientInfo } from '../utils/auth.js';
 import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
@@ -13,11 +14,59 @@ import {
   successResponse
 } from '../utils/validation.js';
 import { sendOtpEmail, sendPasswordResetEmail, sendRegistrationConfirmationEmail, getEmailServiceHealth } from '../utils/emailService.js';
+import { createAdminSession, setAdminAuthCookies } from '../services/securityService.js';
 
-const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin'];
+const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'];
 const SMTP_ALERT_FAILURE_THRESHOLD = Math.max(2, Number(process.env.SMTP_ALERT_FAILURE_THRESHOLD || 3));
+const OTP_EXPIRY_SECONDS = Math.max(60, Number(process.env.OTP_EXPIRY_SECONDS || 300));
+const OTP_VERIFY_MAX_ATTEMPTS = Math.max(3, Number(process.env.OTP_VERIFY_MAX_ATTEMPTS || 5));
+const OTP_VERIFY_LOCK_MINUTES = Math.max(5, Number(process.env.OTP_VERIFY_LOCK_MINUTES || 15));
+const OTP_HASH_SECRET = String(process.env.OTP_HASH_SECRET || process.env.JWT_SECRET || 'otp-default-secret').trim();
 
 const router = express.Router();
+
+const otpRequestLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 12 : 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many OTP requests. Please wait and try again.'
+  }
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 20 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many login attempts. Please try again later.'
+  }
+});
+
+const hashOtp = (otp, email) => createHmac('sha256', OTP_HASH_SECRET)
+  .update(`${String(email || '').toLowerCase().trim()}::${String(otp || '').trim()}`)
+  .digest('hex');
+
+const safeOtpMatch = (user, otpInput, emailLower) => {
+  if (!user?.emailOtp || !otpInput) return false;
+  const incomingHash = hashOtp(otpInput, emailLower);
+  const storedOtp = String(user.emailOtp || '');
+
+  // Backward compatibility for previously stored plain-text OTP values.
+  if (/^\d{6}$/.test(storedOtp)) {
+    return storedOtp === String(otpInput);
+  }
+
+  try {
+    return timingSafeEqual(Buffer.from(storedOtp, 'hex'), Buffer.from(incomingHash, 'hex'));
+  } catch {
+    return storedOtp === incomingHash;
+  }
+};
 
 // ===== EMAIL SERVICE HEALTH =====
 router.get('/email-health', asyncHandler(async (req, res) => {
@@ -45,7 +94,7 @@ router.get('/email-health', asyncHandler(async (req, res) => {
 }));
 
 // ===== SEND OTP (Email) =====
-router.post('/send-otp', asyncHandler(async (req, res, _next) => {
+router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next) => {
   console.log('\n========== SEND OTP REQUEST ==========');
   
   const { email, name, phone, password, college } = req.body;
@@ -163,7 +212,8 @@ router.post('/send-otp', asyncHandler(async (req, res, _next) => {
 
   // Generate OTP (6 digits)
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+  const otpExpiry = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
+  const otpHash = hashOtp(otp, emailLower);
 
   // Store OTP temporarily in database FIRST
   if (!tempUser) {
@@ -175,8 +225,10 @@ router.post('/send-otp', asyncHandler(async (req, res, _next) => {
       phone,
       password,
       college,
-      emailOtp: otp,
+      emailOtp: otpHash,
       emailOtpExpiry: otpExpiry,
+      otpVerifyAttempts: 0,
+      otpLockedUntil: null,
       otpRequestCount: 1,
       otpRequestLastTime: now,
       status: 'pending',
@@ -191,8 +243,10 @@ router.post('/send-otp', asyncHandler(async (req, res, _next) => {
     tempUser.collegeEmail = emailLower;
     tempUser.phone = tempUser.phone || phone;
     tempUser.college = tempUser.college || college;
-    tempUser.emailOtp = otp;
+    tempUser.emailOtp = otpHash;
     tempUser.emailOtpExpiry = otpExpiry;
+    tempUser.otpVerifyAttempts = 0;
+    tempUser.otpLockedUntil = null;
     if (!tempUser.otpRequestCount) {
       tempUser.otpRequestCount = 1;
     }
@@ -217,8 +271,10 @@ router.post('/send-otp', asyncHandler(async (req, res, _next) => {
         throw saveError;
       }
 
-      tempUser.emailOtp = otp;
+      tempUser.emailOtp = otpHash;
       tempUser.emailOtpExpiry = otpExpiry;
+      tempUser.otpVerifyAttempts = 0;
+      tempUser.otpLockedUntil = null;
       tempUser.otpRequestCount = Math.max(1, Number(tempUser.otpRequestCount || 0));
       tempUser.otpRequestLastTime = now;
       await tempUser.save();
@@ -250,7 +306,8 @@ router.post('/send-otp', asyncHandler(async (req, res, _next) => {
       successResponse('OTP sent successfully to your email. Valid for 5 minutes.', {
         code: 'OTP_SENT',
         email: emailLower,
-        expiresIn: 300, // seconds
+        expiresIn: OTP_EXPIRY_SECONDS,
+        resendAfterSeconds: 30,
         otpRequestsRemaining: remainingAttempts,
         maxRequests: MAX_OTP_REQUESTS,
         emailStatus: 'sent'
@@ -325,7 +382,7 @@ router.post('/send-otp', asyncHandler(async (req, res, _next) => {
 }));
 
 // ===== VERIFY OTP =====
-router.post('/verify-otp', asyncHandler(async (req, res, _next) => {
+router.post('/verify-otp', otpRequestLimiter, asyncHandler(async (req, res, _next) => {
   console.log('\n========== VERIFY OTP REQUEST ==========');
   
   const { email, otp } = req.body;
@@ -335,7 +392,7 @@ router.post('/verify-otp', asyncHandler(async (req, res, _next) => {
     throw new AppError('Valid email address is required', 400);
   }
 
-  if (!otp || otp.length !== 6) {
+  if (!otp || !/^\d{6}$/.test(String(otp))) {
     throw new AppError('Valid 6-digit OTP is required', 400);
   }
 
@@ -354,20 +411,47 @@ router.post('/verify-otp', asyncHandler(async (req, res, _next) => {
     throw new AppError('User not found. Please sign up first.', 404);
   }
 
-  // Check if OTP matches
-  if (user.emailOtp !== otp) {
-    throw new AppError('Invalid OTP. Please try again.', 400);
+  const now = new Date();
+  if (user.otpLockedUntil && now < user.otpLockedUntil) {
+    const secondsLeft = Math.max(1, Math.ceil((new Date(user.otpLockedUntil).getTime() - now.getTime()) / 1000));
+    throw new AppError(`Too many invalid OTP attempts. Try again in ${secondsLeft} seconds.`, 429);
+  }
+
+  if (!user.emailOtp || !user.emailOtpExpiry) {
+    throw new AppError('No OTP found. Please request a new OTP.', 400);
   }
 
   // Check if OTP has expired
   if (new Date() > user.emailOtpExpiry) {
+    user.emailOtp = null;
+    user.emailOtpExpiry = null;
+    user.otpVerifyAttempts = 0;
+    user.otpLockedUntil = null;
+    await user.save();
     throw new AppError('OTP has expired. Please request a new one.', 400);
+  }
+
+  // Check if OTP matches
+  if (!safeOtpMatch(user, otp, emailLower)) {
+    const nextAttempts = Number(user.otpVerifyAttempts || 0) + 1;
+    user.otpVerifyAttempts = nextAttempts;
+
+    if (nextAttempts >= OTP_VERIFY_MAX_ATTEMPTS) {
+      user.otpLockedUntil = new Date(Date.now() + OTP_VERIFY_LOCK_MINUTES * 60 * 1000);
+      await user.save();
+      throw new AppError(`Too many invalid OTP attempts. Please request a new OTP or try again in ${OTP_VERIFY_LOCK_MINUTES} minutes.`, 429);
+    }
+
+    await user.save();
+    throw new AppError(`Invalid OTP. ${OTP_VERIFY_MAX_ATTEMPTS - nextAttempts} attempt(s) remaining.`, 400);
   }
 
   // Mark email as verified
   user.emailVerified = true;
   user.emailOtp = null;
   user.emailOtpExpiry = null;
+  user.otpVerifyAttempts = 0;
+  user.otpLockedUntil = null;
   await user.save();
 
   console.log(`✅ Email verified for: ${emailLower}`);
@@ -476,7 +560,7 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
 }));
 
 // ===== LOGIN =====
-router.post('/login', asyncHandler(async (req, res, _next) => {
+router.post('/login', loginLimiter, asyncHandler(async (req, res, _next) => {
   console.log('\n========== LOGIN REQUEST ==========');
   
   const { email, password } = req.body;
@@ -573,7 +657,7 @@ router.post('/login', asyncHandler(async (req, res, _next) => {
 }));
 
 // ===== ADMIN LOGIN (Backend-validated) =====
-router.post('/admin-login', asyncHandler(async (req, res, _next) => {
+router.post('/admin-login', loginLimiter, asyncHandler(async (req, res, _next) => {
   console.log('\n========== ADMIN LOGIN REQUEST ==========');
   
   const { email, password } = req.body;
@@ -639,14 +723,23 @@ router.post('/admin-login', asyncHandler(async (req, res, _next) => {
     status: 'success'
   });
 
-  // Generate token
-  const token = generateToken(admin._id);
+  const { session, accessToken, refreshToken, csrfToken } = await createAdminSession({ admin, req, mfaVerified: false });
+  setAdminAuthCookies(res, { refreshToken, csrfToken });
 
   console.log(`✅ Admin login successful: ${admin.email}`);
 
   res.json(
     successResponse('Admin login successful', {
-      token,
+      token: accessToken,
+      accessToken,
+      csrfToken,
+      session: {
+        sessionId: session._id,
+        expiresAt: session.expiresAt,
+        ipAddress: session.ipAddress,
+        deviceInfo: session.deviceInfo,
+        suspicious: Boolean(session.suspicious)
+      },
       user: sanitizeUser(admin)
     })
   );

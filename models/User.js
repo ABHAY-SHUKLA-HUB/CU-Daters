@@ -45,7 +45,7 @@ const UserSchema = new mongoose.Schema({
   },
   
   // Status
-  role: { type: String, enum: ['user', 'admin', 'super_admin', 'moderator', 'finance_admin'], default: 'user' },
+  role: { type: String, enum: ['user', 'admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'], default: 'user' },
   status: { type: String, enum: ['active', 'banned', 'pending', 'rejected'], default: 'pending' },
   is_verified: { type: Boolean, default: false },
   verified_badge: { type: Boolean, default: false },
@@ -102,6 +102,8 @@ const UserSchema = new mongoose.Schema({
   emailOtp: { type: String },
   emailOtpExpiry: { type: Date },
   emailVerified: { type: Boolean, default: false },
+  otpVerifyAttempts: { type: Number, default: 0 },
+  otpLockedUntil: { type: Date },
   otpRequestCount: { type: Number, default: 0 }, // Track OTP requests
   otpRequestLastTime: { type: Date }, // Last OTP request time
   otpCooldownUntil: { type: Date }, // When user can request again

@@ -36,7 +36,7 @@ export const normalizeEnumFields = (userData) => {
   // Normalize role
   if (normalized.role) {
     normalized.role = normalized.role.toLowerCase();
-    const validRoles = ['user', 'admin', 'super_admin', 'moderator', 'finance_admin'];
+    const validRoles = ['user', 'admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'];
     if (!validRoles.includes(normalized.role)) {
       throw new Error(`Invalid role value. Allowed: ${validRoles.join(', ')}`);
     }

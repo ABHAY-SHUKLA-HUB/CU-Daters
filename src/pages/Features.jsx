@@ -61,7 +61,7 @@ export default function Features() {
             <p className="text-xs uppercase tracking-[0.22em] text-rose-500 font-bold text-center">Product Architecture</p>
             <h1 className="text-5xl md:text-6xl font-black text-darkBrown text-center mt-3">Startup-Grade Feature Stack</h1>
             <p className="text-center max-w-3xl mx-auto text-lg text-softBrown mt-4 leading-relaxed">
-              CU-Daters combines trust technology, intent-focused matching, and private communication to deliver a safer and higher-quality campus social experience.
+              SeeU-Daters combines trust technology, intent-focused matching, and private communication to deliver a safer and higher-quality campus social experience.
             </p>
           </ScrollReveal>
 
@@ -168,7 +168,7 @@ export default function Features() {
             </div>
 
             <ScrollReveal className="mt-10 flex flex-wrap justify-center gap-3" delayMs={180}>
-              <Link to="/signup" className="px-6 py-3 rounded-full bg-gradient-to-r from-rose-500 to-fuchsia-500 text-white font-bold hover:brightness-110 transition">Join CU-Daters</Link>
+              <Link to="/signup" className="px-6 py-3 rounded-full bg-gradient-to-r from-rose-500 to-fuchsia-500 text-white font-bold hover:brightness-110 transition">Join SeeU-Daters</Link>
               <Link to="/pricing" className="px-6 py-3 rounded-full border-2 border-rose-300 text-rose-600 font-bold hover:bg-white/60 transition">See Pricing</Link>
             </ScrollReveal>
           </div>
@@ -177,3 +177,4 @@ export default function Features() {
     </div>
   );
 }
+

@@ -75,7 +75,7 @@ export default function Home() {
               <span className="block bg-gradient-to-r from-rose-500 to-fuchsia-500 bg-clip-text text-transparent">Focused On Real Outcomes</span>
             </h2>
             <p className="mt-4 text-base md:text-lg text-softBrown leading-relaxed">
-              CU-Daters is designed as a trust-first social product: clearer intent, safer conversations, and a tighter campus network loop that grows with every verified student.
+              SeeU-Daters is designed as a trust-first social product: clearer intent, safer conversations, and a tighter campus network loop that grows with every verified student.
             </p>
           </ScrollReveal>
 
@@ -219,3 +219,4 @@ export default function Home() {
     </div>
   );
 }
+

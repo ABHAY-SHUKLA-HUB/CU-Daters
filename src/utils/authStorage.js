@@ -1,6 +1,7 @@
 const AUTH_TOKEN_KEY = 'auth_token';
 const LEGACY_TOKEN_KEYS = ['authToken', 'firebase_token'];
 const AUTH_USER_KEY = 'current_user';
+const AUTH_CSRF_KEY = 'admin_csrf_token';
 const AUTH_CHANGE_EVENT = 'auth-state-changed';
 
 const safeParse = (value) => {
@@ -32,6 +33,7 @@ export const getStoredToken = () => {
 };
 
 export const getStoredUser = () => safeParse(localStorage.getItem(AUTH_USER_KEY));
+export const getStoredCsrfToken = () => localStorage.getItem(AUTH_CSRF_KEY) || '';
 
 export const getStoredAuthState = () => {
   const token = getStoredToken();
@@ -69,13 +71,26 @@ export const persistAuthState = ({ token = '', user = null }) => {
   }));
 };
 
+export const persistCsrfToken = (csrfToken = '') => {
+  if (!csrfToken) {
+    localStorage.removeItem(AUTH_CSRF_KEY);
+    sessionStorage.removeItem(AUTH_CSRF_KEY);
+    return;
+  }
+
+  localStorage.setItem(AUTH_CSRF_KEY, csrfToken);
+  sessionStorage.removeItem(AUTH_CSRF_KEY);
+};
+
 export const clearStoredAuthState = () => {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(AUTH_CSRF_KEY);
   LEGACY_TOKEN_KEYS.forEach((legacyKey) => localStorage.removeItem(legacyKey));
 
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   sessionStorage.removeItem(AUTH_USER_KEY);
+  sessionStorage.removeItem(AUTH_CSRF_KEY);
   LEGACY_TOKEN_KEYS.forEach((legacyKey) => sessionStorage.removeItem(legacyKey));
 
   window.dispatchEvent(new CustomEvent(AUTH_CHANGE_EVENT, {
@@ -114,6 +129,7 @@ export const patchStoredUser = (updater) => {
 export const AUTH_STORAGE_KEYS = {
   token: AUTH_TOKEN_KEY,
   user: AUTH_USER_KEY,
+  csrf: AUTH_CSRF_KEY,
   legacyTokens: LEGACY_TOKEN_KEYS
 };
 

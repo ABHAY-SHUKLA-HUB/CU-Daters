@@ -5,7 +5,7 @@ async function verifyLogin() {
     console.log('\n🧪 Verifying login with new credentials...\n');
     
     const res = await axios.post('http://localhost:5000/api/auth/login', {
-      email: 'testuser@cudaters.in',
+      email: 'testuser@seeudaters.in',
       password: 'Password123'
     });
 
@@ -21,3 +21,4 @@ async function verifyLogin() {
 }
 
 verifyLogin();
+

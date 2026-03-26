@@ -23,7 +23,7 @@ const EMAILS_TO_DELETE = [
   'adminringgoodall9@typingsquirrel.com',
   'krishnamdwivedi96@gmail.com',
   'test@example.com',
-  'admin@cudaters.in'
+  'admin@seeudaters.in'
 ];
 
 async function cleanupUsers() {
@@ -99,3 +99,4 @@ cleanupUsers().then(() => process.exit(0)).catch(err => {
   console.error('Fatal error:', err);
   process.exit(1);
 });
+

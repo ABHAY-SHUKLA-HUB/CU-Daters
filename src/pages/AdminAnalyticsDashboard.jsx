@@ -5,9 +5,9 @@ export default function AdminAnalyticsDashboard() {
 
   useEffect(() => {
     // Simulate analytics data from localStorage
-    const users = JSON.parse(localStorage.getItem('cudaters_users') || '[]');
-    const chats = JSON.parse(localStorage.getItem('cudaters_chats') || '[]');
-    const reports = JSON.parse(localStorage.getItem('cudaters_reports') || '[]');
+    const users = JSON.parse(localStorage.getItem('seeudaters_users') || '[]');
+    const chats = JSON.parse(localStorage.getItem('seeudaters_chats') || '[]');
+    const reports = JSON.parse(localStorage.getItem('seeudaters_reports') || '[]');
     setStats({
       totalUsers: users.length,
       approvedUsers: users.filter(u => u.approved).length,
@@ -61,3 +61,4 @@ export default function AdminAnalyticsDashboard() {
     </div>
   );
 }
+

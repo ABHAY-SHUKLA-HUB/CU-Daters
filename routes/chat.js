@@ -26,6 +26,7 @@ import {
   swipeProfile
 } from '../controllers/chatController.js';
 import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
+import { validateChatAttachment } from '../middleware/fileUploadSecurity.js';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -73,7 +74,7 @@ router.post('/conversations', asyncHandler(createOrGetConversation));
 router.get('/conversations', asyncHandler(getMyConversations));
 router.get('/conversations/unread-summary', asyncHandler(getUnreadSummary));
 router.get('/conversations/:conversationId/messages', asyncHandler(getConversationMessages));
-router.post('/conversations/:conversationId/attachments', chatUpload.single('file'), asyncHandler(uploadConversationAttachment));
+router.post('/conversations/:conversationId/attachments', chatUpload.single('file'), validateChatAttachment, asyncHandler(uploadConversationAttachment));
 router.post('/conversations/:conversationId/messages', messageLimiter, asyncHandler(sendMessage));
 router.post('/conversations/:conversationId/messages/:messageId/reactions', asyncHandler(reactToMessage));
 router.post('/conversations/:conversationId/seen', asyncHandler(markConversationSeen));

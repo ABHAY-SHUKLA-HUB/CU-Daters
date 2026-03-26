@@ -1,11 +1,11 @@
 export const defaultLegalContent = {
-  appName: 'CU-Daters',
-  companyName: 'CU-Daters',
+  appName: 'SeeU-Daters',
+  companyName: 'SeeU-Daters',
   termsLastUpdated: 'March 2026',
   privacyLastUpdated: 'March 2026',
-  legalEmail: 'legal@cudaters.in',
-  privacyEmail: 'privacy@cudaters.in',
-  supportEmail: 'support@cudaters.in',
+  legalEmail: 'legal@seeudaters.in',
+  privacyEmail: 'privacy@seeudaters.in',
+  supportEmail: 'support@seeudaters.in',
   disputeResponseDays: '7',
   arbitrationCity: 'Chandigarh, India',
   governingLaw: 'Laws of India',
@@ -31,3 +31,4 @@ export const defaultLegalContent = {
     }
   ]
 };
+

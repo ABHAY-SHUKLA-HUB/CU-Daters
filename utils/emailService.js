@@ -29,16 +29,40 @@ const sanitizedEmailPassword = String(
   process.env.MAIL_PASSWORD ||
   ''
 ).replace(/\s+/g, '');
+const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
+const resendApiBaseUrl = String(process.env.RESEND_API_URL || 'https://api.resend.com').trim().replace(/\/+$/, '');
 const smtpHost = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpSecure = String(process.env.SMTP_SECURE || String(smtpPort === 465)).toLowerCase() === 'true';
 const maxSmtpRetries = Math.max(1, Number(process.env.SMTP_RETRIES || 3));
+const smtpTlsRejectUnauthorized = String(process.env.SMTP_TLS_REJECT_UNAUTHORIZED || 'true').toLowerCase() !== 'false';
+const hasSmtpCredentials = Boolean(sanitizedEmailUser && sanitizedEmailPassword);
+const hasResendProvider = Boolean(resendApiKey);
+const canUseConsoleMode = !isProduction && !hasSmtpCredentials && !hasResendProvider;
 const defaultFromAddress = String(
   process.env.EMAIL_FROM ||
+  process.env.RESEND_FROM ||
   process.env.SMTP_FROM ||
   sanitizedEmailUser ||
-  'cudaters.verify@gmail.com'
+  'seeudaters.verify@gmail.com'
 ).trim();
+
+const resolveFromAddress = () => {
+  if (!defaultFromAddress) return sanitizedEmailUser || 'no-reply@example.com';
+
+  const normalized = defaultFromAddress.toLowerCase();
+  const usingGmailSmtp = smtpHost === 'smtp.gmail.com';
+  const fromLooksLikeGmail = normalized.endsWith('@gmail.com') || normalized.endsWith('@googlemail.com');
+
+  // Gmail SMTP can reject non-matching From addresses with 553/5.7.1.
+  if (usingGmailSmtp && hasSmtpCredentials && !fromLooksLikeGmail) {
+    return sanitizedEmailUser;
+  }
+
+  return defaultFromAddress;
+};
+
+const effectiveFromAddress = resolveFromAddress();
 
 const smtpHealth = {
   totalAttempts: 0,
@@ -68,9 +92,39 @@ const createSmtpTransporter = ({ host, port, secure }) => nodemailer.createTrans
   connectionTimeout: 15000,
   socketTimeout: 15000,
   tls: {
-    rejectUnauthorized: false
+    rejectUnauthorized: smtpTlsRejectUnauthorized
   }
 });
+
+const sendViaResend = async (mailOptions) => {
+  const response = await fetch(`${resendApiBaseUrl}/emails`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: mailOptions.from || effectiveFromAddress,
+      to: Array.isArray(mailOptions.to) ? mailOptions.to : [mailOptions.to],
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+      text: mailOptions.text
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const resendError = new Error(payload?.message || payload?.error || `Resend API failed with status ${response.status}`);
+    resendError.code = `RESEND_${response.status}`;
+    throw resendError;
+  }
+
+  return {
+    messageId: payload?.id || `resend-${Date.now()}`,
+    provider: 'resend'
+  };
+};
 
 const sendMailAsync = (mailTransporter, mailOptions) => new Promise((resolve, reject) => {
   mailTransporter.sendMail(mailOptions, (error, info) => {
@@ -119,12 +173,17 @@ const recordSmtpFailure = (error) => {
 };
 
 export const getEmailServiceHealth = () => {
-  const configured = Boolean(sanitizedEmailUser && sanitizedEmailPassword);
-  const degraded = configured && smtpHealth.consecutiveFailures >= 3;
+  const configured = hasSmtpCredentials || hasResendProvider;
+  const degraded = hasSmtpCredentials && smtpHealth.consecutiveFailures >= 3;
 
   return {
     configured,
-    mode: configured ? 'smtp' : 'console-dev',
+    mode: hasSmtpCredentials ? 'smtp' : (hasResendProvider ? 'resend' : 'console-dev'),
+    providers: {
+      smtp: hasSmtpCredentials,
+      resend: hasResendProvider,
+      console: canUseConsoleMode
+    },
     smtp: {
       host: smtpHost,
       port: smtpPort,
@@ -148,6 +207,11 @@ export const getEmailServiceHealth = () => {
 const sendMailWithFallback = async (mailOptions) => {
   const candidates = [transporter, ...fallbackTransporters].filter(Boolean);
   let lastError = null;
+
+  if (!candidates.length && hasResendProvider) {
+    const resendResult = await sendViaResend(mailOptions);
+    return resendResult;
+  }
 
   for (let attempt = 1; attempt <= maxSmtpRetries; attempt += 1) {
     for (let i = 0; i < candidates.length; i += 1) {
@@ -178,6 +242,18 @@ const sendMailWithFallback = async (mailOptions) => {
     }
   }
 
+  if (hasResendProvider) {
+    try {
+      console.warn('⚠️ SMTP failed repeatedly, attempting Resend fallback...');
+      const resendResult = await sendViaResend(mailOptions);
+      recordSmtpSuccess();
+      return resendResult;
+    } catch (resendError) {
+      lastError = resendError;
+      console.error('❌ Resend fallback failed:', resendError?.message || resendError);
+    }
+  }
+
   recordSmtpFailure(lastError);
   throw lastError || new Error('All SMTP transport attempts failed');
 };
@@ -188,15 +264,34 @@ console.log('='.repeat(80));
 console.log(`   - Node Env: ${process.env.NODE_ENV}`);
 console.log(`   - Email User: ${sanitizedEmailUser || '✗ NOT SET'}`);
 console.log(`   - Email Password: ${sanitizedEmailPassword ? '✓ SET (' + sanitizedEmailPassword.length + ' chars)' : '✗ NOT SET'}`);
+console.log(`   - Resend API Key: ${hasResendProvider ? '✓ SET' : '✗ NOT SET'}`);
 console.log(`   - SMTP Host: ${smtpHost}`);
 console.log(`   - SMTP Port: ${smtpPort}`);
 console.log(`   - SMTP Secure: ${smtpSecure}`);
+console.log(`   - SMTP TLS Reject Unauthorized: ${smtpTlsRejectUnauthorized}`);
 console.log(`   - Production Mode: ${isProduction}`);
 console.log(`   - Retries: ${maxSmtpRetries}`);
 console.log('='.repeat(80));
 
-if (!sanitizedEmailPassword) {
-  // Development mode: Show OTP in console
+if (hasSmtpCredentials) {
+  // Production mode: Use SMTP with app password
+  console.log('📧 [SMTP MODE] Using authenticated SMTP transport\n');
+
+  transporter = createSmtpTransporter({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure
+  });
+
+  if (!(smtpHost === 'smtp.gmail.com' && smtpPort === 465 && smtpSecure === true)) {
+    fallbackTransporters.push(createSmtpTransporter({ host: 'smtp.gmail.com', port: 465, secure: true }));
+  }
+
+  if (!(smtpHost === 'smtp.gmail.com' && smtpPort === 587 && smtpSecure === false)) {
+    fallbackTransporters.push(createSmtpTransporter({ host: 'smtp.gmail.com', port: 587, secure: false }));
+  }
+} else if (canUseConsoleMode) {
+  // Local development mode: show emails in console.
   console.log('📧 [DEV MODE] Emails will be shown in backend console\n');
   transporter = {
     sendMail: (options, callback) => {
@@ -211,26 +306,11 @@ if (!sanitizedEmailPassword) {
     }
   };
 } else {
-  // Production mode: Use Gmail with app password
-  console.log('📧 [PRODUCTION MODE] Using Gmail SMTP\n');
-  
-  transporter = createSmtpTransporter({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure
-  });
-
-  if (!(smtpHost === 'smtp.gmail.com' && smtpPort === 465 && smtpSecure === true)) {
-    fallbackTransporters.push(createSmtpTransporter({ host: 'smtp.gmail.com', port: 465, secure: true }));
-  }
-
-  if (!(smtpHost === 'smtp.gmail.com' && smtpPort === 587 && smtpSecure === false)) {
-    fallbackTransporters.push(createSmtpTransporter({ host: 'smtp.gmail.com', port: 587, secure: false }));
-  }
+  console.warn('⚠️ Email provider not configured for production. Configure SMTP or RESEND_API_KEY.');
 }
 
 // Verify Gmail connection only in production
-if (isProduction && sanitizedEmailPassword) {
+if (isProduction && hasSmtpCredentials && transporter?.verify) {
   transporter.verify()
     .then(() => {
       console.log('✅ Gmail SMTP Connection Verified!');
@@ -285,8 +365,8 @@ if (isProduction && sanitizedEmailPassword) {
  */
 export const sendOtpEmail = async (email, otp) => {
   try {
-    // In development or if email not configured, show OTP in console
-    if (!sanitizedEmailPassword) {
+    // In development with no email providers, show OTP in console.
+    if (canUseConsoleMode) {
       console.log('\n' + '='.repeat(80));
       console.log('📧 [DEV MODE - OTP EMAIL]');
       console.log('='.repeat(80));
@@ -298,13 +378,17 @@ export const sendOtpEmail = async (email, otp) => {
       return { success: true, mode: 'console', email, otp };
     }
 
+    if (!hasSmtpCredentials && !hasResendProvider) {
+      throw new Error('Email provider is not configured in production (set SMTP credentials or RESEND_API_KEY)');
+    }
+
     const htmlTemplate = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>CU Daters - Email Verification</title>
+        <title>SeeU-Daters - Email Verification</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
@@ -339,14 +423,14 @@ export const sendOtpEmail = async (email, otp) => {
           <div class="card">
             <!-- Header -->
             <div class="header">
-              <div class="logo">💖 CU DATERS 💖</div>
+              <div class="logo">💖 SEEU-DATERS 💖</div>
               <h1>Email Verification</h1>
               <p>Secure your account with a one-time verification code</p>
             </div>
 
             <!-- Content -->
             <div class="content">
-              <p class="intro">Hi there! 👋 Welcome to CU Daters – your campus dating community. To complete your registration, please use the verification code below:</p>
+              <p class="intro">Hi there! 👋 Welcome to SeeU-Daters – your campus dating community. To complete your registration, please use the verification code below:</p>
 
               <!-- OTP Box -->
               <div class="otp-box">
@@ -356,7 +440,7 @@ export const sendOtpEmail = async (email, otp) => {
 
               <!-- Instructions -->
               <div class="instructions">
-                <strong>✓ How to use:</strong> Enter this code in the verification field on CU Daters to confirm your email address and activate your account.
+                <strong>✓ How to use:</strong> Enter this code in the verification field on SeeU-Daters to confirm your email address and activate your account.
               </div>
 
               <!-- Timer -->
@@ -371,14 +455,14 @@ export const sendOtpEmail = async (email, otp) => {
             <!-- Footer -->
             <div class="footer">
               <div class="security-note">
-                🔒 <strong>Never share this code</strong> with anyone. CU Daters support will never ask for your verification code.
+                🔒 <strong>Never share this code</strong> with anyone. SeeU-Daters support will never ask for your verification code.
               </div>
               
               <p style="margin-top: 15px;">Need help? <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/support" class="support-link">Contact Support</a></p>
               
               <div class="divider" style="margin: 15px 0;"></div>
               
-              <p>© 2026 CU Daters. All rights reserved.</p>
+              <p>© 2026 SeeU-Daters. All rights reserved.</p>
               <p>Your trusted campus dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
             </div>
           </div>
@@ -388,11 +472,11 @@ export const sendOtpEmail = async (email, otp) => {
     `;
 
     const mailOptions = {
-      from: defaultFromAddress,
+      from: effectiveFromAddress,
       to: email,
-      subject: '💖 Your CU Daters Verification Code',
+      subject: '💖 Your SeeU-Daters Verification Code',
       html: htmlTemplate,
-      text: `CU Daters Verification Code: ${otp}\n\nThis code is valid for 5 minutes.\n\nDo not share this code with anyone.\n\nIf you didn't request this code, please ignore this email.`
+      text: `SeeU-Daters Verification Code: ${otp}\n\nThis code is valid for 5 minutes.\n\nDo not share this code with anyone.\n\nIf you didn't request this code, please ignore this email.`
     };
 
     const result = await sendMailWithFallback(mailOptions);
@@ -457,13 +541,13 @@ export const sendOtpEmail = async (email, otp) => {
 export const sendApprovalEmail = async (email, name) => {
   try {
     const mailOptions = {
-      from: defaultFromAddress,
+      from: effectiveFromAddress,
       to: email,
-      subject: '✅ Your CU Daters Profile Has Been Approved!',
+      subject: '✅ Your SeeU-Daters Profile Has Been Approved!',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #d4536f;">Hi ${name},</h2>
-          <p>Great news! Your profile on CU Daters has been approved and is now live!</p>
+          <p>Great news! Your profile on SeeU-Daters has been approved and is now live!</p>
           <p>You can now start exploring profiles and connecting with other students.</p>
           <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="display: inline-block; background-color: #d4536f; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;">
             Go to Dashboard
@@ -492,13 +576,13 @@ export const sendApprovalEmail = async (email, name) => {
 export const sendRejectionEmail = async (email, name, reason) => {
   try {
     const mailOptions = {
-      from: defaultFromAddress,
+      from: effectiveFromAddress,
       to: email,
-      subject: '❌ CU Daters Profile Review',
+      subject: '❌ SeeU-Daters Profile Review',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #d4536f;">Hi ${name},</h2>
-          <p>Thank you for signing up on CU Daters!</p>
+          <p>Thank you for signing up on SeeU-Daters!</p>
           <p>Unfortunately, your profile could not be approved at this time:</p>
           <p style="background-color: #f0f0f0; padding: 15px; border-left: 4px solid #d4536f;">
             ${reason || 'Your profile did not meet our verification standards.'}
@@ -529,7 +613,7 @@ export const sendRejectionEmail = async (email, name, reason) => {
 export const sendPasswordResetEmail = async (email, resetToken) => {
   try {
     // In development, log the reset link instead of sending
-    if (!sanitizedEmailPassword) {
+    if (canUseConsoleMode) {
       const devResetUrl = `http://localhost:5173/reset-password?token=${resetToken}`;
       console.log('\n' + '='.repeat(80));
       console.log('📧 [DEVELOPMENT MODE - PASSWORD RESET EMAIL]');
@@ -542,6 +626,10 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
       return { success: true, mode: 'development' };
     }
 
+    if (!hasSmtpCredentials && !hasResendProvider) {
+      throw new Error('Email provider is not configured in production (set SMTP credentials or RESEND_API_KEY)');
+    }
+
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
     
     const htmlTemplate = `
@@ -550,7 +638,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>CU Daters - Reset Your Password</title>
+        <title>SeeU-Daters - Reset Your Password</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
@@ -595,7 +683,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
           <div class="card">
             <!-- Header -->
             <div class="header">
-              <div class="logo">💖 CU DATERS 💖</div>
+              <div class="logo">💖 SEEU-DATERS 💖</div>
               <h1>Password Reset Request</h1>
               <p>We received a request to reset your password</p>
             </div>
@@ -632,14 +720,14 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
             <!-- Footer -->
             <div class="footer">
               <div class="security-note">
-                🔒 <strong>Never share this link</strong> with anyone. CU Daters support will never ask for your reset link.
+                🔒 <strong>Never share this link</strong> with anyone. SeeU-Daters support will never ask for your reset link.
               </div>
               
               <p style="margin-top: 15px;">Need help? <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/contact" class="support-link">Contact Support</a></p>
               
               <div class="divider" style="margin: 15px 0;"></div>
               
-              <p>© 2026 CU Daters. All rights reserved.</p>
+              <p>© 2026 SeeU-Daters. All rights reserved.</p>
               <p>Your trusted campus dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
             </div>
           </div>
@@ -649,9 +737,9 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
     `;
 
     const mailOptions = {
-      from: defaultFromAddress,
+      from: effectiveFromAddress,
       to: email,
-      subject: '🔐 CU Daters Password Reset Request',
+      subject: '🔐 SeeU-Daters Password Reset Request',
       html: htmlTemplate,
       text: `Password Reset Request\n\nClick this link to reset your password:\n${resetUrl}\n\nThis link is valid for 1 hour.\n\nIf you didn't request this, please ignore this email.\n\nYour account is secure.`
     };
@@ -676,7 +764,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
 export const sendRegistrationConfirmationEmail = async (email, name, college) => {
   try {
     // In development, log the email
-    if (!sanitizedEmailPassword) {
+    if (canUseConsoleMode) {
       console.log('\n' + '='.repeat(80));
       console.log('📧 [DEV MODE - REGISTRATION CONFIRMATION EMAIL]');
       console.log('='.repeat(80));
@@ -689,13 +777,17 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
       return { success: true, mode: 'development' };
     }
 
+    if (!hasSmtpCredentials && !hasResendProvider) {
+      throw new Error('Email provider is not configured in production (set SMTP credentials or RESEND_API_KEY)');
+    }
+
     const htmlTemplate = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>CU Daters - Registration Pending Approval</title>
+        <title>SeeU-Daters - Registration Pending Approval</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background: #f9f9f9; }
@@ -751,7 +843,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
             <!-- Header -->
             <div class="header">
               <div class="heart">💖</div>
-              <div class="logo">CU Daters</div>
+              <div class="logo">SeeU-Daters</div>
               <h1>Registration Received!</h1>
               <p>Your application is under review</p>
             </div>
@@ -762,7 +854,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
               <div class="greeting">
                 Hey <strong>${name}</strong>! 👋
                 <br><br>
-                Thank you for joining CU Daters – your trusted campus dating platform. Your profile has been successfully submitted and is now pending approval.
+                Thank you for joining SeeU-Daters – your trusted campus dating platform. Your profile has been successfully submitted and is now pending approval.
               </div>
 
               <!-- Status Box -->
@@ -800,7 +892,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
                 
                 <div class="faq-item">
                   <div class="faq-question">How long does approval take?</div>
-                  <div class="faq-answer">Most profiles are approved within 24-48 hours. This helps us maintain a safe and genuine community on CU Daters.</div>
+                  <div class="faq-answer">Most profiles are approved within 24-48 hours. This helps us maintain a safe and genuine community on SeeU-Daters.</div>
                 </div>
 
                 <div class="faq-item">
@@ -827,12 +919,12 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
               <p style="font-size: 15px; color: #2d3748; margin-bottom: 15px;">
                 Need help? Contact our support team
               </p>
-              <a href="mailto:support@cudaters.com" class="support-link" style="display: inline-block; background-color: #d4536f; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; transition: all 0.3s ease;">
-                📧 support@cudaters.com
+              <a href="mailto:support@seeudaters.com" class="support-link" style="display: inline-block; background-color: #d4536f; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; transition: all 0.3s ease;">
+                📧 support@seeudaters.com
               </a>
               
               <div class="footer-text">
-                <p style="margin-top: 20px;">© 2026 CU Daters. All rights reserved.</p>
+                <p style="margin-top: 20px;">© 2026 SeeU-Daters. All rights reserved.</p>
                 <p style="margin-top: 10px;">Your trusted campus dating platform</p>
                 <p style="margin-top: 10px;">
                   <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #d4536f;">Privacy Policy</a> | 
@@ -849,9 +941,9 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
     const mailOptions = {
       from: defaultFromAddress,
       to: email,
-      subject: '✨ Your Registration is Pending Approval – CU DATERS',
+      subject: '✨ Your Registration is Pending Approval – SEEU-DATERS',
       html: htmlTemplate,
-      text: `Hi ${name}!\n\nThank you for registering on CU Daters! Your profile is under review and will be approved within 24-48 hours.\n\nRegistration Summary:\nName: ${name}\nEmail: ${email}\nCollege: ${college}\nStatus: Pending Approval\n\nYou'll receive an email once your profile is approved.\n\nFor support, contact: support@cudaters.com\n\nBest regards,\nCU Daters Team`
+      text: `Hi ${name}!\n\nThank you for registering on SeeU-Daters! Your profile is under review and will be approved within 24-48 hours.\n\nRegistration Summary:\nName: ${name}\nEmail: ${email}\nCollege: ${college}\nStatus: Pending Approval\n\nYou'll receive an email once your profile is approved.\n\nFor support, contact: support@seeudaters.com\n\nBest regards,\nSeeU-Daters Team`
     };
 
     const result = await sendMailWithFallback(mailOptions);
@@ -872,3 +964,4 @@ export default {
   sendPasswordResetEmail,
   sendRegistrationConfirmationEmail
 };
+

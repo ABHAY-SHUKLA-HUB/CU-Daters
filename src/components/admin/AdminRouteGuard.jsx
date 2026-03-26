@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin'];
+const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'];
 
 export default function AdminRouteGuard({ children }) {
   const location = useLocation();

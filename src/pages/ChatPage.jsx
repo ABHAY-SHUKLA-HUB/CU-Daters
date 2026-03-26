@@ -97,10 +97,103 @@ export default function ChatPage() {
   const typingExpiryTimersRef = React.useRef(new Map());
   const [loadingOlderMessages, setLoadingOlderMessages] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(false);
+  const [privacyNotice, setPrivacyNotice] = React.useState('');
+  const [watermarkClock, setWatermarkClock] = React.useState(Date.now());
+  const lastPrivacySignalRef = React.useRef(0);
 
   React.useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setWatermarkClock(Date.now()), 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  React.useEffect(() => {
+    let active = true;
+    safetyApi.getPrivacyNotice()
+      .then((response) => {
+        const notice = response?.data?.consentNotice || 'For your privacy, screenshots may be monitored on supported devices. Screenshots cannot be fully prevented on web.';
+        if (active) {
+          setPrivacyNotice(notice);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setPrivacyNotice('For your privacy, screenshots may be monitored on supported devices. Screenshots cannot be fully prevented on web.');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!selectedConversationId) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastPrivacySignalRef.current < 30 * 1000) {
+      return;
+    }
+    lastPrivacySignalRef.current = now;
+
+    safetyApi.reportPrivacyEvent({
+      eventType: 'chat_sensitive_view',
+      conversationId: selectedConversationId,
+      platform: 'web',
+      supportedSignal: true,
+      consentContext: 'chat-privacy-notice-visible'
+    }).catch(() => {});
+  }, [selectedConversationId]);
+
+  React.useEffect(() => {
+    const onKeyDown = (event) => {
+      if (!selectedConversationId) {
+        return;
+      }
+
+      if (event.key === 'PrintScreen') {
+        const now = Date.now();
+        if (now - lastPrivacySignalRef.current < 5000) {
+          return;
+        }
+        lastPrivacySignalRef.current = now;
+
+        safetyApi.reportPrivacyEvent({
+          eventType: 'printscreen_key',
+          conversationId: selectedConversationId,
+          platform: 'web',
+          supportedSignal: true,
+          metadata: { key: 'PrintScreen' },
+          consentContext: 'best-effort-web-key-signal'
+        }).catch(() => {});
+
+        safetyApi.reportScreenshotEvent({
+          actorUserId: currentUser?._id,
+          targetUserId: conversationsRef.current.find((item) => String(item?._id || '') === String(selectedConversationId))?.participant?._id,
+          conversationId: selectedConversationId,
+          timestamp: new Date().toISOString(),
+          platform: 'web',
+          contextType: 'chat',
+          detectionSignal: 'printscreen_key',
+          supportedSignal: true,
+          metadata: {
+            source: 'chat_page_key_signal',
+            bestEffort: true
+          }
+        }).catch(() => {});
+
+        showNotice('Privacy warning: screenshot key signal detected (best-effort web signal).');
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedConversationId, currentUser?._id, showNotice]);
 
   React.useEffect(() => {
     conversationsRef.current = conversations;
@@ -1386,8 +1479,39 @@ export default function ChatPage() {
     }
   };
 
+  const watermarkLabel = React.useMemo(() => {
+    const username = String(currentUser?.name || currentUser?.email || 'anonymous').slice(0, 24);
+    const idTail = String(currentUser?._id || 'anon').slice(-8);
+    const participantTail = String(selectedConversation?.participant?._id || '').slice(-6);
+    return `SeeU-Daters Privacy Watermark • ${username} • ${idTail} • ${participantTail} • ${new Date(watermarkClock).toLocaleString()}`;
+  }, [currentUser?.name, currentUser?.email, currentUser?._id, selectedConversation?.participant?._id, watermarkClock]);
+
+  const watermarkLayers = React.useMemo(() => {
+    const seedBase = `${selectedConversationId || 'none'}-${watermarkClock}`;
+    const layers = [];
+    for (let i = 0; i < 6; i += 1) {
+      const seed = Array.from(`${seedBase}-${i}`).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const top = 8 + ((seed * 13) % 78);
+      const left = 2 + ((seed * 7) % 82);
+      const rotate = -22 + ((seed * 5) % 44);
+      layers.push({
+        id: `${seedBase}-${i}`,
+        top,
+        left,
+        rotate
+      });
+    }
+    return layers;
+  }, [selectedConversationId, watermarkClock]);
+
   return (
     <section className="pt-16 h-[calc(100vh-4rem)] min-h-0 theme-transition-scope" style={chatThemeStyle}>
+      {privacyNotice ? (
+        <div className="fixed bottom-4 left-4 right-4 z-40 rounded-xl border border-amber-300/60 bg-amber-50/95 px-4 py-2 text-xs text-amber-800 shadow-lg">
+          {privacyNotice}
+        </div>
+      ) : null}
+
       {notice ? (
         <div className="fixed top-20 right-4 z-50 px-4 py-2.5 rounded-xl border border-rose-300/40 bg-white/90 text-rose-700 text-sm font-medium shadow-xl">
           {notice}
@@ -1480,17 +1604,48 @@ export default function ChatPage() {
                       </div>
                     ) : null}
 
-                    <MessageList
-                      conversationId={selectedConversationId}
-                      messages={messages}
-                      myUserId={currentUser?._id}
-                      typingName={typingName}
-                      participantName={selectedConversation?.viewerNickname || selectedConversation?.participant?.name}
-                      hasMore={hasMoreMessages}
-                      loadingOlder={loadingOlderMessages}
-                      onLoadOlder={loadOlderMessages}
-                      onReact={handleReactToMessage}
-                    />
+                    <div className="relative isolate">
+                      <MessageList
+                        conversationId={selectedConversationId}
+                        messages={messages}
+                        myUserId={currentUser?._id}
+                        typingName={typingName}
+                        participantName={selectedConversation?.viewerNickname || selectedConversation?.participant?.name}
+                        hasMore={hasMoreMessages}
+                        loadingOlder={loadingOlderMessages}
+                        onLoadOlder={loadOlderMessages}
+                        onReact={handleReactToMessage}
+                      />
+                      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                        {watermarkLayers.map((layer) => (
+                          <div
+                            key={layer.id}
+                            style={{
+                              position: 'absolute',
+                              top: `${layer.top}%`,
+                              left: `${layer.left}%`,
+                              transform: `rotate(${layer.rotate}deg)`,
+                              fontSize: '10px',
+                              letterSpacing: '0.12em',
+                              opacity: 0.12,
+                              color: '#5b1d3a',
+                              textTransform: 'uppercase',
+                              whiteSpace: 'nowrap',
+                              fontWeight: 700,
+                              textShadow: '0 0 1px rgba(255,255,255,0.45)',
+                              userSelect: 'none',
+                              WebkitUserSelect: 'none'
+                            }}
+                          >
+                            {watermarkLabel}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mx-4 mb-2 rounded-xl border border-slate-300/40 bg-slate-50/70 px-3 py-2 text-[11px] text-slate-600">
+                      {watermarkLabel}
+                    </div>
                   </>
                 )}
 
@@ -1661,3 +1816,4 @@ export default function ChatPage() {
     </section>
   );
 }
+

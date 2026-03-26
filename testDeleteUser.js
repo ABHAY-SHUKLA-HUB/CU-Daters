@@ -15,7 +15,7 @@ async function testDeleteUser() {
     console.log('1️⃣  Getting admin token...\n');
     
     const loginRes = await axios.post(`${API_BASE}/auth/admin-login`, {
-      email: 'admin@cudaters.com',
+      email: 'admin@seeudaters.com',
       password: 'Admin@12345'
     });
 
@@ -117,3 +117,4 @@ async function testDeleteUser() {
 }
 
 testDeleteUser();
+

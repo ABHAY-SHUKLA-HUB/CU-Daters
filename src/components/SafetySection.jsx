@@ -8,7 +8,7 @@ export default function SafetySection() {
         <div className="text-center mb-16 animate-fade-in-up">
           <h2 className="section-title mb-4">The Safest College Dating Platform</h2>
           <p className="section-subtitle max-w-3xl mx-auto">
-            CU Daters uses advanced verification and safety measures to ensure you're always connecting with real, verified college students.
+            SeeU-Daters uses advanced verification and safety measures to ensure you're always connecting with real, verified college students.
           </p>
         </div>
 
@@ -139,3 +139,4 @@ export default function SafetySection() {
     </section>
   );
 }
+

@@ -1,12 +1,13 @@
 export const defaultSupportContact = {
-  supportEmail: 'support@cudaters.in',
-  escalationEmail: 'escalations@cudaters.in',
+  supportEmail: 'support@seeudaters.in',
+  escalationEmail: 'escalations@seeudaters.in',
   supportPhone: '',
   whatsapp: '',
   instagramId: '',
   telegramId: '',
-  supportHandle: 'CU-Daters Support',
+  supportHandle: 'SeeU-Daters Support',
   helpCenterUrl: '',
   officeHours: 'Mon-Sat, 9:00 AM - 8:00 PM',
   responseSlaHours: '24'
 };
+

@@ -9,7 +9,7 @@ const s3 = new AWS.S3({
 
 class S3Service {
   constructor() {
-    this.bucketName = process.env.S3_BUCKET_NAME || 'cu-daters-payments';
+    this.bucketName = process.env.S3_BUCKET_NAME || 'seeu-daters-payments';
     this.urlExpiration = 24 * 60 * 60; // 24 hours
   }
 
@@ -222,3 +222,4 @@ class S3Service {
 }
 
 module.exports = new S3Service();
+

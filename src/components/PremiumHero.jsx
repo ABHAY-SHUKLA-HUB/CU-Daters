@@ -54,7 +54,7 @@ export default function PremiumHero() {
 
               {/* ===== VALUE PROPOSITION ===== */}
               <p className="text-base md:text-lg text-softBrown leading-relaxed font-medium animate-fade-in-up max-w-2xl" style={{ animationDelay: '0.3s' }}>
-                Built by college students for college students, CU-Daters combines trust, compatibility signals, and private conversation in one campus-native product.
+                Built by college students for college students, SeeU-Daters combines trust, compatibility signals, and private conversation in one campus-native product.
               </p>
 
               {/* ===== ADVANCED TRUST POSITIONING ===== */}
@@ -147,7 +147,7 @@ export default function PremiumHero() {
               <div className="relative">
                 <img
                   src={heroImage}
-                  alt="CU-Daters hero visual"
+                  alt="SeeU-Daters hero visual"
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
@@ -192,3 +192,4 @@ export default function PremiumHero() {
     </div>
   );
 }
+
