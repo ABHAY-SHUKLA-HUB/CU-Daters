@@ -430,7 +430,7 @@ export const sendOtpEmail = async (email, otp) => {
 
             <!-- Content -->
             <div class="content">
-              <p class="intro">Hi there! 👋 Welcome to SeeU-Daters – your campus dating community. To complete your registration, please use the verification code below:</p>
+              <p class="intro">Hi there! 👋 Welcome to SeeU-Daters - your trusted dating community. To complete your registration, please use the verification code below:</p>
 
               <!-- OTP Box -->
               <div class="otp-box">
@@ -463,7 +463,7 @@ export const sendOtpEmail = async (email, otp) => {
               <div class="divider" style="margin: 15px 0;"></div>
               
               <p>© 2026 SeeU-Daters. All rights reserved.</p>
-              <p>Your trusted campus dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
+              <p>Your trusted dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
             </div>
           </div>
         </div>
@@ -548,7 +548,7 @@ export const sendApprovalEmail = async (email, name) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #d4536f;">Hi ${name},</h2>
           <p>Great news! Your profile on SeeU-Daters has been approved and is now live!</p>
-          <p>You can now start exploring profiles and connecting with other students.</p>
+          <p>You can now start exploring profiles and connecting with new people.</p>
           <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="display: inline-block; background-color: #d4536f; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;">
             Go to Dashboard
           </a>
@@ -728,7 +728,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
               <div class="divider" style="margin: 15px 0;"></div>
               
               <p>© 2026 SeeU-Daters. All rights reserved.</p>
-              <p>Your trusted campus dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
+              <p>Your trusted dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
             </div>
           </div>
         </div>
@@ -854,7 +854,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
               <div class="greeting">
                 Hey <strong>${name}</strong>! 👋
                 <br><br>
-                Thank you for joining SeeU-Daters – your trusted campus dating platform. Your profile has been successfully submitted and is now pending approval.
+                Thank you for joining SeeU-Daters - your trusted dating platform. Your profile has been successfully submitted and is now pending approval.
               </div>
 
               <!-- Status Box -->
@@ -877,7 +877,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
                   <span class="summary-value">${email}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-label">College</span>
+                  <span class="summary-label">Community</span>
                   <span class="summary-value">${college}</span>
                 </div>
                 <div class="summary-row">
@@ -925,7 +925,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
               
               <div class="footer-text">
                 <p style="margin-top: 20px;">© 2026 SeeU-Daters. All rights reserved.</p>
-                <p style="margin-top: 10px;">Your trusted campus dating platform</p>
+                <p style="margin-top: 10px;">Your trusted dating platform</p>
                 <p style="margin-top: 10px;">
                   <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #d4536f;">Privacy Policy</a> | 
                   <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/terms" class="support-link" style="color: #d4536f;">Terms of Service</a>

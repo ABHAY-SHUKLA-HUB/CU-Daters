@@ -93,10 +93,10 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@cumail.in or personal@email.com"
+                placeholder="your@email.com"
                 className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
               />
-              <p className="text-xs text-softBrown mt-1">📧 Use your college or personal email</p>
+              <p className="text-xs text-softBrown mt-1">📧 Use your registered email</p>
             </div>
 
             <div>
@@ -142,7 +142,7 @@ export default function Login() {
           </Link>
 
           <p className="text-softBrown text-sm mt-6">
-            🔐 Only CU students allowed • 100% Verified
+            🔐 Open to everyone • 100% Verified
           </p>
         </div>
 

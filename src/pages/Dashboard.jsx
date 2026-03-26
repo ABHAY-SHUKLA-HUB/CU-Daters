@@ -44,6 +44,30 @@ class DashboardErrorBoundary extends React.Component {
   }
 }
 
+function AnimatedCount({ value, duration = 900, prefix = '', suffix = '' }) {
+  const [displayValue, setDisplayValue] = React.useState(0);
+
+  React.useEffect(() => {
+    const target = Number(value) || 0;
+    const start = performance.now();
+    let frameId = 0;
+
+    const step = (now) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(target * eased));
+      if (progress < 1) {
+        frameId = requestAnimationFrame(step);
+      }
+    };
+
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
+  }, [duration, value]);
+
+  return <>{`${prefix}${displayValue}${suffix}`}</>;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -454,6 +478,35 @@ export default function Dashboard() {
     return Math.round((completed / checkpoints.length) * 100);
   }, [currentUser]);
 
+  const dashboardPulseStats = React.useMemo(() => {
+    return [
+      {
+        id: 'active-chats',
+        label: 'Active Chats',
+        value: activeConversationCount,
+        icon: '💬',
+        tone: 'from-rose-500 to-fuchsia-500',
+        note: 'Live conversations'
+      },
+      {
+        id: 'incoming',
+        label: 'Incoming Requests',
+        value: pendingLikes.length,
+        icon: '💌',
+        tone: 'from-orange-400 to-rose-500',
+        note: 'Waiting for your response'
+      },
+      {
+        id: 'connections',
+        label: 'Connections',
+        value: connections.length,
+        icon: '🤝',
+        tone: 'from-purple-500 to-indigo-500',
+        note: 'Your trusted circle'
+      }
+    ];
+  }, [activeConversationCount, connections.length, pendingLikes.length]);
+
   const goNextProfile = () => {
     const nextIndex = currentProfileIndex + 1;
     
@@ -783,7 +836,7 @@ export default function Dashboard() {
                 <div className="mb-6 rounded-3xl px-6 py-5 md:px-7 md:py-6" style={{ backgroundColor: 'rgba(255,255,255,0.92)', border: '1px solid rgba(251,113,133,0.25)', boxShadow: '0 20px 55px rgba(190,24,93,0.08)' }}>
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.25em] font-semibold" style={{ color: '#be185d' }}>Private Campus Network</p>
+                      <p className="text-[11px] uppercase tracking-[0.25em] font-semibold" style={{ color: '#be185d' }}>Private Verified Network</p>
                       <h1 className="text-3xl xl:text-4xl font-bold mt-2 leading-tight" style={{ color: '#831843' }}>Discover people. Send a request. Build your circle.</h1>
                     </div>
                     <div className="hidden xl:flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold" style={{ backgroundColor: 'rgba(255,255,255,0.85)', border: '1px solid rgba(251,113,133,0.3)', color: '#9f1239' }}>
@@ -836,6 +889,34 @@ export default function Dashboard() {
                     ) : null}
 
                   </div>
+
+                  <div className="mt-5 grid sm:grid-cols-3 gap-3">
+                    {dashboardPulseStats.map((stat) => (
+                      <article key={stat.id} className="rounded-2xl border border-rose-200/60 bg-white/85 backdrop-blur-md px-4 py-3.5 shadow-[0_12px_30px_rgba(190,24,93,0.08)] hover:-translate-y-0.5 transition-transform">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[11px] uppercase tracking-[0.15em] text-rose-500 font-semibold">{stat.label}</p>
+                          <span className="text-base">{stat.icon}</span>
+                        </div>
+                        <p className={`mt-2 text-2xl font-black bg-gradient-to-r ${stat.tone} bg-clip-text text-transparent`}>
+                          <AnimatedCount value={stat.value} />
+                        </p>
+                        <p className="text-xs text-rose-500/85 mt-1">{stat.note}</p>
+                      </article>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-rose-200/60 bg-white/80 px-4 py-3">
+                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-rose-500 font-semibold">
+                      <span>Profile Readiness</span>
+                      <span><AnimatedCount value={profileCompletion} suffix="%" /></span>
+                    </div>
+                    <div className="mt-2 h-2.5 rounded-full bg-rose-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-violet-500 transition-all duration-500"
+                        style={{ width: `${profileCompletion}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="relative">
@@ -859,7 +940,7 @@ export default function Dashboard() {
                           type="text"
                           value={connectionsSearch}
                           onChange={(event) => setConnectionsSearch(event.target.value)}
-                          placeholder="Search by name, college, or course"
+                          placeholder="Search by name, community, or course"
                           className="flex-1 bg-transparent text-sm outline-none"
                           style={{ color: 'var(--text-dark)' }}
                         />
@@ -1159,7 +1240,7 @@ export default function Dashboard() {
 
                 <div className="rounded-2xl p-4" style={{ backgroundColor: 'rgba(255,255,255,0.95)', border: '1px solid rgba(251,113,133,0.24)', boxShadow: '0 14px 38px rgba(190,24,93,0.08)' }}>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-bold" style={{ color: 'var(--text-dark)' }}>🤝 Campus Circle</p>
+                    <p className="text-sm font-bold" style={{ color: 'var(--text-dark)' }}>🤝 Your Circle</p>
                     <button onClick={() => setTab('connections')} className="text-[11px] font-semibold" style={{ color: 'var(--accent-pink)' }}>Manage</button>
                   </div>
                   <RecentMatches
@@ -1184,7 +1265,7 @@ export default function Dashboard() {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold mb-1" style={{ color: 'var(--text-dark)' }}>Discover</h1>
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Find people to connect with on campus</p>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Find people to connect with near you</p>
               </div>
               <button
                 onClick={() => {

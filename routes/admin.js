@@ -1,6 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import fs from 'fs';
 import User from '../models/User.js';
+import VerificationSubmission from '../models/VerificationSubmission.js';
 import Subscription from '../models/Subscription.js';
 import ActivityLog from '../models/ActivityLog.js';
 import Match from '../models/Match.js';
@@ -34,6 +36,7 @@ import {
   clearAdminAuthCookies,
   verifyStepUpToken
 } from '../services/securityService.js';
+import { resolveVerificationMediaPath } from '../utils/verificationStorage.js';
 import ExcelJS from 'exceljs';
 
 const router = express.Router();
@@ -521,13 +524,46 @@ router.get('/registration-approvals', requirePermission('admin.users.read'), asy
   try {
     // Get users with status = 'pending' (pending signup approval)
     const pendingUsers = await User.find({ status: 'pending', role: 'user' })
-      .select('-password')
+      .select('-password -livePhoto -idCard')
       .sort({ created_at: -1 })
       .lean();
 
+    const userIds = pendingUsers.map((item) => item._id);
+    const submissions = await VerificationSubmission.find({ userId: { $in: userIds } })
+      .select('userId status idProofType submittedAt reviewedAt reviewNotes rejectionReason updatedAt history documents.selfie documents.idProof')
+      .lean();
+    const submissionByUser = new Map(submissions.map((item) => [String(item.userId), item]));
+
+    const data = pendingUsers.map((user) => {
+      const submission = submissionByUser.get(String(user._id));
+      if (!submission) {
+        return {
+          ...user,
+          verificationSubmission: null
+        };
+      }
+
+      return {
+        ...user,
+        verificationSubmission: {
+          id: submission._id,
+          status: submission.status,
+          idProofType: submission.idProofType,
+          submittedAt: submission.submittedAt,
+          reviewedAt: submission.reviewedAt,
+          reviewNotes: submission.reviewNotes,
+          rejectionReason: submission.rejectionReason,
+          updatedAt: submission.updatedAt,
+          history: Array.isArray(submission.history) ? submission.history.slice(-12) : [],
+          hasSelfie: Boolean(submission.documents?.selfie?.storageKey),
+          hasIdProof: Boolean(submission.documents?.idProof?.storageKey)
+        }
+      };
+    });
+
     return res.json(successResponse('Pending registrations fetched', { 
-      data: pendingUsers,
-      count: pendingUsers.length 
+      data,
+      count: data.length 
     }));
   } catch (error) {
     console.error('❌ Pending Registrations Error:', error);
@@ -559,8 +595,25 @@ router.put('/registrations/:userId/approve', requirePermission('admin.users.mode
     // Update user status to 'active'
     user.status = 'active';
     user.is_verified = true;
+    user.verification_status = 'approved';
     user.profile_approval_status = 'approved';
     user.updated_at = new Date();
+
+    const submission = await VerificationSubmission.findOne({ userId: user._id });
+    if (submission) {
+      submission.status = 'approved';
+      submission.reviewNotes = String(adminNotes || '').trim().slice(0, 1000);
+      submission.rejectionReason = '';
+      submission.reviewedAt = new Date();
+      submission.reviewedBy = req.user?._id;
+      submission.history.push({
+        action: 'approved',
+        byAdmin: req.user?._id,
+        note: String(adminNotes || 'Registration approved').slice(0, 1000)
+      });
+      await submission.save();
+    }
+
     await user.save();
 
     const afterState = {
@@ -630,8 +683,25 @@ router.put('/registrations/:userId/reject', requirePermission('admin.users.moder
     // Update user status to 'rejected'
     user.status = 'rejected';
     user.profile_approval_status = 'rejected';
+    user.verification_status = 'rejected';
     user.is_verified = false;
     user.updated_at = new Date();
+
+    const submission = await VerificationSubmission.findOne({ userId: user._id });
+    if (submission) {
+      submission.status = 'rejected';
+      submission.reviewNotes = '';
+      submission.rejectionReason = String(reason || '').trim().slice(0, 1000);
+      submission.reviewedAt = new Date();
+      submission.reviewedBy = req.user?._id;
+      submission.history.push({
+        action: 'rejected',
+        byAdmin: req.user?._id,
+        note: String(reason || 'Registration rejected').slice(0, 1000)
+      });
+      await submission.save();
+    }
+
     await user.save();
 
     const afterState = {
@@ -670,6 +740,110 @@ router.put('/registrations/:userId/reject', requirePermission('admin.users.moder
   } catch (error) {
     console.error('❌ Registration Rejection Error:', error);
     return res.status(500).json(errorResponse('Failed to reject registration'));
+  }
+});
+
+router.put('/registrations/:userId/resubmission', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
+  try {
+    const reason = String(req.body?.reason || '').trim();
+    if (reason.length < 5) {
+      return res.status(400).json(errorResponse('Resubmission note is required (min 5 characters)'));
+    }
+
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json(errorResponse('User not found'));
+    }
+
+    const submission = await VerificationSubmission.findOne({ userId: user._id });
+    if (!submission) {
+      return res.status(404).json(errorResponse('Verification submission not found'));
+    }
+
+    submission.status = 'resubmission_required';
+    submission.reviewNotes = reason.slice(0, 1000);
+    submission.rejectionReason = '';
+    submission.reviewedAt = new Date();
+    submission.reviewedBy = req.user?._id;
+    submission.history.push({
+      action: 'resubmission_requested',
+      byAdmin: req.user?._id,
+      note: reason.slice(0, 1000)
+    });
+    await submission.save();
+
+    user.verification_status = 'resubmission_required';
+    user.profile_approval_status = 'needs_correction';
+    user.status = 'pending';
+    user.profile_admin_notes = reason.slice(0, 1000);
+    user.updated_at = new Date();
+    await user.save();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'registration_resubmission_requested',
+      description: `Requested verification resubmission for ${user.email}`,
+      target_user_id: user._id,
+      target_type: 'user',
+      target_id: user._id,
+      metadata: { reason: reason.slice(0, 1000) },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('Resubmission requested successfully'));
+  } catch (error) {
+    console.error('❌ Registration Resubmission Error:', error);
+    return res.status(500).json(errorResponse('Failed to request resubmission'));
+  }
+});
+
+router.get('/verification-files/:submissionId/:documentType', requirePermission('admin.users.read'), verifyAdminRole(MODERATION_ROLES), async (req, res) => {
+  try {
+    const { submissionId, documentType } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(submissionId)) {
+      return res.status(400).json(errorResponse('Invalid submission id'));
+    }
+
+    const submission = await VerificationSubmission.findById(submissionId)
+      .select('userId documents')
+      .lean();
+
+    if (!submission) {
+      return res.status(404).json(errorResponse('Verification submission not found'));
+    }
+
+    const key = documentType === 'selfie' ? 'selfie' : documentType === 'id-proof' ? 'idProof' : null;
+    if (!key) {
+      return res.status(400).json(errorResponse('Invalid document type'));
+    }
+
+    const document = submission.documents?.[key];
+    if (!document?.storageKey) {
+      return res.status(404).json(errorResponse('Verification file not found'));
+    }
+
+    const filePath = resolveVerificationMediaPath(document.storageKey);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json(errorResponse('Verification file missing from storage'));
+    }
+
+    res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => {
+      if (!res.headersSent) {
+        res.status(500).json(errorResponse('Failed to read verification file'));
+      } else {
+        res.destroy();
+      }
+    });
+    stream.pipe(res);
+  } catch (error) {
+    console.error('❌ Verification File Fetch Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch verification file'));
   }
 });
 
@@ -956,7 +1130,7 @@ router.post('/payments/membership-action', requirePermission('admin.payments.ove
     const {
       userId,
       action = 'grant',
-      plan = 'CU Crush+',
+      plan = 'Premium',
       durationDays = 30,
       note = '',
       amount = 0
@@ -1136,16 +1310,42 @@ router.post('/reports/:reportId/resolve', requirePermission('admin.reports.resol
 // ===== CONTENT MODERATION =====
 router.get('/moderation/photos', requirePermission('admin.reports.read'), verifyAdminRole(MODERATION_ROLES), async (req, res) => {
   try {
-    const users = await User.find({
-      role: 'user',
-      $or: [{ livePhoto: { $exists: true, $ne: '' } }, { idCard: { $exists: true, $ne: '' } }]
-    })
-      .select('name email livePhoto idCard profile_approval_status profile_admin_notes updated_at')
+    const users = await User.find({ role: 'user', verification_submission: { $exists: true, $ne: null } })
+      .select('name email profile_approval_status profile_admin_notes updated_at verification_submission verification_status')
       .sort({ updated_at: -1 })
       .limit(150)
       .lean();
 
-    return res.json(successResponse('Photo moderation queue fetched', { data: users }));
+    const submissionIds = users
+      .map((item) => item.verification_submission)
+      .filter(Boolean);
+
+    const submissions = await VerificationSubmission.find({ _id: { $in: submissionIds } })
+      .select('status idProofType reviewedAt submittedAt reviewNotes rejectionReason documents')
+      .lean();
+    const submissionById = new Map(submissions.map((item) => [String(item._id), item]));
+
+    const data = users.map((user) => {
+      const submission = submissionById.get(String(user.verification_submission));
+      return {
+        ...user,
+        verificationSubmission: submission
+          ? {
+              id: submission._id,
+              status: submission.status,
+              idProofType: submission.idProofType,
+              submittedAt: submission.submittedAt,
+              reviewedAt: submission.reviewedAt,
+              reviewNotes: submission.reviewNotes,
+              rejectionReason: submission.rejectionReason,
+              hasSelfie: Boolean(submission.documents?.selfie?.storageKey),
+              hasIdProof: Boolean(submission.documents?.idProof?.storageKey)
+            }
+          : null
+      };
+    });
+
+    return res.json(successResponse('Photo moderation queue fetched', { data }));
   } catch (error) {
     console.error('❌ Photo Moderation Error:', error);
     return res.status(500).json(errorResponse('Failed to fetch photo moderation queue'));

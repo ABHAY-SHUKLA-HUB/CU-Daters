@@ -223,9 +223,9 @@ export default function LikeRequests({ onAcceptSuccess, onRejectSuccess }) {
                       />
                     )}
                     <div>
-                      <h3 className="font-semibold text-gray-800">{requester?.name || 'Campus Member'}</h3>
+                      <h3 className="font-semibold text-gray-800">{requester?.name || 'Community Member'}</h3>
                       <p className="text-sm text-gray-600 flex items-center gap-1.5">
-                        <span>{requester?.college ? `📍 ${requester.college}` : 'Campus Member'}</span>
+                        <span>{requester?.college ? `📍 ${requester.college}` : 'Community Member'}</span>
                         <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] text-rose-700">
                           {isChatRequest ? 'Chat Request' : 'Connection Request'}
                         </span>
@@ -268,7 +268,7 @@ export default function LikeRequests({ onAcceptSuccess, onRejectSuccess }) {
 
                     {requester.college && (
                       <div>
-                        <p className="text-gray-600">College</p>
+                        <p className="text-gray-600">Community</p>
                         <p className="font-semibold">{requester.college}</p>
                       </div>
                     )}

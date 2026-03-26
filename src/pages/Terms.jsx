@@ -33,7 +33,7 @@ export default function Terms() {
   const legalEmail = legal.legalEmail || 'legal@seeudaters.in';
   const supportEmail = support.supportEmail || legal.supportEmail || 'support@seeudaters.in';
   const termsLastUpdated = legal.termsLastUpdated || 'March 2026';
-  const mailingAddress = legal.mailingAddress || 'Chandigarh University, Chandigarh, India';
+  const mailingAddress = legal.mailingAddress || 'SeeU-Daters Legal Desk, New Delhi, India';
 
   const blocks = Array.isArray(legal.termsBlocks) && legal.termsBlocks.length
     ? legal.termsBlocks

@@ -22,7 +22,7 @@ const getPublicPreview = (user) => {
   const shortAbout = String(user?.shortAbout || user?.bio || '').trim();
   return {
     userId: user?._id,
-    displayPhoto: user?.profilePhoto || user?.livePhoto || null,
+    displayPhoto: user?.profilePhoto || null,
     displayName: user?.name || 'User',
     age: user?.age || null,
     shortAbout: shortAbout ? shortAbout.slice(0, 160) : '',
@@ -91,7 +91,7 @@ const getProfileViewHandler = asyncHandler(async (req, res) => {
   ensureObjectId(profileOwnerId, 'profileOwnerId');
 
   const owner = await User.findById(profileOwnerId)
-    .select('_id name age shortAbout bio detailedBio interests prompts gallery profilePhoto livePhoto verified_badge is_verified college_verification_status college course year privacy status role')
+    .select('_id name age shortAbout bio detailedBio interests prompts gallery profilePhoto verified_badge is_verified college_verification_status college course year privacy status role')
     .lean();
 
   if (!owner || owner.role !== 'user' || owner.status !== 'active') {
@@ -200,7 +200,7 @@ router.post('/requests', asyncHandler(async (req, res) => {
     const ownerCollege = String(owner?.college || '').trim().toLowerCase();
     const requesterCollege = String(requester?.college || '').trim().toLowerCase();
     if (!ownerCollege || !requesterCollege || ownerCollege !== requesterCollege) {
-      throw new AppError('Full profile requests are restricted to same-college users', 403);
+      throw new AppError('Full profile requests are currently limited to members from the same community', 403);
     }
   }
 

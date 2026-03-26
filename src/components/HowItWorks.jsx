@@ -7,14 +7,14 @@ export default function HowItWorks() {
       number: 1,
       icon: '✓',
       title: 'Verify Your Identity',
-      description: 'College email + Student ID + Face verification. Takes 5 minutes.',
+      description: 'Email + Government ID + Face verification. Takes 5 minutes.',
       color: 'from-blue-500 to-cyan-500',
     },
     {
       number: 2,
       icon: '👀',
       title: 'Discover & Browse',
-      description: 'Explore verified profiles from your campus. Stay completely anonymous while browsing.',
+      description: 'Explore verified profiles near you. Stay completely anonymous while browsing.',
       color: 'from-purple-500 to-pink-500',
     },
     {
@@ -40,7 +40,7 @@ export default function HowItWorks() {
         <div className="text-center mb-16 animate-fade-in-up">
           <h2 className="section-title mb-4">How It Works</h2>
           <p className="section-subtitle max-w-3xl mx-auto">
-            Join thousands of students who found their people on SeeU-Daters. The process is simple, safe, and completely anonymous until you're ready.
+            Join thousands of people who found their people on SeeU-Daters. The process is simple, safe, and completely anonymous until you're ready.
           </p>
         </div>
 

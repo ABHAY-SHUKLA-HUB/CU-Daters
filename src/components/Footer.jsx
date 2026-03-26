@@ -16,17 +16,17 @@ export default function Footer() {
         <div className="mb-16 pb-16 border-b border-gray-700">
           <h3 className="text-2xl font-bold mb-4 gradient-text">SeeU-Daters</h3>
           <p className="text-gray-300 text-base leading-relaxed max-w-2xl mb-6">
-            We're building the safest dating platform for college students. Verified profiles. Private conversations. Real connections. By students, for students.
+            We're building one of the safest places to date online. Verified profiles. Private conversations. Real connections. Built for everyone.
           </p>
           <div className="flex gap-4 flex-wrap">
             <div className="px-4 py-2 rounded-full bg-gray-800 text-sm text-gray-300">
-              ✓ Verified by college email
+              ✓ Verified identity
             </div>
             <div className="px-4 py-2 rounded-full bg-gray-800 text-sm text-gray-300">
               🔒 End-to-end encrypted
             </div>
             <div className="px-4 py-2 rounded-full bg-gray-800 text-sm text-gray-300">
-              👥 50K+ students
+              👥 50K+ members
             </div>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function Footer() {
         <div className="border-t border-gray-700 pt-12 flex flex-col md:flex-row justify-between items-center">
           <div>
             <p className="text-sm text-gray-400 mb-4 md:mb-0">
-              © 2026 SeeU-Daters. All rights reserved. Made with 💕 by students, for students.
+              © 2026 SeeU-Daters. All rights reserved. Made with 💕 for real people.
             </p>
           </div>
           <div className="flex gap-6 flex-wrap justify-center md:justify-end">

@@ -37,29 +37,29 @@ export default function PremiumHero() {
             <div className="space-y-6 animate-fade-in-left">
               {/* ===== PREMIUM BADGE ===== */}
               <div className="inline-flex items-center gap-3 bg-white/85 text-darkBrown px-4 py-2.5 rounded-full font-bold shadow-[0_10px_24px_rgba(190,24,93,0.14)] backdrop-blur-sm border border-rose-200/70 hover:shadow-[0_14px_32px_rgba(190,24,93,0.18)] transition-all duration-300">
-                <span className="text-base animate-pulse">🎓</span>
-                <span className="text-xs sm:text-sm font-semibold tracking-wide">Verified with Face ID, Student ID, and Campus Email</span>
+                <span className="text-base animate-pulse">✅</span>
+                <span className="text-xs sm:text-sm font-semibold tracking-wide">Verified with Face ID, Government ID, and Email</span>
               </div>
 
               {/* ===== HEADLINE ===== */}
               <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl font-black text-darkBrown leading-[0.96] animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-                Your People <br className="hidden sm:block" />
-                Are Here
+                Find real connections, <br className="hidden sm:block" />
+                not just profiles
               </h1>
 
               {/* ===== SUBHEADLINE ===== */}
               <p className="text-xl md:text-2xl text-softBrown font-bold leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-                Find real people from your campus. Match with intent. Chat privately.
+                Discover locally. Match intentionally. Build something meaningful.
               </p>
 
               {/* ===== VALUE PROPOSITION ===== */}
               <p className="text-base md:text-lg text-softBrown leading-relaxed font-medium animate-fade-in-up max-w-2xl" style={{ animationDelay: '0.3s' }}>
-                Built by college students for college students, SeeU-Daters combines trust, compatibility signals, and private conversation in one campus-native product.
+                Built for real people who value trust, SeeU-Daters combines compatibility signals and private conversation in one intentional social product.
               </p>
 
               {/* ===== ADVANCED TRUST POSITIONING ===== */}
               <div className="space-y-3 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-                <p className="text-xs sm:text-sm font-bold text-darkBrown uppercase tracking-[0.16em]">Why Students Trust Us</p>
+                <p className="text-xs sm:text-sm font-bold text-darkBrown uppercase tracking-[0.16em]">Why People Trust Us</p>
                 <div className="grid gap-3">
                   {/* Trust Chip 1 */}
                   <div className="flex items-start gap-3 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer group">
@@ -84,7 +84,7 @@ export default function PremiumHero() {
                     <span className="text-2xl">✓</span>
                     <div>
                       <p className="font-bold text-darkBrown text-sm group-hover:text-blushPink transition">Verified 100 Ways</p>
-                      <p className="text-xs text-softBrown">Student ID • Face ID • Campus Email • Real profiles</p>
+                      <p className="text-xs text-softBrown">Government ID • Face ID • Email verification • Real profiles</p>
                     </div>
                   </div>
                 </div>
@@ -122,14 +122,14 @@ export default function PremiumHero() {
               <div className="space-y-2 text-sm text-softBrown font-semibold animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
                 <p>✓ Verify in 2 minutes • No credit card needed</p>
                 <p>✓ Easy to delete • Your data is yours</p>
-                <p>✓ 50K+ students already matching</p>
+                <p>✓ 50K+ people already matching</p>
               </div>
 
               {/* ===== STATS AT BOTTOM ===== */}
               <div className="grid grid-cols-3 gap-4 sm:gap-6 pt-10 border-t border-rose-200/60 animate-fade-in-up" style={{ animationDelay: '0.7s' }}>
                 <div className="group cursor-pointer">
                   <p className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">50K+</p>
-                  <p className="text-[11px] sm:text-xs text-softBrown mt-1.5 font-semibold">Verified Students</p>
+                  <p className="text-[11px] sm:text-xs text-softBrown mt-1.5 font-semibold">Verified Members</p>
                 </div>
                 <div className="group cursor-pointer">
                   <p className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">200K+</p>
@@ -145,6 +145,14 @@ export default function PremiumHero() {
             {/* RIGHT: DUAL MOCKUP PREVIEW */}
             <div className="flex justify-center items-center animate-fade-in-right" style={{ animationDelay: '0.2s' }}>
               <div className="relative">
+                <div className="hidden lg:flex absolute -left-14 top-12 rounded-2xl border border-white/70 bg-white/88 backdrop-blur-md px-3.5 py-2 shadow-[0_20px_45px_rgba(190,24,93,0.16)] items-center gap-2 animate-float">
+                  <span className="text-sm">🛡️</span>
+                  <span className="text-xs font-semibold text-darkBrown">Identity verified</span>
+                </div>
+                <div className="hidden lg:flex absolute -right-12 bottom-14 rounded-2xl border border-rose-200/70 bg-gradient-to-r from-rose-50 to-orange-50 px-3.5 py-2 shadow-[0_20px_45px_rgba(244,63,94,0.16)] items-center gap-2 animate-float" style={{ animationDelay: '1.6s' }}>
+                  <span className="text-sm">✨</span>
+                  <span className="text-xs font-semibold text-darkBrown">Private chat by default</span>
+                </div>
                 <img
                   src={heroImage}
                   alt="SeeU-Daters hero visual"
@@ -161,7 +169,7 @@ export default function PremiumHero() {
           {/* BOTTOM: SOCIAL PROOF CAROUSEL */}
           <div className="mt-20 pt-12 border-t border-softPink border-opacity-30">
             <p className="text-center text-sm font-bold text-softBrown uppercase tracking-widest mb-6 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
-              Real student voices
+              Real user voices
             </p>
             <div className="grid md:grid-cols-3 gap-6 animate-fade-in-up" style={{ animationDelay: '0.9s' }}>
               {/* Testimonial 1 */}

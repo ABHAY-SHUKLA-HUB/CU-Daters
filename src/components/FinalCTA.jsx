@@ -11,7 +11,7 @@ export default function FinalCTA() {
             Ready to Find Your People?
           </h2>
           <p className="text-xl text-softBrown mb-8 leading-relaxed">
-            Join 50K+ verified college students making real connections. Start free today. No credit card needed.
+            Join 50K+ verified members making real connections. Start free today. No credit card needed.
           </p>
         </div>
 
@@ -55,13 +55,13 @@ export default function FinalCTA() {
           Takes 5 minutes to verify • No credit card required • Cancel anytime
         </p>
 
-        {/* Campus Stats */}
+        {/* Community Stats */}
         <div className="mt-16 p-8 rounded-3xl bg-gradient-to-br from-creamyWhite to-warmCream border-2 border-softPink animate-fade-in-up">
-          <p className="text-darkBrown mb-6 font-semibold text-lg">Active on Your Campus</p>
+          <p className="text-darkBrown mb-6 font-semibold text-lg">Active in Your Community</p>
           <div className="grid grid-cols-3 gap-6">
             <div>
               <p className="text-3xl font-black gradient-text">50K+</p>
-              <p className="text-xs text-softBrown mt-2">Verified Students</p>
+              <p className="text-xs text-softBrown mt-2">Verified Members</p>
             </div>
             <div>
               <p className="text-3xl font-black gradient-text">200K+</p>

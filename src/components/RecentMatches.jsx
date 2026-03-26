@@ -1,7 +1,7 @@
 import React from 'react';
 import { resolvePublicProfileVisual } from '../utils/profileMedia';
 
-const TAG_OPTIONS = ['Friend', 'Close Friend', 'Crush', 'Study Buddy', 'Coffee Buddy', 'Campus Buddy', 'Date Vibe'];
+const TAG_OPTIONS = ['Friend', 'Close Friend', 'Crush', 'Study Buddy', 'Coffee Buddy', 'City Buddy', 'Date Vibe'];
 
 export default function RecentMatches({
   matches,
@@ -63,8 +63,8 @@ export default function RecentMatches({
                       <span className="w-10 h-10 rounded-full border border-rose-200 flex items-center justify-center text-xl bg-rose-50">{visual.value}</span>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-rose-700 truncate">{item.profile?.name || 'Campus friend'}</p>
-                      <p className="text-[11px] text-rose-500 truncate">{item.profile?.college || 'Campus network'}</p>
+                      <p className="text-sm font-semibold text-rose-700 truncate">{item.profile?.name || 'New friend'}</p>
+                      <p className="text-[11px] text-rose-500 truncate">{item.profile?.college || 'Your network'}</p>
                     </div>
                   </button>
 
@@ -103,7 +103,7 @@ export default function RecentMatches({
             <div className="text-center py-6">
               <p className="text-2xl mb-2">🤝</p>
               <p className="text-sm text-gray-300">No connections yet</p>
-              <p className="text-xs text-gray-500 mt-1">Accept a request to start your campus circle.</p>
+              <p className="text-xs text-gray-500 mt-1">Accept a request to start your circle.</p>
             </div>
           )}
         </div>

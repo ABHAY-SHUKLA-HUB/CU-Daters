@@ -184,7 +184,7 @@ export const createConversationForMatchedUsers = async (userId, targetUserId) =>
   }
 
   // Populate before returning ✓
-  await conversation.populate('participants', '_id name email status profile_approval_status gender profilePhoto avatarConfig livePhoto verified_badge is_verified college_verification_status privacy');
+  await conversation.populate('participants', '_id name email status profile_approval_status gender profilePhoto avatarConfig verified_badge is_verified college_verification_status privacy');
   return conversation;
 };
 
@@ -242,8 +242,7 @@ export const createOrGetConversation = async (req, res, next) => {
             email: participant.email,
             status: participant.status,
             profilePhoto: participant.profilePhoto,
-            avatarConfig: participant.avatarConfig,
-            livePhoto: participant.livePhoto
+            avatarConfig: participant.avatarConfig
           } : null,
           viewerNickname: resolveViewerNickname(conversation, userId),
           chatTheme: conversation.chatTheme || 'romantic-pink',
@@ -286,7 +285,7 @@ export const getMyConversations = async (req, res, next) => {
 
     const conversations = await Conversation.find(conversationFilter)
       .sort({ lastMessageTime: -1, updatedAt: -1 })
-      .populate('participants', '_id name status profilePhoto avatarConfig livePhoto last_active_at verified_badge is_verified college_verification_status privacy')
+      .populate('participants', '_id name status profilePhoto avatarConfig last_active_at verified_badge is_verified college_verification_status privacy')
       .lean();
 
     const conversationIds = conversations.map((chat) => chat._id);

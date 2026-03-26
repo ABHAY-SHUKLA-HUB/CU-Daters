@@ -30,7 +30,7 @@ export default function Privacy() {
   const companyName = legal.companyName || appName;
   const privacyEmail = legal.privacyEmail || 'privacy@seeudaters.in';
   const privacyLastUpdated = legal.privacyLastUpdated || 'March 2026';
-  const mailingAddress = legal.mailingAddress || 'Chandigarh University, Chandigarh, India';
+  const mailingAddress = legal.mailingAddress || 'SeeU-Daters Legal Desk, New Delhi, India';
 
   const blocks = Array.isArray(legal.privacyBlocks) && legal.privacyBlocks.length
     ? legal.privacyBlocks

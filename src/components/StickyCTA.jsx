@@ -36,8 +36,8 @@ export default function StickyCTA() {
       {/* Desktop Floating CTA */}
       <div className="hidden md:block fixed bottom-8 right-8 bg-gradient-to-r from-rose-500 to-orange-400 
                       text-white p-6 rounded-2xl shadow-2xl z-40 max-w-xs hover:shadow-3xl transition-all">
-        <p className="font-bold mb-3 text-sm">Join CU Students</p>
-        <p className="text-xs opacity-90 mb-4">Finding real connections on campus</p>
+        <p className="font-bold mb-3 text-sm">Join SeeU-Daters</p>
+        <p className="text-xs opacity-90 mb-4">Finding real connections near you</p>
         <Link to="/signup" className="block">
           <button className="w-full bg-white text-rose-500 px-6 py-2 rounded-full font-bold hover:scale-105 transition-all">
             Start Free

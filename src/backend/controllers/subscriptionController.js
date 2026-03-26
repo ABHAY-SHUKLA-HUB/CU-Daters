@@ -403,7 +403,7 @@ exports.rejectRequest = async (req, res) => {
           userName: user.userName,
           planName: subscription.planName,
           reason,
-          supportEmail: 'support@campusconnect.com'
+          supportEmail: 'support@seeudaters.in'
         }
       });
     } catch (emailError) {

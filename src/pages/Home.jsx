@@ -26,8 +26,8 @@ export default function Home() {
       icon: '🛡️'
     },
     {
-      title: 'Campus-Native Matching',
-      body: 'People discover each other through context that matters in college life: course, year, interests, and social intent.',
+      title: 'Context-Rich Matching',
+      body: 'People discover each other through context that matters in real life: interests, goals, values, and social intent.',
       icon: '🎯'
     },
     {
@@ -41,12 +41,12 @@ export default function Home() {
     {
       step: '01',
       title: 'Verified Onboarding',
-      desc: 'Student email + identity checks ensure every profile starts with trust.'
+      desc: 'Email + identity checks ensure every profile starts with trust.'
     },
     {
       step: '02',
       title: 'Smart Discovery',
-      desc: 'Personalized recommendations surface compatible students from your campus network.'
+      desc: 'Personalized recommendations surface compatible people from your network.'
     },
     {
       step: '03',
@@ -75,7 +75,7 @@ export default function Home() {
               <span className="block bg-gradient-to-r from-rose-500 to-fuchsia-500 bg-clip-text text-transparent">Focused On Real Outcomes</span>
             </h2>
             <p className="mt-4 text-base md:text-lg text-softBrown leading-relaxed">
-              SeeU-Daters is designed as a trust-first social product: clearer intent, safer conversations, and a tighter campus network loop that grows with every verified student.
+              SeeU-Daters is designed as a trust-first social product: clearer intent, safer conversations, and a stronger network loop that grows with every verified member.
             </p>
           </ScrollReveal>
 
@@ -98,7 +98,7 @@ export default function Home() {
           <ScrollReveal className="mt-10 grid sm:grid-cols-4 gap-3" delayMs={220}>
             <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center shadow-[0_8px_22px_rgba(190,24,93,0.08)]">
               <p className="text-2xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">50K+</p>
-              <p className="text-xs uppercase tracking-wide text-softBrown">Verified Students</p>
+              <p className="text-xs uppercase tracking-wide text-softBrown">Verified Members</p>
             </div>
             <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center shadow-[0_8px_22px_rgba(190,24,93,0.08)]">
               <p className="text-2xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">200K+</p>
@@ -167,9 +167,9 @@ export default function Home() {
           <div className="grid lg:grid-cols-[1.1fr_1fr] gap-8 items-center">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-rose-500 font-bold">Startup Momentum</p>
-              <h3 className="mt-3 text-4xl font-black text-darkBrown">From Campus Tool To Category Leader</h3>
+              <h3 className="mt-3 text-4xl font-black text-darkBrown">From Niche Product To Category Leader</h3>
               <p className="mt-4 text-softBrown leading-relaxed">
-                The roadmap is focused: safer social discovery, better compatibility intelligence, and faster trust loops for every student cohort.
+                The roadmap is focused: safer social discovery, better compatibility intelligence, and faster trust loops for every user cohort.
               </p>
               <div className="mt-6 space-y-3">
                 <div className="flex items-center gap-3 text-sm text-darkBrown"><span className="text-lg">✓</span><span>Operational admin controls for pricing, legal content, and support.</span></div>
@@ -187,7 +187,7 @@ export default function Home() {
                 </div>
                 <div className="rounded-xl bg-white border border-rose-100 p-3">
                   <p className="text-xs uppercase tracking-[0.15em] text-rose-500 font-bold">Q3</p>
-                  <p className="text-sm text-darkBrown font-semibold mt-1">Campus Expansion Toolkit</p>
+                  <p className="text-sm text-darkBrown font-semibold mt-1">Community Expansion Toolkit</p>
                 </div>
                 <div className="rounded-xl bg-white border border-rose-100 p-3">
                   <p className="text-xs uppercase tracking-[0.15em] text-rose-500 font-bold">Q4</p>

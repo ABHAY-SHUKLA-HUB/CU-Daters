@@ -265,7 +265,7 @@ export default function MessageList({
     <div className="relative flex-1 min-h-0">
       <div
         ref={listRef}
-        className="h-full overflow-y-auto px-4 py-5 space-y-3 bg-gradient-to-b from-white to-creamyWhite"
+        className="h-full overflow-y-auto px-4 py-5 space-y-3 bg-gradient-to-b from-white via-rose-50/35 to-orange-50/35"
         style={{ scrollBehavior: 'smooth', scrollPaddingBottom: '14px' }}
       >
       {hasMore ? (
@@ -332,7 +332,7 @@ export default function MessageList({
           <React.Fragment key={message._id || `${message.createdAt}-${message.text}-${index}`}>
             {showDayDivider ? (
               <div className="flex justify-center py-1">
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-white/75 border border-softPink/45 text-softBrown shadow-sm">
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-white/90 border border-rose-200/70 text-softBrown shadow-sm">
                   {formatDayLabel(message.createdAt)}
                 </span>
               </div>
@@ -347,8 +347,8 @@ export default function MessageList({
                 <div
                   className={`px-4 py-2.5 rounded-2xl shadow-sm animate-message-bubble ${
                     mine
-                      ? 'bg-gradient-to-r from-blushPink to-softPink text-white rounded-br-md'
-                      : 'bg-white border border-softPink/50 text-darkBrown rounded-bl-md'
+                      ? 'bg-gradient-to-r from-rose-500 via-pink-500 to-orange-400 text-white rounded-br-md shadow-[0_12px_28px_rgba(244,63,94,0.24)]'
+                      : 'bg-white/95 border border-rose-200/80 text-darkBrown rounded-bl-md shadow-[0_10px_24px_rgba(190,24,93,0.08)]'
                   }`}
                 >
                   {isVoice ? (

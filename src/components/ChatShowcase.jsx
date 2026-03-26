@@ -5,7 +5,7 @@ export default function ChatShowcase() {
     { icon: '🔒', title: 'End-to-End Encrypted', desc: 'Only you and your match can read messages. Not even we can.' },
     { icon: '⚠️', title: 'Screenshot Detection', desc: 'Screenshot alerts notify your match if photos are captured.' },
     { icon: '🚫', title: 'Block & Report', desc: 'Feel unsafe? Block instantly or report for safety review.' },
-    { icon: '✓', title: 'Verified Users Only', desc: 'Chat only with verified college students. No strangers.' },
+    { icon: '✓', title: 'Verified Users Only', desc: 'Chat only with verified people. No anonymous strangers.' },
     { icon: '📸', title: 'Secure Media Sharing', desc: 'Share photos, voice messages, and links safely—all encrypted.' },
     { icon: '🛡️', title: 'Limited Mod Access', desc: 'Our team only reviews flagged reports for safety. No random access.' },
   ];

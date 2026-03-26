@@ -5,7 +5,7 @@
  */
 
 export class MongoDataAPI {
-  constructor(apiKey, appId, dataSource = 'Campus-Connect') {
+  constructor(apiKey, appId, dataSource = 'SeeU-Daters') {
     this.apiKey = apiKey;
     this.appId = appId;
     this.dataSource = dataSource;
@@ -28,7 +28,7 @@ export class MongoDataAPI {
         },
         body: JSON.stringify({
           dataSource: this.dataSource,
-          database: 'Campus-Connect',
+          database: 'SeeU-Daters',
           collection,
           ...payload
         })

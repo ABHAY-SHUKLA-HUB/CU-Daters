@@ -70,13 +70,13 @@ class SubscriptionService {
         name: 'Monthly Premium',
         amount: 4.99,
         duration_days: 30,
-        upi_id: process.env.UPI_ID || 'campusconnect@upi'
+        upi_id: process.env.UPI_ID || 'seeudaters@upi'
       },
       yearly: {
         name: 'Yearly Premium',
         amount: 39.99,
         duration_days: 365,
-        upi_id: process.env.UPI_ID || 'campusconnect@upi'
+        upi_id: process.env.UPI_ID || 'seeudaters@upi'
       }
     };
 

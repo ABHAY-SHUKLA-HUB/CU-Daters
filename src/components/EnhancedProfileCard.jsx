@@ -100,7 +100,7 @@ export default function EnhancedProfileCard({
     profile?.shortAbout ||
     profile?.bio ||
     profile?.about ||
-    `Into good vibes, real conversations, and ${profile?.college ? `${profile.college} moments` : 'campus adventures'}.`;
+    `Into good vibes, real conversations, and ${profile?.college ? `${profile.college} moments` : 'local adventures'}.`;
   const interestList = Array.isArray(profile?.interests) ? profile.interests.slice(0, 7) : [];
 
   const showPreviewModal = () => {
@@ -300,7 +300,7 @@ export default function EnhancedProfileCard({
                         {profile?.name || 'Unknown'}, <span className="text-white/85">{profile?.age || 21}</span>
                       </h1>
                       <p className="text-xs mt-2 text-white/80 truncate">
-                        {profile?.college || 'Campus member'}
+                        {profile?.college || 'Community member'}
                         {profile?.course ? ` • ${profile.course}` : ''}
                         {profile?.year ? ` • Year ${profile.year}` : ''}
                       </p>
@@ -348,7 +348,7 @@ export default function EnhancedProfileCard({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <SignalChip label="Vibe Match" value={`${signals.vibeMatch}%`} tone="rose" />
                 <SignalChip label="Shared Interests" value={`${signals.sharedInterests}`} tone="lavender" />
-                <SignalChip label="Popular On Campus" value={signals.campusPulse ? 'Trending' : 'Growing'} tone="neutral" />
+                <SignalChip label="Popular Nearby" value={signals.campusPulse ? 'Trending' : 'Growing'} tone="neutral" />
                 <SignalChip label="Weekly Requests" value={`+${signals.matchMomentum}`} tone="warm" />
               </div>
 

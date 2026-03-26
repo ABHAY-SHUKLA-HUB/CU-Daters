@@ -2297,3 +2297,56 @@ button:focus-visible {
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #f08abc, #d9b9f4);
 }
+
+/* ===== FINAL PREMIUM AUTHORITY LAYER ===== */
+:root {
+  --ux-radius-sm: 12px;
+  --ux-radius-md: 18px;
+  --ux-radius-lg: 24px;
+  --ux-shadow-soft: 0 10px 26px rgba(190, 24, 93, 0.12);
+  --ux-shadow-strong: 0 20px 44px rgba(190, 24, 93, 0.2);
+  --ux-border-soft: rgba(251, 113, 133, 0.26);
+  --ux-focus-ring: 0 0 0 4px rgba(244, 63, 94, 0.2);
+}
+
+::selection {
+  background: rgba(244, 63, 94, 0.22);
+  color: #2b1323;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  transition: box-shadow 220ms ease, transform 220ms ease, border-color 220ms ease, background-color 220ms ease;
+}
+
+button:focus-visible,
+input:focus,
+textarea:focus,
+select:focus {
+  box-shadow: var(--ux-focus-ring);
+}
+
+.theme-transition-scope .rounded-2xl,
+.theme-transition-scope .rounded-3xl {
+  border-color: var(--ux-border-soft);
+}
+
+.theme-transition-scope .shadow-premium,
+.theme-transition-scope .shadow-premium-lg,
+.theme-transition-scope .shadow-premium-xl {
+  box-shadow: var(--ux-shadow-strong);
+}
+
+@media (max-width: 768px) {
+  .theme-transition-scope {
+    --ux-radius-md: 16px;
+    --ux-radius-lg: 20px;
+  }
+
+  .theme-transition-scope button {
+    min-height: 42px;
+  }
+}

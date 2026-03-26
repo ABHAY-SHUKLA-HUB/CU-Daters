@@ -142,6 +142,18 @@ const adminApi = {
     return response.data;
   },
 
+  requestRegistrationResubmission: async (userId, payload = {}, adminPin) => {
+    const response = await api.put(`/api/admin/registrations/${userId}/resubmission`, payload, getAdminHeaders(adminPin));
+    return response.data;
+  },
+
+  getVerificationFileBlob: async (submissionId, documentType) => {
+    const response = await api.get(`/api/admin/verification-files/${submissionId}/${documentType}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
   updateUserModeration: async (userId, payload, adminPin) => {
     const response = await api.put(`/api/admin/users/${userId}/moderation`, payload, getAdminHeaders(adminPin));
     return response.data;

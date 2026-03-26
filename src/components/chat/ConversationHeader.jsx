@@ -36,13 +36,13 @@ export default function ConversationHeader({
   }, [blocked, isOnline, lastSeenAt]);
 
   return (
-    <header className="relative border-b border-softPink/40 px-4 md:px-5 py-3.5 bg-white/80 backdrop-blur-md flex items-center justify-between gap-3">
+    <header className="relative border-b border-rose-200/60 px-4 md:px-5 py-3.5 bg-white/86 backdrop-blur-xl flex items-center justify-between gap-3 shadow-[0_8px_24px_rgba(190,24,93,0.08)]">
       <div className="flex items-center gap-3 min-w-0">
-        <button onClick={onBack} className="md:hidden text-xl text-blushPink w-9 h-9 rounded-full border border-softPink/40 bg-white" aria-label="Back to conversations">
+        <button onClick={onBack} className="md:hidden text-xl text-rose-500 w-9 h-9 rounded-full border border-rose-200/70 bg-white shadow-sm" aria-label="Back to conversations">
           ←
         </button>
 
-        <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-blushPink to-softPink text-white flex items-center justify-center font-bold overflow-hidden shadow-md">
+        <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-400 text-white flex items-center justify-center font-bold overflow-hidden shadow-[0_12px_28px_rgba(244,63,94,0.24)]">
           {visual.type === 'photo' ? (
             <img src={visual.value} alt={participant?.name || 'User'} className="h-full w-full object-cover" />
           ) : (
@@ -71,7 +71,7 @@ export default function ConversationHeader({
         <button
           onClick={onStartVoiceCall}
           disabled={blocked}
-          className="w-9 h-9 rounded-full border border-softPink/45 bg-white hover:bg-softPink/15 text-base disabled:opacity-45 disabled:cursor-not-allowed"
+          className="w-9 h-9 rounded-full border border-rose-200/70 bg-white hover:bg-rose-50 text-base shadow-sm disabled:opacity-45 disabled:cursor-not-allowed"
           aria-label="Start voice call"
           title="Start voice call"
         >
@@ -80,7 +80,7 @@ export default function ConversationHeader({
         <button
           onClick={onStartVideoCall}
           disabled={blocked}
-          className="w-9 h-9 rounded-full border border-softPink/45 bg-white hover:bg-softPink/15 text-base disabled:opacity-45 disabled:cursor-not-allowed"
+          className="w-9 h-9 rounded-full border border-rose-200/70 bg-white hover:bg-rose-50 text-base shadow-sm disabled:opacity-45 disabled:cursor-not-allowed"
           aria-label="Start video call"
           title="Start video call"
         >
@@ -88,14 +88,14 @@ export default function ConversationHeader({
         </button>
         <button
           onClick={() => setMenuOpen((prev) => !prev)}
-          className="w-9 h-9 rounded-full border border-softPink/45 bg-white hover:bg-softPink/20 text-blushPink"
+          className="w-9 h-9 rounded-full border border-rose-200/70 bg-white hover:bg-rose-50 text-rose-500 shadow-sm"
           aria-label="Chat actions"
         >
           ⋯
         </button>
 
         {menuOpen ? (
-          <div className="absolute right-0 top-10 w-44 bg-white border border-softPink/70 rounded-xl shadow-xl overflow-hidden z-20">
+          <div className="absolute right-0 top-10 w-44 bg-white/95 border border-rose-200/80 rounded-xl shadow-[0_18px_40px_rgba(190,24,93,0.16)] overflow-hidden z-20 backdrop-blur-sm">
             <button
               onClick={() => {
                 setMenuOpen(false);

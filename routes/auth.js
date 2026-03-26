@@ -2,6 +2,7 @@ import express from 'express';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import User from '../models/User.js';
+import VerificationSubmission from '../models/VerificationSubmission.js';
 import { generateToken, logActivity, getClientInfo } from '../utils/auth.js';
 import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
 import { asyncHandler, AppError } from '../utils/errorHandler.js';
@@ -15,6 +16,7 @@ import {
 } from '../utils/validation.js';
 import { sendOtpEmail, sendPasswordResetEmail, sendRegistrationConfirmationEmail, getEmailServiceHealth } from '../utils/emailService.js';
 import { createAdminSession, setAdminAuthCookies } from '../services/securityService.js';
+import { saveVerificationMediaFromDataUrl } from '../utils/verificationStorage.js';
 
 const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'];
 const SMTP_ALERT_FAILURE_THRESHOLD = Math.max(2, Number(process.env.SMTP_ALERT_FAILURE_THRESHOLD || 3));
@@ -68,6 +70,52 @@ const safeOtpMatch = (user, otpInput, emailLower) => {
   }
 };
 
+const ONBOARDING_FIELD_SUGGESTIONS = [
+  'Software Engineering',
+  'Product Design',
+  'Data Science',
+  'Marketing',
+  'Finance',
+  'Consulting',
+  'Content Creation',
+  'Sales',
+  'Human Resources',
+  'Operations',
+  'Law',
+  'Healthcare',
+  'Research',
+  'Education',
+  'Entrepreneurship'
+];
+
+const normalizeFieldOfWork = (value) => {
+  const compact = String(value || '')
+    .replace(/[^a-zA-Z0-9&/\-\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!compact) return '';
+  return compact
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+    .slice(0, 80);
+};
+
+const parseExperienceYears = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 40) {
+    return NaN;
+  }
+  return Math.trunc(parsed);
+};
+
+const normalizeIdProofType = (value) => {
+  const allowed = new Set(['government_id', 'employee_id', 'student_id', 'other']);
+  const normalized = String(value || 'government_id').trim().toLowerCase();
+  return allowed.has(normalized) ? normalized : 'government_id';
+};
+
 // ===== EMAIL SERVICE HEALTH =====
 router.get('/email-health', asyncHandler(async (req, res) => {
   const adminPin = String(process.env.ADMIN_PIN || '').trim();
@@ -91,6 +139,16 @@ router.get('/email-health', asyncHandler(async (req, res) => {
       ...health
     })
   );
+}));
+
+router.get('/onboarding/field-suggestions', asyncHandler(async (req, res) => {
+  const query = String(req.query.q || '').trim().toLowerCase();
+  const baseList = ONBOARDING_FIELD_SUGGESTIONS;
+  const data = query
+    ? baseList.filter((item) => item.toLowerCase().includes(query)).slice(0, 8)
+    : baseList.slice(0, 8);
+
+  return res.json(successResponse('Field suggestions fetched', { suggestions: data }));
 }));
 
 // ===== SEND OTP (Email) =====
@@ -474,10 +532,21 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
     gender,
     course,
     year,
+    fieldOfWork,
+    experienceYears,
     bio,
     livePhoto,
-    idCard
+    idCard,
+    liveSelfie,
+    idProofFile,
+    idProofType
   } = req.body;
+
+  const normalizedFieldOfWork = normalizeFieldOfWork(fieldOfWork || course);
+  const normalizedExperienceYears = parseExperienceYears(experienceYears ?? year);
+  const normalizedIdProofType = normalizeIdProofType(idProofType);
+  const selfiePayload = liveSelfie || livePhoto;
+  const idProofPayload = idProofFile || idCard;
 
   // Validation
   if (!email || !validateEmail(email)) {
@@ -485,11 +554,16 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
   }
 
   if (!gender) throw new AppError('Gender is required', 400);
-  if (!course) throw new AppError('Course is required', 400);
-  if (!year) throw new AppError('Year is required', 400);
+  if (!normalizedFieldOfWork) throw new AppError('Field of work is required', 400);
+  if (Number.isNaN(normalizedExperienceYears)) {
+    throw new AppError('Experience/Year must be a number between 1 and 40', 400);
+  }
+  if (normalizedExperienceYears === null) {
+    throw new AppError('Experience/Year is required', 400);
+  }
   if (!bio || bio.length < 20) throw new AppError('Bio must be at least 20 characters', 400);
-  if (!livePhoto) throw new AppError('Live photo is required', 400);
-  if (!idCard) throw new AppError('ID card image is required', 400);
+  if (!selfiePayload) throw new AppError('Live selfie is required', 400);
+  if (!idProofPayload) throw new AppError('ID proof image is required', 400);
 
   const emailLower = email.toLowerCase().trim();
 
@@ -513,19 +587,76 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
 
   // Update user with profile information
   user.gender = gender.toLowerCase();
-  user.course = course;
-  user.year = year;
+  user.course = normalizedFieldOfWork;
+  user.field_of_work = normalizedFieldOfWork;
+  user.year = String(normalizedExperienceYears);
+  user.experience_years = normalizedExperienceYears;
   user.shortAbout = String(bio || '').slice(0, 160);
   user.bio = bio;
   user.detailedBio = bio;
   user.interests = user.interests || [];
   user.prompts = user.prompts || [];
   user.gallery = user.gallery || [];
-  user.livePhoto = livePhoto;
-  user.idCard = idCard;
+  user.livePhoto = undefined;
+  user.idCard = undefined;
+  user.verification_status = 'pending';
   user.profile_approval_status = 'pending';
   user.status = 'pending'; // Always pending until admin approves
   user.updated_at = new Date();
+
+  const selfieDocument = await saveVerificationMediaFromDataUrl({
+    userId: user._id,
+    documentType: 'selfie',
+    dataUrl: selfiePayload
+  });
+  const idProofDocument = await saveVerificationMediaFromDataUrl({
+    userId: user._id,
+    documentType: 'id-proof',
+    dataUrl: idProofPayload
+  });
+
+  const existingSubmission = await VerificationSubmission.findOne({ userId: user._id });
+  let submission;
+
+  if (existingSubmission) {
+    existingSubmission.status = 'pending';
+    existingSubmission.idProofType = normalizedIdProofType;
+    existingSubmission.documents = {
+      selfie: {
+        ...selfieDocument,
+        originalName: 'live-selfie'
+      },
+      idProof: {
+        ...idProofDocument,
+        originalName: normalizedIdProofType
+      }
+    };
+    existingSubmission.reviewNotes = '';
+    existingSubmission.rejectionReason = '';
+    existingSubmission.reviewedAt = undefined;
+    existingSubmission.reviewedBy = undefined;
+    existingSubmission.history.push({ action: 'resubmitted', note: 'User re-submitted verification documents' });
+    submission = await existingSubmission.save();
+  } else {
+    submission = await VerificationSubmission.create({
+      userId: user._id,
+      status: 'pending',
+      idProofType: normalizedIdProofType,
+      documents: {
+        selfie: {
+          ...selfieDocument,
+          originalName: 'live-selfie'
+        },
+        idProof: {
+          ...idProofDocument,
+          originalName: normalizedIdProofType
+        }
+      },
+      history: [{ action: 'submitted', note: 'Initial verification submitted' }]
+    });
+  }
+
+  user.verification_submission = submission._id;
 
   await user.save();
   console.log(`✓ User profile completed: ${user._id} (${email})`);

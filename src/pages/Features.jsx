@@ -12,9 +12,9 @@ export default function Features() {
 
   const features = [
     {
-      icon: '🎓',
-      title: 'Verified CU Students',
-      desc: 'Only emails from @cumail.in & @cu.ac.in are accepted. Live face detection, Student ID verification, and admin approval required.'
+      icon: '✅',
+      title: 'Verified Real Profiles',
+      desc: 'Email verification, live face detection, government ID checks, and admin review protect authenticity.'
     },
     {
       icon: '🤫',
@@ -44,7 +44,7 @@ export default function Features() {
     {
       icon: '🔍',
       title: 'Explore & Nearby',
-      desc: 'Browse profiles from your college first. Unlock nearby colleges (top 30) to expand your options with premium.'
+      desc: 'Browse compatible profiles nearby first. Expand your discovery radius with premium.'
     },
     {
       icon: '🛡️',
@@ -61,7 +61,7 @@ export default function Features() {
             <p className="text-xs uppercase tracking-[0.22em] text-rose-500 font-bold text-center">Product Architecture</p>
             <h1 className="text-5xl md:text-6xl font-black text-darkBrown text-center mt-3">Startup-Grade Feature Stack</h1>
             <p className="text-center max-w-3xl mx-auto text-lg text-softBrown mt-4 leading-relaxed">
-              SeeU-Daters combines trust technology, intent-focused matching, and private communication to deliver a safer and higher-quality campus social experience.
+              SeeU-Daters combines trust technology, intent-focused matching, and private communication to deliver a safer and higher-quality social experience.
             </p>
           </ScrollReveal>
 
@@ -92,10 +92,10 @@ export default function Features() {
 
             <div className="grid md:grid-cols-5 gap-4 mt-12">
               {[
-                { step: 1, title: 'Email Signup', desc: 'CU email only' },
+                { step: 1, title: 'Email Signup', desc: 'Any valid email' },
                 { step: 2, title: 'OTP Verify', desc: 'Mobile verification' },
                 { step: 3, title: 'Face Detect', desc: 'Selfie + anti-spoofing' },
-                { step: 4, title: 'ID Upload', desc: 'Student ID card' },
+                { step: 4, title: 'ID Upload', desc: 'Government ID card' },
                 { step: 5, title: 'Approved!', desc: 'Admin verification' },
               ].map((item, idx) => (
                 <ScrollReveal key={idx} className="text-center" delayMs={100 + idx * 70}>

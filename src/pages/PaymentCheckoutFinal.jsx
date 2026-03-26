@@ -91,7 +91,7 @@ const PaymentCheckoutFinal = () => {
   const isBankEnabled = bankMethod.enabled !== false;
   const isUpiEnabled = upiMethod.enabled !== false;
   const isQrEnabled = qrMethod.enabled !== false;
-  const upiId = upiMethod.id || 'campusconnect@upi';
+  const upiId = upiMethod.id || 'seeudaters@upi';
   const accountHolder = bankMethod.accountHolder || 'SeeU-Daters Pvt Ltd';
   const bankName = bankMethod.bankName || 'HDFC Bank';
   const accountNumber = bankMethod.accountNumber || '1234567890123456';

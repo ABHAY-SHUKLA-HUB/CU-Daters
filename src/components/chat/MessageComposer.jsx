@@ -4,7 +4,7 @@ const EMOJI_SECTIONS = {
   smileys: ['😀', '😄', '😁', '🥹', '😍', '😘', '😎', '🤗', '😇', '😴', '🤔', '😭'],
   hearts: ['❤️', '💕', '💖', '💘', '💝', '💗', '💞', '💓', '💟', '💌', '💍', '💐'],
   gestures: ['👋', '👍', '👏', '🙌', '🔥', '✨', '🥰', '🤝', '💯', '🎉', '🙏', '🤍'],
-  campus: ['📚', '🎓', '☕', '🍕', '🎵', '🏫', '🧋', '📸', '🌙', '🚌', '⚽', '🎬']
+  social: ['📚', '🎓', '☕', '🍕', '🎵', '🏙️', '🧋', '📸', '🌙', '🚌', '⚽', '🎬']
 };
 
 const ACCEPTED_FILE_TYPES = '.png,.jpg,.jpeg,.webp,.gif,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.mp3,.wav,.m4a,.aac';
@@ -382,11 +382,11 @@ export default function MessageComposer({
   const recordingActive = recordingState === 'recording' || recordingState === 'paused';
 
   return (
-    <div className="border-t border-softPink/45 bg-white/85 backdrop-blur p-3 md:p-4 sticky bottom-0">
+    <div className="border-t border-rose-200/70 bg-white/90 backdrop-blur-xl p-3 md:p-4 sticky bottom-0 shadow-[0_-10px_30px_rgba(190,24,93,0.08)]">
       {recordingError ? <p className="text-xs text-red-600 mb-2">{recordingError}</p> : null}
 
       {recordingActive ? (
-        <div className="rounded-2xl border border-rose-300/55 bg-rose-50/90 px-4 py-3 flex items-center justify-between gap-3">
+        <div className="rounded-2xl border border-rose-300/55 bg-gradient-to-r from-rose-50 to-orange-50 px-4 py-3 flex items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-rose-700 text-sm font-semibold">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
@@ -408,7 +408,7 @@ export default function MessageComposer({
               <button
                 type="button"
                 onClick={pauseRecording}
-                className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 text-sm font-medium hover:bg-rose-100"
+                className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 text-sm font-medium hover:bg-rose-100 transition"
               >
                 Pause
               </button>
@@ -416,7 +416,7 @@ export default function MessageComposer({
               <button
                 type="button"
                 onClick={resumeRecording}
-                className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 text-sm font-medium hover:bg-rose-100"
+                className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 text-sm font-medium hover:bg-rose-100 transition"
               >
                 Resume
               </button>
@@ -424,26 +424,26 @@ export default function MessageComposer({
             <button
               type="button"
               onClick={cancelRecording}
-              className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 text-sm font-medium hover:bg-rose-100"
+              className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 text-sm font-medium hover:bg-rose-100 transition"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={finishRecording}
-              className="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-500"
+              className="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-500 transition shadow-sm"
             >
               Done
             </button>
           </div>
         </div>
       ) : recordingState === 'preview' ? (
-        <div className="rounded-2xl border border-emerald-300/50 bg-emerald-50/70 px-4 py-3">
+        <div className="rounded-2xl border border-emerald-300/50 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-3">
           <div className="flex items-center justify-between gap-3 mb-2">
             <p className="text-sm font-semibold text-emerald-700">Voice note preview ({formatSeconds(recordSeconds)})</p>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={cancelRecording} className="px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-700 text-sm font-medium hover:bg-emerald-100">Discard</button>
-              <button type="button" onClick={sendRecording} className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500">Send</button>
+              <button type="button" onClick={cancelRecording} className="px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-700 text-sm font-medium hover:bg-emerald-100 transition">Discard</button>
+              <button type="button" onClick={sendRecording} className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition shadow-sm">Send</button>
             </div>
           </div>
           <audio controls src={audioPreviewUrl} className="w-full h-9" />
@@ -480,14 +480,14 @@ export default function MessageComposer({
               type="button"
               onClick={() => setEmojiOpen((prev) => !prev)}
               disabled={disabled || isSending}
-              className="w-10 h-10 rounded-xl border border-softPink/50 bg-white hover:bg-softPink/15 disabled:opacity-45"
+              className="w-11 h-11 rounded-2xl border border-rose-200/75 bg-white hover:bg-rose-50 shadow-sm disabled:opacity-45 transition"
               title="Insert emoji"
             >
               😊
             </button>
 
             {emojiOpen ? (
-              <div className="absolute bottom-12 left-0 z-30 w-[320px] rounded-2xl border border-softPink/45 bg-white shadow-[0_24px_55px_rgba(0,0,0,0.2)] p-3">
+              <div className="absolute bottom-12 left-0 z-30 w-[320px] rounded-2xl border border-rose-200/70 bg-white shadow-[0_24px_55px_rgba(190,24,93,0.22)] p-3">
                 <p className="text-[11px] font-semibold text-softBrown uppercase tracking-[0.14em] mb-2">Recent</p>
                 <div className="flex flex-wrap gap-1 mb-3">
                   {recentEmojis.map((emoji) => (
@@ -520,7 +520,7 @@ export default function MessageComposer({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || isSending}
-              className="w-10 h-10 rounded-xl border border-softPink/50 bg-white hover:bg-softPink/15 disabled:opacity-45"
+              className="w-11 h-11 rounded-2xl border border-rose-200/75 bg-white hover:bg-rose-50 shadow-sm disabled:opacity-45 transition"
               title="Attach file"
             >
               📎
@@ -534,7 +534,7 @@ export default function MessageComposer({
               className="hidden"
             />
 
-            <div className="flex-1 rounded-2xl border border-softPink/60 bg-white shadow-[0_8px_24px_rgba(242,170,188,0.2)] px-3 py-2">
+            <div className="flex-1 rounded-2xl border border-rose-200/80 bg-white shadow-[0_10px_28px_rgba(244,63,94,0.14)] px-3 py-2">
               <textarea
                 ref={textareaRef}
                 value={value}
@@ -551,7 +551,7 @@ export default function MessageComposer({
               type="button"
               onClick={startRecording}
               disabled={disabled || isSending}
-              className="w-10 h-10 rounded-xl border border-softPink/50 bg-white hover:bg-softPink/15 disabled:opacity-45"
+              className="w-11 h-11 rounded-2xl border border-rose-200/75 bg-white hover:bg-rose-50 shadow-sm disabled:opacity-45 transition"
               title="Record voice note"
             >
               🎙️
@@ -560,7 +560,7 @@ export default function MessageComposer({
             <button
               onClick={() => void handleSend()}
               disabled={disabled || isSending || !value.trim()}
-              className="h-10 px-4 rounded-xl bg-gradient-to-r from-blushPink to-softPink text-white font-semibold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-11 px-4 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-orange-400 text-white font-semibold shadow-[0_12px_28px_rgba(244,63,94,0.28)] disabled:opacity-40 disabled:cursor-not-allowed transition-transform hover:scale-[1.02]"
             >
               {isSending ? 'Sending...' : 'Send'}
             </button>

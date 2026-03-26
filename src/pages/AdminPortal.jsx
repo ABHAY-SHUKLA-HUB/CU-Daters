@@ -937,8 +937,11 @@ export default function AdminPortal() {
     }
 
     let reason = String(options?.reason || '').trim();
-    if (action === 'reject' && !reason) {
-      reason = window.prompt('Enter rejection reason:', 'Profile does not meet requirements') || '';
+    if ((action === 'reject' || action === 'resubmission') && !reason) {
+      reason = window.prompt(
+        action === 'resubmission' ? 'Enter resubmission note:' : 'Enter rejection reason:',
+        action === 'resubmission' ? 'Please re-upload a clearer selfie and ID proof.' : 'Profile does not meet requirements'
+      ) || '';
       if (!reason.trim()) {
         return false;
       }
@@ -947,13 +950,21 @@ export default function AdminPortal() {
     try {
       if (action === 'approve') {
         await adminApi.approveRegistration(userId, { adminNotes: String(options?.adminNotes || '').trim() }, adminPin);
+      } else if (action === 'resubmission') {
+        await adminApi.requestRegistrationResubmission(userId, { reason }, adminPin);
       } else {
         await adminApi.rejectRegistration(userId, { reason }, adminPin);
       }
       
-      // Remove from pending list immediately
+      // Remove from pending list immediately for terminal decisions.
       const removeRow = () => {
         setRegistrationApprovals((prev) => {
+          if (action === 'resubmission') {
+            return prev.map((u) => (u._id === userId
+              ? { ...u, profile_approval_status: 'needs_correction', verification_status: 'resubmission_required', profile_admin_notes: reason }
+              : u
+            ));
+          }
           return prev.filter((u) => u._id !== userId);
         });
       };
@@ -965,7 +976,7 @@ export default function AdminPortal() {
         removeRow();
       }
       
-      notify(`User ${action}ed successfully.`);
+      notify(action === 'resubmission' ? 'Resubmission requested successfully.' : `User ${action}ed successfully.`);
       return true;
       
     } catch (err) {
@@ -3185,6 +3196,29 @@ function RegistrationApprovalsPanel({
     }
   }, [canRunSensitiveAction, onApprove, onNotify, pushAudit, rejectModal]);
 
+  const runResubmission = React.useCallback(async (user) => {
+    if (!user?._id) return;
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before resubmission actions.', 'error');
+      return;
+    }
+
+    const reason = window.prompt('Resubmission note for user:', 'Please re-upload a clearer selfie and ID proof.') || '';
+    if (String(reason).trim().length < 5) {
+      onNotify?.('Please provide a note with at least 5 characters.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, user._id])]);
+    const ok = await onApprove?.(user._id, 'resubmission', { reason: String(reason).trim() });
+    setLoadingIds((prev) => prev.filter((id) => id !== user._id));
+
+    if (ok) {
+      pushAudit({ action: 'resubmission', userId: user._id, userName: user.name, note: String(reason).trim() });
+      onNotify?.('Resubmission requested', 'success');
+    }
+  }, [canRunSensitiveAction, onApprove, onNotify, pushAudit]);
+
   const handleBulkApprove = React.useCallback(async () => {
     if (!selectedIds.length) return;
     if (!canRunSensitiveAction) {
@@ -3429,6 +3463,14 @@ function RegistrationApprovalsPanel({
                         >
                           ❌ Reject
                         </button>
+                        <button
+                          type="button"
+                          disabled={isLoadingRow}
+                          onClick={() => runResubmission(user)}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold border border-amber-300/35 text-amber-200 hover:bg-amber-500/12 disabled:opacity-40"
+                        >
+                          ♻ Request Reupload
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -3469,9 +3511,9 @@ function RegistrationApprovalsPanel({
               <div key={item.id} className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm text-[color:var(--text-light)]">
-                    <span className="font-semibold">{item.userName}</span> was {item.action}d
+                    <span className="font-semibold">{item.userName}</span> was {item.action === 'resubmission' ? 'marked for resubmission' : `${item.action}d`}
                   </p>
-                  <StatusChip tone={item.action === 'approve' ? 'success' : 'danger'}>{item.action}</StatusChip>
+                  <StatusChip tone={item.action === 'approve' ? 'success' : item.action === 'resubmission' ? 'warning' : 'danger'}>{item.action}</StatusChip>
                 </div>
                 <p className="text-xs text-[color:var(--portal-muted)] mt-1">{new Date(item.timestamp).toLocaleString()} • {item.note}</p>
               </div>
@@ -4298,7 +4340,7 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
       await adminApi.applyMembershipAction({
         userId: membershipAction.userId.trim(),
         action: membershipAction.action,
-        plan: membershipAction.plan === 'Premium' ? 'CU Crush+' : membershipAction.plan,
+        plan: membershipAction.plan,
         durationDays: Number(membershipAction.durationDays) || 30,
         amount: Number(membershipAction.amount) || 0,
         note: membershipAction.note
@@ -4662,8 +4704,8 @@ function ModerationPanel({ photos, onApproveProfile, onOpenDetail }) {
     item.name,
     item.email,
     item.profile_approval_status,
-    item.livePhoto ? 'Yes' : 'No',
-    item.idCard ? 'Yes' : 'No',
+    item?.verificationSubmission?.hasSelfie ? 'Yes' : 'No',
+    item?.verificationSubmission?.hasIdProof ? 'Yes' : 'No',
     <div key={item._id} className="flex gap-2 flex-wrap">
       <button className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700" onClick={() => onOpenDetail?.('Moderation Profile Detail', item)}>Detail</button>
       <button className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700" onClick={() => onApproveProfile?.(item._id, 'approved', 'Approved after content moderation review')}>Approve</button>
@@ -4731,29 +4773,29 @@ function CollegesPanel({ colleges, onCreateCollege, onUpdateCollege }) {
       <div className="rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/12 via-sky-500/8 to-transparent px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Campus Operations</p>
-            <p className="text-sm text-slate-200">Manage approved campuses, domain trust, and onboarding readiness across the network.</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">Community Operations</p>
+            <p className="text-sm text-slate-200">Manage approved communities, domain trust, and onboarding readiness across the network.</p>
           </div>
           <span className="inline-flex items-center rounded-full border border-cyan-200/30 bg-cyan-400/12 px-3 py-1 text-xs font-semibold text-cyan-100">
-            {total} campus{total === 1 ? '' : 'es'} tracked
+            {total} communit{total === 1 ? 'y' : 'ies'} tracked
           </span>
         </div>
       </div>
 
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
-        <MetricCard label="Total Campuses" value={total} tone="cyan" />
+        <MetricCard label="Total Communities" value={total} tone="cyan" />
         <MetricCard label="Active" value={activeCount} tone="emerald" />
         <MetricCard label="Verification Required" value={verificationRequiredCount} tone="amber" />
         <MetricCard label="Onboarding Enabled" value={onboardingEnabledCount} tone="rose" />
       </div>
 
       <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Add Campus</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-white mb-3">Add Community</h3>
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
-          <input value={draft.name} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} placeholder="Campus name" className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100" />
+          <input value={draft.name} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} placeholder="Community name" className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100" />
           <input value={draft.domain} onChange={(event) => setDraft((prev) => ({ ...prev, domain: event.target.value }))} placeholder="college.edu" className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100" />
-          <input value={draft.campus_notes} onChange={(event) => setDraft((prev) => ({ ...prev, campus_notes: event.target.value }))} placeholder="Campus notes" className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100" />
-          <button disabled={saving} onClick={submitCreate} className="px-3 py-2 rounded-xl bg-cyan-600 text-white text-sm font-semibold disabled:opacity-60">{saving ? 'Saving...' : 'Create Campus'}</button>
+          <input value={draft.campus_notes} onChange={(event) => setDraft((prev) => ({ ...prev, campus_notes: event.target.value }))} placeholder="Community notes" className="px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/8 text-sm text-slate-100" />
+          <button disabled={saving} onClick={submitCreate} className="px-3 py-2 rounded-xl bg-cyan-600 text-white text-sm font-semibold disabled:opacity-60">{saving ? 'Saving...' : 'Create Community'}</button>
         </div>
         <div className="mt-3 flex gap-3 text-xs text-slate-200">
           <label className="inline-flex items-center gap-2"><input type="checkbox" checked={draft.verification_required} onChange={(event) => setDraft((prev) => ({ ...prev, verification_required: event.target.checked }))} />Verification required</label>
@@ -4767,7 +4809,7 @@ function CollegesPanel({ colleges, onCreateCollege, onUpdateCollege }) {
             <div key={college._id || `${college.name}-${college.domain}`} className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/58 p-4 shadow-[0_18px_45px_rgba(2,12,27,0.28)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-white">{college.name || 'Unnamed College'}</p>
+                  <p className="text-sm font-bold text-white">{college.name || 'Unnamed Community'}</p>
                   <p className="text-xs text-cyan-100/75 mt-1">{college.domain || 'No verified domain'}</p>
                 </div>
                 <span className={`text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded-full border ${college.is_active ? 'border-emerald-300/35 bg-emerald-500/15 text-emerald-100' : 'border-rose-300/35 bg-rose-500/15 text-rose-100'}`}>
@@ -4812,12 +4854,12 @@ function CollegesPanel({ colleges, onCreateCollege, onUpdateCollege }) {
       ) : (
         <div className="rounded-2xl border border-cyan-200/20 bg-[#0a1a36]/58 px-6 py-14 text-center">
           <p className="text-4xl mb-2">🏫</p>
-          <p className="text-slate-100 text-lg font-semibold">No campuses available yet</p>
-          <p className="text-slate-400 text-sm mt-1">Add your first campus to enable domain-based student verification and onboarding.</p>
+          <p className="text-slate-100 text-lg font-semibold">No communities available yet</p>
+          <p className="text-slate-400 text-sm mt-1">Add your first community to enable domain-based identity verification and onboarding.</p>
           <div className="mt-6 grid sm:grid-cols-3 gap-2 max-w-3xl mx-auto">
             <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2 text-left">
               <p className="text-xs uppercase tracking-[0.12em] text-cyan-100/70">Step 1</p>
-              <p className="text-sm text-slate-200 mt-1">Create campus profile</p>
+              <p className="text-sm text-slate-200 mt-1">Create community profile</p>
             </div>
             <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2 text-left">
               <p className="text-xs uppercase tracking-[0.12em] text-cyan-100/70">Step 2</p>
@@ -4834,7 +4876,7 @@ function CollegesPanel({ colleges, onCreateCollege, onUpdateCollege }) {
       {inactiveCount > 0 ? (
         <div className="rounded-2xl border border-amber-300/30 bg-amber-500/10 px-4 py-3">
           <p className="text-sm text-amber-100">
-            {inactiveCount} campus{inactiveCount === 1 ? ' is' : 'es are'} currently inactive. Review onboarding and verification settings before reactivation.
+            {inactiveCount} communit{inactiveCount === 1 ? 'y is' : 'ies are'} currently inactive. Review onboarding and verification settings before reactivation.
           </p>
         </div>
       ) : null}
@@ -5257,9 +5299,9 @@ function SettingsPanel({ settings, onUpdate }) {
       privacyEmail: parsedLegal.privacyEmail || 'privacy@seeudaters.in',
       supportEmail: parsedLegal.supportEmail || 'support@seeudaters.in',
       disputeResponseDays: parsedLegal.disputeResponseDays || '7',
-      arbitrationCity: parsedLegal.arbitrationCity || 'Chandigarh, India',
+      arbitrationCity: parsedLegal.arbitrationCity || 'New Delhi, India',
       governingLaw: parsedLegal.governingLaw || 'Laws of India',
-      mailingAddress: parsedLegal.mailingAddress || 'Chandigarh University, Chandigarh, India',
+      mailingAddress: parsedLegal.mailingAddress || 'SeeU-Daters Legal Desk, New Delhi, India',
       termsBlocks: normalizeBlocks(parsedLegal.termsBlocks, defaultTermsBlocks),
       privacyBlocks: normalizeBlocks(parsedLegal.privacyBlocks, defaultPrivacyBlocks)
     }));
@@ -5744,6 +5786,64 @@ function TablePanel({ title, columns, rows, pageSize = 12, onRowClick }) {
 }
 
 function DetailDrawer({ title, data, onClose }) {
+  const submissionId = data?.verificationSubmission?.id || data?.verificationSubmission?._id || '';
+  const [selfieUrl, setSelfieUrl] = React.useState('');
+  const [idProofUrl, setIdProofUrl] = React.useState('');
+  const [mediaLoading, setMediaLoading] = React.useState(false);
+  const [mediaError, setMediaError] = React.useState('');
+
+  React.useEffect(() => {
+    let active = true;
+    const objectUrls = [];
+
+    const loadProtectedMedia = async () => {
+      if (!submissionId) {
+        setSelfieUrl('');
+        setIdProofUrl('');
+        return;
+      }
+
+      setMediaLoading(true);
+      setMediaError('');
+
+      try {
+        const [selfieBlob, idBlob] = await Promise.all([
+          adminApi.getVerificationFileBlob(submissionId, 'selfie'),
+          adminApi.getVerificationFileBlob(submissionId, 'id-proof')
+        ]);
+
+        if (!active) return;
+        const selfieObjectUrl = URL.createObjectURL(selfieBlob);
+        const idObjectUrl = URL.createObjectURL(idBlob);
+        objectUrls.push(selfieObjectUrl, idObjectUrl);
+        setSelfieUrl(selfieObjectUrl);
+        setIdProofUrl(idObjectUrl);
+      } catch (error) {
+        if (!active) return;
+        setMediaError(error?.response?.data?.message || 'Unable to load protected verification media');
+        setSelfieUrl('');
+        setIdProofUrl('');
+      } finally {
+        if (active) {
+          setMediaLoading(false);
+        }
+      }
+    };
+
+    loadProtectedMedia();
+
+    return () => {
+      active = false;
+      objectUrls.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          // Ignore cleanup failures
+        }
+      });
+    };
+  }, [submissionId]);
+
   if (!data) {
     return null;
   }
@@ -5788,6 +5888,8 @@ function DetailDrawer({ title, data, onClose }) {
             {/* Verification Documents - MAIN SECTION */}
             <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-3xl p-6 border-2 border-orange-300">
               <h3 className="text-2xl font-bold text-darkBrown mb-4">📸 Verification Documents</h3>
+              {mediaLoading && <p className="text-sm text-darkBrown mb-3">Loading protected media...</p>}
+              {mediaError && <p className="text-sm text-red-600 mb-3">{mediaError}</p>}
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Live Photo */}
                 <div className="bg-white rounded-2xl overflow-hidden shadow-lg border-2 border-orange-200">
@@ -5795,19 +5897,18 @@ function DetailDrawer({ title, data, onClose }) {
                     <p className="text-white font-bold">📷 Live Photo</p>
                   </div>
                   <div className="p-4 space-y-3">
-                    {data.livePhoto ? (
+                    {selfieUrl || data.livePhoto ? (
                       <>
-                        {data.livePhoto.startsWith('http') || data.livePhoto.startsWith('data:') ? (
-                          <img src={data.livePhoto} alt="Live Photo" className="w-full h-64 object-cover rounded-lg border border-softPink" />
+                        {(selfieUrl || data.livePhoto).startsWith('http') || (selfieUrl || data.livePhoto).startsWith('data:') || (selfieUrl || data.livePhoto).startsWith('blob:') ? (
+                          <img src={selfieUrl || data.livePhoto} alt="Live Photo" className="w-full h-64 object-cover rounded-lg border border-softPink" />
                         ) : (
                           <div className="w-full h-64 bg-creamyWhite rounded-lg border-2 border-dashed border-softPink flex items-center justify-center">
-                            <p className="text-center text-softBrown">
-                              <p className="font-bold mb-2">📄 Base64 Data</p>
-                              <p className="text-xs break-all">{data.livePhoto.substring(0, 50)}...</p>
-                            </p>
+                            <div className="text-center text-softBrown">
+                              <p className="font-bold mb-2">📄 Protected Document</p>
+                            </div>
                           </div>
                         )}
-                        <a href={data.livePhoto} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-center">View Full Size</a>
+                        <a href={selfieUrl || data.livePhoto} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-center">View Full Size</a>
                       </>
                     ) : (
                       <div className="w-full h-64 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
@@ -5823,19 +5924,18 @@ function DetailDrawer({ title, data, onClose }) {
                     <p className="text-white font-bold">🆔 ID Card / Verification Document</p>
                   </div>
                   <div className="p-4 space-y-3">
-                    {data.idCard ? (
+                    {idProofUrl || data.idCard ? (
                       <>
-                        {data.idCard.startsWith('http') || data.idCard.startsWith('data:') ? (
-                          <img src={data.idCard} alt="ID Card" className="w-full h-64 object-cover rounded-lg border border-blue-400" />
+                        {(idProofUrl || data.idCard).startsWith('http') || (idProofUrl || data.idCard).startsWith('data:') || (idProofUrl || data.idCard).startsWith('blob:') ? (
+                          <img src={idProofUrl || data.idCard} alt="ID Card" className="w-full h-64 object-cover rounded-lg border border-blue-400" />
                         ) : (
                           <div className="w-full h-64 bg-creamyWhite rounded-lg border-2 border-dashed border-blue-400 flex items-center justify-center">
-                            <p className="text-center text-softBrown">
-                              <p className="font-bold mb-2">📄 Base64 Data</p>
-                              <p className="text-xs break-all">{data.idCard.substring(0, 50)}...</p>
-                            </p>
+                            <div className="text-center text-softBrown">
+                              <p className="font-bold mb-2">📄 Protected Document</p>
+                            </div>
                           </div>
                         )}
-                        <a href={data.idCard} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-center">View Full Size</a>
+                        <a href={idProofUrl || data.idCard} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-center">View Full Size</a>
                       </>
                     ) : (
                       <div className="w-full h-64 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">

@@ -12,7 +12,7 @@ export default function FAQSection() {
     {
       question: 'How does verification work?',
       answer:
-        'We use a three-step verification process: (1) College email login confirms current enrollment, (2) Face ID verification prevents catfishing and fake accounts, (3) Student ID validation confirms you\'re a real student. This takes about 5 minutes and happens only once. Your verification badge shows on your profile to build trust.',
+        'We use a three-step verification process: (1) Email verification confirms account ownership, (2) Face ID verification prevents catfishing and fake accounts, (3) Government ID validation confirms you\'re a real person. This takes about 5 minutes and happens only once. Your verification badge shows on your profile to build trust.',
     },
     {
       question: 'Can I stay anonymous?',
@@ -27,12 +27,12 @@ export default function FAQSection() {
     {
       question: 'How do I know other profiles are real?',
       answer:
-        'Every profile on SeeU-Daters is verified through college email, student ID, and face ID. We have AI moderation that flags suspicious patterns and duplicate accounts. Our human review team manually checks flagged profiles. If it seems too good to be true, it probably failed verification.',
+        'Every profile on SeeU-Daters is verified through email, identity checks, and face ID. We have AI moderation that flags suspicious patterns and duplicate accounts. Our human review team manually checks flagged profiles. If it seems too good to be true, it probably failed verification.',
     },
     {
-      question: 'Why do you focus on college students only?',
+      question: 'Who is SeeU-Daters for?',
       answer:
-        'College students deserve a dating app where everyone goes to school together and shares similar experiences. It builds genuine connection faster because there\'s already so much common ground. Plus, campuses are tight-knit communities that can self-moderate. Most fake accounts target general dating apps—campuses make that impossible.',
+        'SeeU-Daters is built for people who want safer, more intentional connections. Shared intent matters more than labels, so we focus on verified identity, privacy controls, and respectful conversation standards for everyone.',
     },
     {
       question: 'Can I delete my account and data?',

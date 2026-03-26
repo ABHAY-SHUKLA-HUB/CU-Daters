@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
@@ -15,14 +15,15 @@ export default function Signup() {
     phone: '',
     password: '',
     confirmPassword: '',
-    college: '', // NEW - College selection
+    college: '', // NEW - Community/organization selection
     otp: '', // NEW - For OTP verification
     gender: '',
-    course: '',
-    year: '',
+    fieldOfWork: '',
+    experienceYears: '',
     bio: '',
     livePhoto: '',
     idCard: '',
+    idProofType: 'government_id',
   });
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
@@ -35,10 +36,15 @@ export default function Signup() {
   const [cameraActive, setCameraActive] = useState(false);
   const [photoTaken, setPhotoTaken] = useState(false);
   const [idCardPreview, setIdCardPreview] = useState('');
+  const [idUploading, setIdUploading] = useState(false);
+  const [fieldSuggestions, setFieldSuggestions] = useState([]);
 
   const COLLEGES = [
-    'Chandigarh University Mohali',
-    'Chandigarh University UP'
+    'Independent / Not Listed',
+    'Local Community',
+    'Working Professional',
+    'Creator / Freelancer',
+    'Other Network'
   ];
 
   // Camera functions
@@ -81,10 +87,16 @@ export default function Signup() {
   const handleIdCardChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setIdUploading(true);
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, idCard: reader.result }));
         setIdCardPreview(reader.result);
+        setIdUploading(false);
+      };
+      reader.onerror = () => {
+        setIdUploading(false);
+        setError('Unable to read ID file. Please try another image.');
       };
       reader.readAsDataURL(file);
     }
@@ -92,11 +104,40 @@ export default function Signup() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const nextValue = name === 'experienceYears' ? value.replace(/[^\d]/g, '').slice(0, 2) : value;
+    setFormData(prev => ({ ...prev, [name]: nextValue }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
+
+  useEffect(() => {
+    const query = formData.fieldOfWork.trim();
+    if (!query) {
+      setFieldSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await axios.get(`${AUTH_API_BASE}/onboarding/field-suggestions`, {
+          params: { q: query },
+          signal: controller.signal,
+          timeout: 10000
+        });
+        const suggestions = response.data?.data?.suggestions || [];
+        setFieldSuggestions(Array.isArray(suggestions) ? suggestions : []);
+      } catch {
+        setFieldSuggestions([]);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [AUTH_API_BASE, formData.fieldOfWork]);
 
   // Validation functions
   const validateEmail = (email) => {
@@ -128,7 +169,7 @@ export default function Signup() {
       newErrors.confirmPassword = 'Passwords do not match';
     }
     if (!formData.college) {
-      newErrors.college = 'College selection is required';
+      newErrors.college = 'Community or organization is required';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -137,8 +178,13 @@ export default function Signup() {
   const validateStep3 = () => {
     const newErrors = {};
     if (!formData.gender) newErrors.gender = 'Please select gender';
-    if (!formData.course) newErrors.course = 'Please select course';
-    if (!formData.year) newErrors.year = 'Please select year';
+    if (!formData.fieldOfWork.trim()) newErrors.fieldOfWork = 'Please enter your branch/field of work';
+    const years = Number(formData.experienceYears);
+    if (!formData.experienceYears) {
+      newErrors.experienceYears = 'Experience/Year is required';
+    } else if (!Number.isFinite(years) || years < 1 || years > 40) {
+      newErrors.experienceYears = 'Enter a number between 1 and 40';
+    }
     if (formData.bio.length < 20) {
       newErrors.bio = 'Bio must be at least 20 characters';
     }
@@ -272,11 +318,12 @@ export default function Signup() {
       const response = await axios.post(`${AUTH_API_BASE}/signup`, {
         email: formData.personalEmail.toLowerCase().trim(),
         gender: formData.gender,
-        course: formData.course,
-        year: formData.year,
+        fieldOfWork: formData.fieldOfWork,
+        experienceYears: Number(formData.experienceYears),
         bio: formData.bio,
-        livePhoto: formData.livePhoto,
-        idCard: formData.idCard
+        liveSelfie: formData.livePhoto,
+        idProofFile: formData.idCard,
+        idProofType: formData.idProofType
       }, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 90000
@@ -414,7 +461,7 @@ export default function Signup() {
             </p>
           </div>
 
-          {/* Step 1: Account Details + College */}
+          {/* Step 1: Account Details + Community */}
           {step === 1 && (
             <div className="space-y-4">
               <div>
@@ -458,14 +505,14 @@ export default function Signup() {
               </div>
 
               <div>
-                <label className="block text-left text-darkBrown font-bold mb-2">🏫 College *</label>
+                <label className="block text-left text-darkBrown font-bold mb-2">🌍 Community / Organization *</label>
                 <select
                   name="college"
                   value={formData.college}
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
                 >
-                  <option value="">Select your college</option>
+                  <option value="">Select your community or organization</option>
                   {COLLEGES.map((college) => (
                     <option key={college} value={college}>
                       {college}
@@ -583,33 +630,36 @@ export default function Signup() {
               </div>
 
               <div>
-                <label className="block text-left text-darkBrown font-bold mb-2">Course *</label>
+                <label className="block text-left text-darkBrown font-bold mb-2">Branch / Field of Work *</label>
                 <input
                   type="text"
-                  name="course"
-                  value={formData.course}
+                  name="fieldOfWork"
+                  value={formData.fieldOfWork}
                   onChange={handleInputChange}
-                  placeholder="e.g., B.Tech, B.Com, BBA"
+                  placeholder="e.g., Software Engineering, Marketing, Design"
+                  list="field-suggestions"
                   className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
                 />
-                {errors.course && <p className="text-red-600 text-sm mt-1">{errors.course}</p>}
+                <datalist id="field-suggestions">
+                  {fieldSuggestions.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+                {errors.fieldOfWork && <p className="text-red-600 text-sm mt-1">{errors.fieldOfWork}</p>}
               </div>
 
               <div>
-                <label className="block text-left text-darkBrown font-bold mb-2">Year *</label>
-                <select
-                  name="year"
-                  value={formData.year}
+                <label className="block text-left text-darkBrown font-bold mb-2">Experience / Year *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  name="experienceYears"
+                  value={formData.experienceYears}
                   onChange={handleInputChange}
+                  placeholder="Enter numeric value (1-40)"
                   className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
-                >
-                  <option value="">Select year</option>
-                  <option value="1st">1st Year</option>
-                  <option value="2nd">2nd Year</option>
-                  <option value="3rd">3rd Year</option>
-                  <option value="4th">4th Year</option>
-                </select>
-                {errors.year && <p className="text-red-600 text-sm mt-1">{errors.year}</p>}
+                />
+                {errors.experienceYears && <p className="text-red-600 text-sm mt-1">{errors.experienceYears}</p>}
               </div>
 
               <div>
@@ -685,12 +735,27 @@ export default function Signup() {
               </div>
 
               <div>
-                <label className="block text-left text-darkBrown font-bold mb-2">🆔 ID Card (Upload Image) *</label>
+                <label className="block text-left text-darkBrown font-bold mb-2">ID Proof Type *</label>
+                <select
+                  name="idProofType"
+                  value={formData.idProofType}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
+                >
+                  <option value="government_id">Government ID</option>
+                  <option value="student_id">Student ID</option>
+                  <option value="employee_id">Employee ID</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-left text-darkBrown font-bold mb-2">🆔 ID Proof (Upload Image/PDF) *</label>
                 {!idCardPreview ? (
                   <label className="block cursor-pointer">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,application/pdf"
                       onChange={handleIdCardChange}
                       className="hidden"
                     />
@@ -708,7 +773,7 @@ export default function Signup() {
                     <label className="block cursor-pointer">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,application/pdf"
                         onChange={handleIdCardChange}
                         className="hidden"
                       />
@@ -718,7 +783,11 @@ export default function Signup() {
                     </label>
                   </div>
                 )}
+                {idUploading && <p className="text-blue-600 text-sm mt-1">Uploading and preparing secure file...</p>}
                 {errors.idCard && <p className="text-red-600 text-sm mt-1">{errors.idCard}</p>}
+                <p className="text-xs text-softBrown mt-2">
+                  Verification files are encrypted in private storage and only visible to authorized admins.
+                </p>
               </div>
 
               <button

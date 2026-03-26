@@ -19,7 +19,7 @@ const MatchSchema = new mongoose.Schema(
         muted: { type: Boolean, default: false },
         tag: {
           type: String,
-          enum: ['Friend', 'Close Friend', 'Crush', 'Study Buddy', 'Coffee Buddy', 'Campus Buddy', 'Date Vibe'],
+          enum: ['Friend', 'Close Friend', 'Crush', 'Study Buddy', 'Coffee Buddy', 'Community Buddy', 'Date Vibe'],
           default: 'Friend'
         },
         updatedAt: { type: Date, default: Date.now }

@@ -16,10 +16,10 @@ export const SwipeCard = React.forwardRef(
 
     const visual = resolvePublicProfileVisual(profile);
     const displayAge = profile?.age || 21;
-    const campusLabel = profile?.college || 'Chandigarh University';
+    const campusLabel = profile?.college || 'Local Community';
     const interestTags = Array.isArray(profile?.interests) && profile.interests.length > 0
       ? profile.interests
-      : ['Coffee Walks', 'Campus Events', 'Late Night Chats'];
+      : ['Coffee Walks', 'Live Events', 'Late Night Chats'];
 
     const getBadge = () => {
       if (profile.verified) return { text: 'Verified', icon: '✔', color: 'bg-emerald-500/30 text-emerald-200 border border-emerald-500/50' };

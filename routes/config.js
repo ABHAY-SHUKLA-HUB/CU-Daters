@@ -281,9 +281,9 @@ router.get('/legal-content', asyncHandler(async (req, res) => {
     privacyEmail: 'privacy@seeudaters.in',
     supportEmail: 'support@seeudaters.in',
     disputeResponseDays: '7',
-    arbitrationCity: 'Chandigarh, India',
+    arbitrationCity: 'New Delhi, India',
     governingLaw: 'Laws of India',
-    mailingAddress: 'Chandigarh University, Chandigarh, India',
+    mailingAddress: 'SeeU-Daters Legal Desk, New Delhi, India',
     termsBlocks: [
       {
         title: 'Acceptance of Terms',

@@ -605,7 +605,7 @@ export default function Profile() {
                             ? (fullProfile?.interests || []).slice(0, 8).map((interest, idx) => (
                                 <span key={`${interest}-${idx}`} className="px-2.5 py-1 rounded-full border border-rose-200 bg-rose-50 text-xs font-semibold text-rose-700">{interest}</span>
                               ))
-                            : ['Music', 'Travel', 'Campus Life', 'Coffee'].map((interest) => (
+                            : ['Music', 'Travel', 'City Life', 'Coffee'].map((interest) => (
                                 <span key={interest} className="px-2.5 py-1 rounded-full border border-rose-200 bg-rose-50 text-xs font-semibold text-rose-700 blur-[1px]">{interest}</span>
                               ))}
                         </div>

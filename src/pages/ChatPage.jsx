@@ -1467,7 +1467,7 @@ export default function ChatPage() {
   const starterMessages = [
     'Hey, nice to connect 😊',
     'How is your day going?',
-    'Which college event do you like most?',
+    'What kind of local events do you usually enjoy?',
     'Coffee after class?'
   ];
 
@@ -1525,7 +1525,7 @@ export default function ChatPage() {
       ) : null}
 
       <div className="h-full w-full min-h-0 px-0 lg:px-3 py-0 lg:py-3">
-        <div className="h-full w-full min-h-0 overflow-hidden border-y lg:border border-softPink/35 bg-white/88 backdrop-blur-xl shadow-[0_24px_80px_rgba(152,82,112,0.18)] grid lg:grid-cols-[360px_minmax(0,1fr)] xl:grid-cols-[400px_minmax(0,1fr)]">
+        <div className="h-full w-full min-h-0 overflow-hidden border-y lg:border border-rose-200/65 bg-white/90 backdrop-blur-xl shadow-[0_30px_85px_rgba(152,82,112,0.2)] grid lg:grid-cols-[360px_minmax(0,1fr)] xl:grid-cols-[400px_minmax(0,1fr)] rounded-none lg:rounded-3xl">
           <div className={`${selectedConversation ? 'hidden md:block' : 'block'} h-full min-h-0`}>
             <ConversationList
               conversations={conversations}
@@ -1571,7 +1571,7 @@ export default function ChatPage() {
                   <div className="flex-1 flex items-center justify-center text-softBrown">Loading messages...</div>
                 ) : (
                   <>
-                    <div className="mx-4 mt-3 rounded-2xl border border-rose-200/70 bg-rose-50/65 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="mx-4 mt-3 rounded-2xl border border-rose-200/75 bg-gradient-to-r from-rose-50 to-orange-50 px-4 py-3 flex items-center justify-between gap-3 flex-wrap shadow-[0_10px_24px_rgba(244,63,94,0.1)]">
                       <div>
                         <p className="text-xs uppercase tracking-[0.14em] text-rose-500 font-semibold">Privacy Layer</p>
                         <p className="text-sm text-rose-700">Chat is unlocked. Full profile requires separate owner approval.</p>
@@ -1579,14 +1579,14 @@ export default function ChatPage() {
                       <button
                         type="button"
                         onClick={handleViewProfile}
-                        className="px-3 py-1.5 rounded-full bg-white border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-100 transition"
+                        className="px-3 py-1.5 rounded-full bg-white border border-rose-200 text-rose-600 text-xs font-semibold hover:bg-rose-100 transition shadow-sm"
                       >
                         View profile privacy
                       </button>
                     </div>
 
                     {messages.length === 0 ? (
-                      <div className="mx-4 mt-4 rounded-2xl border border-rose-200/70 bg-rose-50/70 px-4 py-3">
+                      <div className="mx-4 mt-4 rounded-2xl border border-rose-200/70 bg-white/85 px-4 py-3 shadow-[0_10px_24px_rgba(190,24,93,0.08)]">
                         <p className="text-xs uppercase tracking-[0.16em] text-rose-600 font-semibold">Connected Recently</p>
                         <p className="text-sm text-rose-700 mt-1">Start the conversation with a warm opener.</p>
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -1595,7 +1595,7 @@ export default function ChatPage() {
                               key={starter}
                               type="button"
                               onClick={() => handleStarterClick(starter)}
-                              className="text-xs rounded-full border border-rose-200 bg-white px-3 py-1.5 text-rose-700 hover:bg-rose-100 transition"
+                              className="text-xs rounded-full border border-rose-200 bg-white px-3 py-1.5 text-rose-700 hover:bg-rose-100 transition shadow-sm"
                             >
                               {starter}
                             </button>

@@ -22,8 +22,8 @@ export default function TrustSection() {
                             text-2xl font-bold">
               1
             </div>
-            <h4 className="font-bold text-darkBrown mb-2 text-sm">CU Email Only</h4>
-            <p className="text-xs text-softBrown">@cumail.in or @cu.ac.in</p>
+            <h4 className="font-bold text-darkBrown mb-2 text-sm">Verified Email</h4>
+            <p className="text-xs text-softBrown">Ownership confirmation</p>
           </div>
           
           {/* Step 2 */}
@@ -44,7 +44,7 @@ export default function TrustSection() {
                             text-2xl font-bold">
               3
             </div>
-            <h4 className="font-bold text-darkBrown mb-2 text-sm">Student ID Check</h4>
+            <h4 className="font-bold text-darkBrown mb-2 text-sm">Government ID Check</h4>
             <p className="text-xs text-softBrown">Admin review in 24h</p>
           </div>
           

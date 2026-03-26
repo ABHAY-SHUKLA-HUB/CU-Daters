@@ -523,7 +523,7 @@ router.patch('/connections/:matchId', verifyFirebaseOrJwtAuth, asyncHandler(asyn
   const userId = req.userId.toString();
   const { favorite, muted, tag } = req.body || {};
 
-  const allowedTags = ['Friend', 'Close Friend', 'Crush', 'Study Buddy', 'Coffee Buddy', 'Campus Buddy', 'Date Vibe'];
+  const allowedTags = ['Friend', 'Close Friend', 'Crush', 'Study Buddy', 'Coffee Buddy', 'Community Buddy', 'Date Vibe'];
   if (tag && !allowedTags.includes(tag)) {
     throw new AppError('Invalid connection tag', 400);
   }

@@ -119,6 +119,8 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isNetlify = hostname.endsWith('.netlify.app');
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
+  const isCuDatersTech = hostname === 'cudaters.tech' || hostname.endsWith('.cudaters.tech');
+  const isCuDashedDatersTech = hostname === 'cu-daters.tech' || hostname.endsWith('.cu-daters.tech');
   const isSeeuDatersTech = hostname === 'seeudaters.tech' || hostname.endsWith('.seeudaters.tech');
   const isSeeuDashedDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
 
@@ -131,7 +133,7 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
     return hostname === configuredHost || hostname.endsWith(`.${configuredHost}`);
   });
 
-  return isLocalDevHost || isNetlify || isVercel || isRender || isSeeuDatersTech || isSeeuDashedDatersTech || isConfiguredFrontendHost;
+  return isLocalDevHost || isNetlify || isVercel || isRender || isCuDatersTech || isCuDashedDatersTech || isSeeuDatersTech || isSeeuDashedDatersTech || isConfiguredFrontendHost;
 };
 
 // ===== CONNECT DATABASE =====
@@ -170,6 +172,10 @@ const staticAllowedOrigins = [
   'https://www.seeu-daters-found.netlify.app',
   'https://seeu-daters.vercel.app',
   'https://www.seeu-daters.vercel.app',
+  'https://cudaters.tech',
+  'https://www.cudaters.tech',
+  'https://cu-daters.tech',
+  'https://www.cu-daters.tech',
   'https://seeudaters.tech',
   'https://www.seeudaters.tech',
   'https://seeu-daters.tech',
@@ -314,6 +320,16 @@ app.use('/uploads', express.static(uploadDir));
 
 // ===== HEALTH CHECK =====
 app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Backend server is running',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Compatibility health route for clients expecting API-prefixed checks.
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'Backend server is running',

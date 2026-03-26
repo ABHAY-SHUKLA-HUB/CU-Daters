@@ -48,7 +48,7 @@ function ProfilePreviewModal({ profile, onClose }) {
         <div className="p-5">
           <p className="text-[11px] uppercase tracking-[0.16em] text-rose-500 font-semibold">Profile Preview</p>
           <h3 className="text-2xl font-bold text-rose-700 mt-1">{profile.name}</h3>
-          <p className="text-sm text-rose-500 mt-1">{profile.college || 'Campus Member'}</p>
+          <p className="text-sm text-rose-500 mt-1">{profile.college || 'Community Member'}</p>
           {profile.course || profile.year ? (
             <p className="text-sm text-rose-600 mt-2">{[profile.course, profile.year].filter(Boolean).join(' • ')}</p>
           ) : null}
@@ -80,8 +80,8 @@ function IncomingRequestCard({ request, mutualInterests, busy, onAccept, onDecli
 
         <div className="min-w-0 flex-1">
           <p className="text-[11px] uppercase tracking-[0.16em] text-rose-500 font-semibold">{isChatRequest ? 'Incoming Chat Request' : 'Incoming Request'}</p>
-          <h3 className="text-xl font-bold text-rose-700 truncate">{sender?.name || 'Campus Member'}</h3>
-          <p className="text-sm text-rose-500 truncate">{sender?.college || 'College network'}</p>
+          <h3 className="text-xl font-bold text-rose-700 truncate">{sender?.name || 'Community Member'}</h3>
+          <p className="text-sm text-rose-500 truncate">{sender?.college || 'Your network'}</p>
           <p className="text-xs text-rose-400 mt-1">Requested on {new Date(request.createdAt).toLocaleDateString()}</p>
           {request?.requestMessage ? (
             <p className="text-xs text-rose-500 mt-1 line-clamp-1">“{request.requestMessage}”</p>
@@ -146,8 +146,8 @@ function OutgoingRequestCard({ request, busy, onCancel, onViewProfile, onStartCh
         </div>
 
         <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-bold text-rose-700 truncate">{receiver?.name || 'Campus Member'}</h3>
-          <p className="text-sm text-rose-500 truncate">{receiver?.college || 'College network'}</p>
+          <h3 className="text-lg font-bold text-rose-700 truncate">{receiver?.name || 'Community Member'}</h3>
+          <p className="text-sm text-rose-500 truncate">{receiver?.college || 'Your network'}</p>
           <p className="text-xs text-rose-400 mt-1">{isChatRequest ? 'Chat Request' : 'Connection Request'}</p>
           <div className="mt-2 inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
             style={isAccepted

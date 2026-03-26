@@ -14,8 +14,10 @@ const UserSchema = new mongoose.Schema({
   // Profile Info
   gender: { type: String, enum: ['male', 'female', 'other'] },
   course: { type: String },
+  field_of_work: { type: String, trim: true, maxlength: 80 },
   college: { type: String },
   year: { type: String },
+  experience_years: { type: Number, min: 0, max: 60 },
   age: { type: Number, min: 17, max: 99 },
   shortAbout: { type: String, maxlength: 160 },
   bio: { type: String, maxlength: 500 },
@@ -37,6 +39,12 @@ const UserSchema = new mongoose.Schema({
   livePhoto: { type: String }, // Base64 or URL
   idCard: { type: String }, // Base64 or URL
   profilePhoto: { type: String }, // Public profile image uploaded by user
+  verification_status: {
+    type: String,
+    enum: ['not_submitted', 'pending', 'approved', 'rejected', 'resubmission_required'],
+    default: 'not_submitted'
+  },
+  verification_submission: { type: mongoose.Schema.Types.ObjectId, ref: 'VerificationSubmission' },
   avatarConfig: {
     preset: { type: String },
     faceShape: { type: String },

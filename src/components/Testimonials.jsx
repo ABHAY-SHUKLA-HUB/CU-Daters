@@ -5,22 +5,22 @@ export default function Testimonials() {
     {
       initials: 'SK',
       name: 'Sarah K.',
-      major: 'CS Major • 3rd Year',
+      major: 'Product Designer',
       text: 'I was skeptical about dating apps, but SeeU-Daters felt so much safer. The anonymous thing made me comfortable saying what I actually wanted. 10/10 would recommend!',
       rating: 5
     },
     {
       initials: 'AJ',
       name: 'Aditya J.',
-      major: 'Commerce • 2nd Year',
+      major: 'Marketing Associate',
       text: 'Matched with someone from my class that I\'d been too nervous to talk to! The anonymous chat gave us both time to figure out we actually vibe. We\'re together now 3 months.',
       rating: 5
     },
     {
       initials: 'NM',
       name: 'Neha M.',
-      major: 'Engineering • 1st Year',
-      text: 'Made a ton of friends on here! Didn\'t expect to, but the community is so genuine. Everyone here actually goes to CU.',
+      major: 'Software Engineer',
+      text: 'Made a ton of friends on here! Didn\'t expect to, but the community is so genuine. People here actually show up as their real selves.',
       rating: 5
     }
   ];
@@ -29,8 +29,8 @@ export default function Testimonials() {
     <section className="py-20 md:py-24 px-4 bg-[linear-gradient(180deg,#fffaf4_0%,#ffffff_55%,#fff8fb_100%)]">
       <div className="max-w-6xl mx-auto">
 
-        <h2 className="section-title">Students Are Loving SeeU-Daters</h2>
-        <p className="section-subtitle">Real stories from real CU students</p>
+        <h2 className="section-title">People Are Loving SeeU-Daters</h2>
+        <p className="section-subtitle">Real stories from real members</p>
 
         <div className="grid md:grid-cols-3 gap-6 mt-12">
 

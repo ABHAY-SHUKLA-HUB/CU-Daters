@@ -6,9 +6,9 @@ export default function SafetySection() {
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16 animate-fade-in-up">
-          <h2 className="section-title mb-4">The Safest College Dating Platform</h2>
+          <h2 className="section-title mb-4">The Safest Verified Dating Platform</h2>
           <p className="section-subtitle max-w-3xl mx-auto">
-            SeeU-Daters uses advanced verification and safety measures to ensure you're always connecting with real, verified college students.
+            SeeU-Daters uses advanced verification and safety measures to ensure you're always connecting with real, verified people.
           </p>
         </div>
 
@@ -24,8 +24,8 @@ export default function SafetySection() {
                 1
               </div>
               <div>
-                <h4 className="font-bold text-darkBrown mb-1">College Email</h4>
-                <p className="text-sm text-softBrown">Your .edu email confirms you're a current student</p>
+                <h4 className="font-bold text-darkBrown mb-1">Email Verification</h4>
+                <p className="text-sm text-softBrown">Your verified email confirms account ownership</p>
               </div>
             </div>
 
@@ -46,8 +46,8 @@ export default function SafetySection() {
                 3
               </div>
               <div>
-                <h4 className="font-bold text-darkBrown mb-1">Student ID Check</h4>
-                <p className="text-sm text-softBrown">Valid student ID confirms enrollment status</p>
+                <h4 className="font-bold text-darkBrown mb-1">Government ID Check</h4>
+                <p className="text-sm text-softBrown">Valid ID confirms identity authenticity</p>
               </div>
             </div>
 
@@ -129,9 +129,9 @@ export default function SafetySection() {
 
         {/* CTA */}
         <div className="text-center animate-fade-in-up">
-          <h3 className="text-2xl font-bold text-darkBrown mb-4">Join the Safest Campus Dating Platform</h3>
+          <h3 className="text-2xl font-bold text-darkBrown mb-4">Join the Safest Verified Dating Platform</h3>
           <p className="text-lg text-softBrown mb-8">
-            Verified students. Private conversations. Real connections. No compromises.
+            Verified members. Private conversations. Real connections. No compromises.
           </p>
           <button className="btn-primary">Get Started With Verification 🔐</button>
         </div>

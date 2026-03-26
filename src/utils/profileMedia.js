@@ -2,7 +2,7 @@ export const AVATAR_PRESETS = [
   { id: 'male_default', label: 'Male Default', emoji: '👨' },
   { id: 'female_default', label: 'Female Default', emoji: '👩' },
   { id: 'cool', label: 'Cool', emoji: '😎' },
-  { id: 'student', label: 'Student', emoji: '🧑‍🎓' },
+  { id: 'member', label: 'Member', emoji: '🧑' },
   { id: 'creative', label: 'Creative', emoji: '🧑‍🎨' },
   { id: 'classic', label: 'Classic', emoji: '🙂' }
 ];

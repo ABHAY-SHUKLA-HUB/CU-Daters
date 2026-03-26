@@ -9,8 +9,8 @@ export default function SocialProof() {
           {/* Stat 1 */}
           <div className="text-center animate-fade-in-up rounded-2xl border border-rose-200/60 bg-white/90 p-5 shadow-[0_10px_28px_rgba(190,24,93,0.08)]">
             <p className="text-4xl md:text-5xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent mb-2">50K+</p>
-            <p className="text-darkBrown font-bold">Verified Students</p>
-            <p className="text-sm text-softBrown">Across top campuses</p>
+            <p className="text-darkBrown font-bold">Verified Members</p>
+            <p className="text-sm text-softBrown">Across growing communities</p>
           </div>
 
           {/* Stat 2 */}
@@ -24,7 +24,7 @@ export default function SocialProof() {
           <div className="text-center animate-fade-in-up rounded-2xl border border-rose-200/60 bg-white/90 p-5 shadow-[0_10px_28px_rgba(190,24,93,0.08)]" style={{ animationDelay: '200ms' }}>
             <p className="text-4xl md:text-5xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent mb-2">4.9★</p>
             <p className="text-darkBrown font-bold">App Rating</p>
-            <p className="text-sm text-softBrown">Trusted by students</p>
+            <p className="text-sm text-softBrown">Trusted by members</p>
           </div>
 
           {/* Stat 4 */}
@@ -38,10 +38,10 @@ export default function SocialProof() {
         {/* Trust Badges */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap animate-fade-in-up">
           <div className="px-5 py-2.5 rounded-full bg-white border border-rose-200 hover:border-rose-400 transition shadow-sm">
-            <span className="text-sm font-semibold text-darkBrown">✓ Trusted Campus Product</span>
+            <span className="text-sm font-semibold text-darkBrown">✓ Trusted People-First Product</span>
           </div>
           <div className="px-5 py-2.5 rounded-full bg-white border border-rose-200 hover:border-rose-400 transition shadow-sm">
-            <span className="text-sm font-semibold text-darkBrown">🎓 By College Students</span>
+            <span className="text-sm font-semibold text-darkBrown">🌍 Built For Everyone</span>
           </div>
           <div className="px-5 py-2.5 rounded-full bg-white border border-rose-200 hover:border-rose-400 transition shadow-sm">
             <span className="text-sm font-semibold text-darkBrown">🔒 Privacy First Platform</span>

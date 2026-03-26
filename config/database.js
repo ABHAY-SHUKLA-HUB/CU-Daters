@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import dns from 'node:dns';
 
 export const connectDB = async () => {
-  const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/campus-connect';
+  const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/seeu-daters';
 
   try {
     console.log(`\n🔍 Attempting to connect to MongoDB...`);

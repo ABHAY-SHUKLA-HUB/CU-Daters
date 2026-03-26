@@ -186,12 +186,12 @@ export default function Contact() {
                 a: `Contact ${adminEmail} with your verification details. Our admin team will review and update your profile.`
               },
               {
-                q: 'Is CU CRUSH available on web?',
-                a: 'Currently, CU CRUSH is available on iOS and Android. A web version is in development and coming soon!'
+                q: 'Is SeeU-Daters available on web?',
+                a: 'Yes. SeeU-Daters is available on web and also works great on mobile browsers.'
               },
               {
-                q: 'Can I use CU CRUSH if I\'m not a CU student?',
-                a: 'Currently, CU CRUSH is exclusive to Chandigarh University students. We\'re expanding to other colleges soon!'
+                q: 'Is SeeU-Daters limited to one institution or group?',
+                a: 'No. SeeU-Daters is an independent platform open to people across different communities and backgrounds.'
               },
             ].map((item, idx) => (
               <div key={idx} className="bg-creamyWhite p-6 rounded-lg border-l-4 border-blushPink">

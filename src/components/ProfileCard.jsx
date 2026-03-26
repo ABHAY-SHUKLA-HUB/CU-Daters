@@ -46,13 +46,13 @@ export default function ProfileCard({ profile, isMatched = false, onLike, onDisl
   }
   const visual = resolvePublicProfileVisual(profile);
   const displayAge = profile?.age || 21;
-  const campusLabel = profile?.college || 'Chandigarh University';
+  const campusLabel = profile?.college || 'Local Community';
   const mutualCue = profile?.mutualInterests?.length
     ? `${profile.mutualInterests.length} mutual interests`
     : '3 mutual connections';
   const interestTags = Array.isArray(profile?.interests) && profile.interests.length > 0
     ? profile.interests
-    : ['Coffee Walks', 'Campus Events', 'Late Night Chats'];
+    : ['Coffee Walks', 'Live Events', 'Late Night Chats'];
   const isVerifiedProfile = Boolean(
     profile?.verified ||
     profile?.verified_badge ||
@@ -154,12 +154,12 @@ export default function ProfileCard({ profile, isMatched = false, onLike, onDisl
             </div>
 
             <span className="text-[11px] xl:text-xs font-semibold px-3 py-1 rounded-full border border-rose-200 bg-rose-100 text-rose-700">
-              Popular on campus
+              Popular nearby
             </span>
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
-            <span className="px-2.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-center">Campus verified</span>
+            <span className="px-2.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-center">Identity verified</span>
             <span className="px-2.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-center">{mutualCue}</span>
             <span className="px-2.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-center">Request-first chat</span>
             <span className="px-2.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-center">Profile updated recently</span>
@@ -168,7 +168,7 @@ export default function ProfileCard({ profile, isMatched = false, onLike, onDisl
           <div className="mt-4">
             <p className="text-[11px] uppercase tracking-[0.16em] text-rose-500 mb-1.5">Bio</p>
             <p className={`text-sm text-rose-800/90 leading-relaxed ${showFullProfile ? '' : 'line-clamp-3'}`}>
-              {profile.bio || 'Loves meeting new people around campus and creating meaningful conversations over coffee, events, and study breaks.'}
+              {profile.bio || 'Loves meeting new people and creating meaningful conversations over coffee, events, and long walks.'}
             </p>
           </div>
 

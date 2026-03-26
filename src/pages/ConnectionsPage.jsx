@@ -77,8 +77,8 @@ function ConnectionCard({
       </div>
 
       <div className={`min-w-0 ${view === 'list' ? 'flex-1' : ''}`}>
-        <h3 className="text-lg font-bold text-rose-700 truncate">{participant.name || 'Campus Member'}</h3>
-        <p className="text-sm text-rose-500 truncate">{participant.college || 'College network'}</p>
+        <h3 className="text-lg font-bold text-rose-700 truncate">{participant.name || 'Community Member'}</h3>
+        <p className="text-sm text-rose-500 truncate">{participant.college || 'Your network'}</p>
         <p className="text-xs text-rose-400 mt-1">Last interaction: {formatLastInteraction(lastInteraction)}</p>
 
         <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -216,7 +216,7 @@ export default function ConnectionsPage() {
         <div className="rounded-3xl border border-rose-200/75 bg-white/90 backdrop-blur-sm p-5 md:p-7 shadow-[0_24px_60px_rgba(190,24,93,0.08)]">
           <p className="text-[11px] uppercase tracking-[0.2em] text-rose-500 font-semibold">Connections</p>
           <h1 className="text-3xl md:text-4xl font-bold text-rose-700 mt-1">Your People</h1>
-          <p className="text-sm md:text-base text-rose-500 mt-2">Instagram warmth with Bumble intent. Keep your campus circle organized and personal.</p>
+          <p className="text-sm md:text-base text-rose-500 mt-2">Instagram warmth with Bumble intent. Keep your circle organized and personal.</p>
 
           <div className="mt-5 grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-center">
             <div className="rounded-2xl border border-rose-200 bg-white px-3 py-2.5 flex items-center gap-2">
@@ -224,7 +224,7 @@ export default function ConnectionsPage() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by name or college"
+                placeholder="Search by name or community"
                 className="flex-1 bg-transparent outline-none text-sm text-rose-700 placeholder:text-rose-300"
               />
             </div>

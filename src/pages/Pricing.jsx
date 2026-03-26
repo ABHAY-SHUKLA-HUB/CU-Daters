@@ -5,7 +5,7 @@
  * - Free Plan (₹0/forever)
  * - Premium Plan (₹99/month)
  * 
- * This replaces the previous 4-tier system (Free, CU Crush+, Gold, Platinum)
+ * This replaces the previous multi-tier legacy pricing model
  * Configuration is now admin-controlled via pricingConfig.js
  */
 
@@ -43,7 +43,7 @@ export default function Pricing() {
               <p className="text-sm text-darkBrown mt-2 font-semibold">No hidden upsells, no confusing tiers.</p>
             </div>
             <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4">
-              <p className="text-xs uppercase tracking-[0.15em] text-rose-500 font-bold">Built For Students</p>
+              <p className="text-xs uppercase tracking-[0.15em] text-rose-500 font-bold">Built For Everyone</p>
               <p className="text-sm text-darkBrown mt-2 font-semibold">Accessible free mode with meaningful daily usage.</p>
             </div>
             <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4">

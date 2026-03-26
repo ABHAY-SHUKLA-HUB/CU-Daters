@@ -78,7 +78,7 @@ export default function PendingApproval() {
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blushPink text-white flex items-center justify-center text-sm font-bold">2</div>
                 <div>
                   <p className="font-semibold text-darkBrown">Verification Check</p>
-                  <p className="text-sm text-softBrown">We'll confirm your college/email and validate your identity</p>
+                  <p className="text-sm text-softBrown">We'll confirm your email and validate your identity</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -101,7 +101,7 @@ export default function PendingApproval() {
               </div>
               {user?.collegeEmail && (
                 <div className="flex justify-between border-b border-softPink/30 pb-2">
-                  <span className="font-semibold">CU Email:</span>
+                  <span className="font-semibold">Verified Email:</span>
                   <span className="break-all">{user.collegeEmail}</span>
                 </div>
               )}

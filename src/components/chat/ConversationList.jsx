@@ -51,8 +51,8 @@ export default function ConversationList({
   }, [conversations, search]);
 
   return (
-    <aside className="w-full h-full bg-gradient-to-b from-white via-[#fff8f2] to-[#fff5ec] border-r border-softPink/45 flex flex-col">
-      <div className="px-5 pt-5 pb-4 border-b border-softPink/45 bg-white/70 backdrop-blur sticky top-0 z-10">
+    <aside className="w-full h-full bg-gradient-to-b from-white via-[#fff8f5] to-[#fff4eb] border-r border-rose-200/55 flex flex-col">
+      <div className="px-5 pt-5 pb-4 border-b border-rose-200/55 bg-white/76 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-2xl font-bold text-darkBrown tracking-tight">Inbox</h2>
           <span className="text-xs px-2.5 py-1 rounded-full border border-softPink/60 bg-softPink/15 text-darkBrown font-semibold">
@@ -67,7 +67,7 @@ export default function ConversationList({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search matches"
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-softPink/60 bg-white/95 focus:outline-none focus:ring-2 focus:ring-blushPink"
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-rose-200/70 bg-white/95 focus:outline-none focus:ring-2 focus:ring-rose-300/70"
           />
         </div>
       </div>
@@ -91,15 +91,15 @@ export default function ConversationList({
               return (
                 <button
                   key={item._id}
-                  className={`w-full text-left px-4 py-3.5 border-b border-softPink/20 transition ${
+                  className={`w-full text-left px-4 py-3.5 border-b border-rose-100/70 transition-all duration-250 ${
                     isSelected
-                      ? 'bg-white shadow-[inset_4px_0_0_0_rgba(244,114,182,0.95)]'
-                      : 'hover:bg-white/70'
+                      ? 'bg-white/96 shadow-[inset_4px_0_0_0_rgba(244,63,94,0.92),0_10px_24px_rgba(190,24,93,0.08)]'
+                      : 'hover:bg-white/84'
                   }`}
                   onClick={() => onSelectConversation(item)}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-blushPink to-softPink flex items-center justify-center text-white font-bold overflow-hidden shadow-md">
+                    <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-400 flex items-center justify-center text-white font-bold overflow-hidden shadow-[0_10px_24px_rgba(244,63,94,0.22)]">
                       {resolvePublicProfileVisual(item.participant).type === 'photo' ? (
                         <img
                           src={resolvePublicProfileVisual(item.participant).value}

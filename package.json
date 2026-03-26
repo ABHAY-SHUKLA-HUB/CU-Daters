@@ -13,6 +13,8 @@
     "server:dev": "nodemon server.js",
     "backend": "node server.js",
     "db:setup": "node scripts/setupDatabase.js",
+    "migrate:verification:dry": "node scripts/migrateLegacyVerificationMedia.js --dry-run",
+    "migrate:verification": "node scripts/migrateLegacyVerificationMedia.js --execute",
     "start": "node server.js",
     "test:gmail-smtp": "node test-gmail-smtp.js"
   },

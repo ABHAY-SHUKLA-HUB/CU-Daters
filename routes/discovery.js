@@ -72,7 +72,7 @@ router.get('/feed', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res) => {
       role: 'user',
       is_verified: true
     })
-      .select('name email gender course year bio livePhoto avatar age college') // Never expose ID card
+      .select('name email gender course year bio profilePhoto age college')
       .limit(50)
       .lean();
 
@@ -85,8 +85,7 @@ router.get('/feed', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res) => {
       year: u.year,
       college: u.college,
       bio: u.bio,
-      // Use avatar if available, otherwise use profile photo
-      profileImage: u.avatar || u.livePhoto || '/default-avatar.png'
+      profileImage: u.profilePhoto || '/default-avatar.png'
     }));
 
     return res.json(successResponse('Feed loaded', { 
@@ -223,7 +222,7 @@ router.get('/requests', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res) =
     })
       .populate({
         path: 'requestedBy',
-        select: 'name age gender course college bio avatar livePhoto'
+        select: 'name age gender course college bio profilePhoto'
       })
       .sort({ createdAt: -1 });
 
@@ -358,7 +357,7 @@ router.get('/matches', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res) =>
       users: userId.toString(),
       status: 'matched'
     })
-      .populate('users', 'name email avatar livePhoto status')
+      .populate('users', 'name email profilePhoto status')
       .sort({ matchedAt: -1 });
 
     const matchList = matches.map(m => {
@@ -370,7 +369,7 @@ router.get('/matches', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res) =>
         userId: otherUser._id,
         name: otherUser.name,
         email: otherUser.email,
-        avatar: otherUser.avatar || otherUser.livePhoto,
+        avatar: otherUser.profilePhoto,
         status: otherUser.status,
         matchedAt: m.matchedAt
       };

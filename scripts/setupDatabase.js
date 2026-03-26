@@ -19,7 +19,7 @@ const Subscription = require('../src/backend/models/Subscription');
 const SubscriptionRequest = require('../src/backend/models/SubscriptionRequest');
 const PaymentsAudit = require('../src/backend/models/PaymentsAudit');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/campus-connect';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/seeu-daters';
 
 async function setupDatabase() {
   console.log('🚀 Starting database setup...\n');
