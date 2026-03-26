@@ -1183,10 +1183,10 @@ export default function Dashboard() {
               <div className="pointer-events-none absolute -bottom-12 -left-8 w-36 h-36 rounded-full blur-3xl bg-fuchsia-300/30" />
               <div className="relative w-full h-full rounded-[1.6rem] overflow-hidden border border-rose-200/60 bg-white/85">
               {error && (
-                <div className="w-full h-full bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center justify-center p-8 border border-red-500/20 backdrop-blur-md">
+                <div className="w-full h-full bg-gradient-to-br from-rose-50 to-white flex flex-col items-center justify-center p-8 border border-rose-200/50 backdrop-blur-md text-center">
                   <p className="text-6xl mb-4">❌</p>
-                  <h3 className="text-xl font-bold text-red-400 mb-2">Error Loading</h3>
-                  <p className="text-gray-300 text-sm mb-4">{error}</p>
+                  <h3 className="text-xl font-bold text-rose-700 mb-2">Error Loading</h3>
+                  <p className="text-rose-900/70 text-sm mb-4">{error}</p>
                   <button 
                     onClick={() => window.location.reload()}
                     className="btn-primary px-6 py-2 text-sm"
@@ -1196,10 +1196,10 @@ export default function Dashboard() {
                 </div>
               )}
               {!error && !loading && !currentProfile && (
-                <div className="w-full h-full bg-gradient-to-br from-slate-900/80 to-slate-800/80 flex flex-col items-center justify-center p-6 border border-purple-500/20 backdrop-blur-md">
+                <div className="w-full h-full bg-gradient-to-br from-rose-50 to-white flex flex-col items-center justify-center p-6 border border-rose-200/50 backdrop-blur-md text-center">
                   <p className="text-6xl mb-4">🎉</p>
-                  <h3 className="text-xl font-bold text-white mb-1">All Done!</h3>
-                  <p className="text-gray-300 text-sm mb-4">Check back tomorrow for more!</p>
+                  <h3 className="text-xl font-bold text-darkBrown mb-1">All Done!</h3>
+                  <p className="text-softBrown text-sm mb-4">Check back tomorrow for more!</p>
                   <button 
                     onClick={() => {
                       setCurrentProfileIndex(0);
@@ -1229,30 +1229,30 @@ export default function Dashboard() {
             {!loading && !error && visibleProfiles.length > 0 && (
               <div className="space-y-4">
                 {/* Quick Stats Card - Glassmorphism */}
-                <div className="glass-panel rounded-2xl p-4 border border-white/15">
+                <div className="rounded-2xl p-4 border border-rose-200/70 bg-white/95 shadow-[0_12px_30px_rgba(190,24,93,0.08)]">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-2xl font-bold bg-gradient-to-r from-red-500 to-purple-500 bg-clip-text text-transparent">{currentProfileIndex + 1}</p>
-                      <p className="text-xs text-gray-400">Profile</p>
+                      <p className="text-xs text-softBrown">Profile</p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold bg-gradient-to-r from-red-500 to-purple-500 bg-clip-text text-transparent">{likedProfiles.length}</p>
-                      <p className="text-xs text-gray-400">Requests Sent</p>
+                      <p className="text-xs text-softBrown">Requests Sent</p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold bg-gradient-to-r from-red-500 to-purple-500 bg-clip-text text-transparent">{pendingLikes.length}</p>
-                      <p className="text-xs text-gray-400">Incoming</p>
+                      <p className="text-xs text-softBrown">Incoming</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Premium CTA Card - Glassmorphism with Glow */}
-                <div className="glass-panel rounded-2xl p-4 border border-red-500/30 bg-gradient-to-br from-red-500/10 to-purple-500/10 hover:shadow-2xl transition">
-                  <p className="text-xs font-bold text-red-400 mb-1 uppercase">✨ Premium</p>
-                  <p className="font-bold text-white mb-2">Unlock Premium Features</p>
-                  <p className="text-xs text-gray-300 mb-3">50% off for 3 months</p>
+                <div className="rounded-2xl p-4 border border-rose-300/60 bg-gradient-to-br from-rose-50 via-white to-orange-50 shadow-[0_12px_30px_rgba(244,63,94,0.1)] hover:shadow-[0_16px_34px_rgba(244,63,94,0.16)] transition">
+                  <p className="text-xs font-bold text-rose-600 mb-1 uppercase">✨ Premium</p>
+                  <p className="font-bold text-darkBrown mb-2">Unlock Premium Features</p>
+                  <p className="text-xs text-softBrown mb-3">Boost visibility, deeper filters, priority requests.</p>
                   <Link to="/pricing">
-                    <button className="btn-primary w-full px-3 py-2 text-xs rounded-full">
+                    <button className="w-full px-3 py-2 text-xs rounded-full font-bold text-white bg-gradient-to-r from-rose-500 to-orange-400 hover:brightness-110 transition">
                       Upgrade Now 🚀
                     </button>
                   </Link>

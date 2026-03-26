@@ -23,46 +23,46 @@ export default function PremiumHero() {
   return (
     <div className="relative overflow-hidden">
       {/* ANIMATED BACKGROUND BLOB */}
-      <div className="absolute inset-0 -z-10 opacity-40 blur-3xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-softPink to-purple-200 rounded-full animate-float"></div>
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-gradient-to-tr from-blushPink to-yellow-100 rounded-full animate-float" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute inset-0 -z-10 opacity-45 blur-3xl pointer-events-none">
+        <div className="absolute -top-24 right-[-4rem] w-[27rem] h-[27rem] bg-gradient-to-br from-rose-200 to-amber-100 rounded-full animate-float"></div>
+        <div className="absolute -bottom-20 left-[-3rem] w-80 h-80 bg-gradient-to-tr from-pink-300 to-orange-100 rounded-full animate-float" style={{ animationDelay: '2s' }}></div>
       </div>
 
       {/* HERO SECTION */}
-      <section className="min-h-screen bg-gradient-to-br from-creamyWhite via-white to-purple-50 pt-40 pb-20 px-4 relative z-10">
+      <section className="min-h-[92vh] bg-[linear-gradient(145deg,#fffafc_0%,#ffffff_42%,#fff7ef_100%)] pt-32 md:pt-36 pb-16 md:pb-20 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           {/* CONTENT GRID */}
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-[1.03fr_0.97fr] gap-12 items-center">
             {/* LEFT: COPY & CTAs */}
             <div className="space-y-6 animate-fade-in-left">
               {/* ===== PREMIUM BADGE ===== */}
-              <div className="inline-flex items-center gap-3 bg-gradient-to-r from-blushPink via-softPink to-purple-200 text-white px-5 py-3 rounded-full font-bold shadow-lg backdrop-blur-sm border border-white border-opacity-20 hover:shadow-xl hover:scale-105 transition-all duration-300">
-                <span className="text-lg animate-pulse">🎓</span>
-                <span className="text-sm font-semibold">Verified through • Face ID • Email • Student ID</span>
+              <div className="inline-flex items-center gap-3 bg-white/85 text-darkBrown px-4 py-2.5 rounded-full font-bold shadow-[0_10px_24px_rgba(190,24,93,0.14)] backdrop-blur-sm border border-rose-200/70 hover:shadow-[0_14px_32px_rgba(190,24,93,0.18)] transition-all duration-300">
+                <span className="text-base animate-pulse">🎓</span>
+                <span className="text-xs sm:text-sm font-semibold tracking-wide">Verified with Face ID, Student ID, and Campus Email</span>
               </div>
 
               {/* ===== HEADLINE ===== */}
-              <h1 className="text-6xl md:text-7xl font-black text-darkBrown leading-tight animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-                Your People <br className="hidden md:block" />
+              <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl font-black text-darkBrown leading-[0.96] animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+                Your People <br className="hidden sm:block" />
                 Are Here
               </h1>
 
               {/* ===== SUBHEADLINE ===== */}
-              <p className="text-2xl text-softBrown font-bold leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-                Find real people from your campus. Match instantly. Chat privately.
+              <p className="text-xl md:text-2xl text-softBrown font-bold leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                Find real people from your campus. Match with intent. Chat privately.
               </p>
 
               {/* ===== VALUE PROPOSITION ===== */}
-              <p className="text-lg text-softBrown leading-relaxed font-medium animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-                It's like Tinder met a verification system and agreed a private chat app should exist. Built by college students. <span className="font-bold">For college students.</span>
+              <p className="text-base md:text-lg text-softBrown leading-relaxed font-medium animate-fade-in-up max-w-2xl" style={{ animationDelay: '0.3s' }}>
+                Built by college students for college students, CU-Daters combines trust, compatibility signals, and private conversation in one campus-native product.
               </p>
 
               {/* ===== ADVANCED TRUST POSITIONING ===== */}
               <div className="space-y-3 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-                <p className="text-sm font-bold text-darkBrown uppercase tracking-wide">Why Students Trust Us</p>
+                <p className="text-xs sm:text-sm font-bold text-darkBrown uppercase tracking-[0.16em]">Why Students Trust Us</p>
                 <div className="grid gap-3">
                   {/* Trust Chip 1 */}
-                  <div className="flex items-start gap-3 p-4 bg-white bg-opacity-70 backdrop-blur-sm rounded-xl border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer group">
+                  <div className="flex items-start gap-3 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer group">
                     <span className="text-2xl">🔐</span>
                     <div>
                       <p className="font-bold text-darkBrown text-sm group-hover:text-blushPink transition">Messages Are Yours Alone</p>
@@ -71,7 +71,7 @@ export default function PremiumHero() {
                   </div>
 
                   {/* Trust Chip 2 */}
-                  <div className="flex items-start gap-3 p-4 bg-white bg-opacity-70 backdrop-blur-sm rounded-xl border border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer group">
+                  <div className="flex items-start gap-3 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer group">
                     <span className="text-2xl">⚠️</span>
                     <div>
                       <p className="font-bold text-darkBrown text-sm group-hover:text-blushPink transition">Screenshot Protected</p>
@@ -80,7 +80,7 @@ export default function PremiumHero() {
                   </div>
 
                   {/* Trust Chip 3 */}
-                  <div className="flex items-start gap-3 p-4 bg-white bg-opacity-70 backdrop-blur-sm rounded-xl border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all cursor-pointer group">
+                  <div className="flex items-start gap-3 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all cursor-pointer group">
                     <span className="text-2xl">✓</span>
                     <div>
                       <p className="font-bold text-darkBrown text-sm group-hover:text-blushPink transition">Verified 100 Ways</p>
@@ -91,28 +91,28 @@ export default function PremiumHero() {
               </div>
 
               {/* ===== CTAs - PRIMARY & SECONDARY ===== */}
-              <div className="flex flex-col md:flex-row gap-4 md:gap-6 pt-4 animate-fade-in-up md:justify-center md:items-center md:flex-wrap" style={{ animationDelay: '0.5s' }}>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-3 animate-fade-in-up sm:flex-wrap" style={{ animationDelay: '0.5s' }}>
                 {/* PRIMARY CTA */}
-                <Link to="/signup" className="w-full md:w-auto">
-                  <button className="group relative w-full md:w-auto px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blushPink to-purple-600 rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 overflow-hidden">
+                <Link to="/signup" className="w-full sm:w-auto">
+                  <button className="group relative w-full sm:w-auto px-7 py-3.5 text-base font-bold text-white bg-gradient-to-r from-rose-500 via-pink-500 to-orange-400 rounded-full shadow-[0_14px_34px_rgba(244,63,94,0.32)] hover:shadow-[0_18px_40px_rgba(244,63,94,0.38)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 overflow-hidden">
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       <span>Start Matching</span>
                       <span className="group-hover:translate-x-1 transition-transform">→</span>
                     </span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blushPink opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   </button>
                 </Link>
 
                 {/* SECONDARY CTA - ALWAYS VISIBLE */}
-                <Link to="/features" className="w-full md:w-auto">
-                  <button className="w-full md:w-auto px-8 py-4 text-lg font-bold text-softBrown bg-white border-2 border-softPink rounded-full hover:border-blushPink hover:text-blushPink hover:bg-white hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-300">
-                    Free
+                <Link to="/features" className="w-full sm:w-auto">
+                  <button className="w-full sm:w-auto px-7 py-3.5 text-base font-bold text-softBrown bg-white border-2 border-rose-200 rounded-full hover:border-rose-400 hover:text-rose-600 hover:shadow-md transition-all duration-300">
+                    Explore Features
                   </button>
                 </Link>
 
                 {/* LOGIN CTA */}
-                <Link to="/login" className="w-full md:w-auto">
-                  <button className="w-full md:w-auto px-8 py-4 text-lg font-bold text-blushPink bg-white border-2 border-blushPink rounded-full hover:bg-blushPink hover:text-white hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-300">
+                <Link to="/login" className="w-full sm:w-auto">
+                  <button className="w-full sm:w-auto px-7 py-3.5 text-base font-bold text-rose-500 bg-white border-2 border-rose-300 rounded-full hover:bg-rose-500 hover:text-white hover:shadow-md transition-all duration-300">
                     Login
                   </button>
                 </Link>
@@ -126,18 +126,18 @@ export default function PremiumHero() {
               </div>
 
               {/* ===== STATS AT BOTTOM ===== */}
-              <div className="grid grid-cols-3 gap-6 pt-12 border-t-2 border-softPink border-opacity-30 animate-fade-in-up" style={{ animationDelay: '0.7s' }}>
+              <div className="grid grid-cols-3 gap-4 sm:gap-6 pt-10 border-t border-rose-200/60 animate-fade-in-up" style={{ animationDelay: '0.7s' }}>
                 <div className="group cursor-pointer">
-                  <p className="text-4xl font-black bg-gradient-to-r from-blushPink to-purple-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">50K+</p>
-                  <p className="text-xs text-softBrown mt-2 font-semibold">Verified Students</p>
+                  <p className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">50K+</p>
+                  <p className="text-[11px] sm:text-xs text-softBrown mt-1.5 font-semibold">Verified Students</p>
                 </div>
                 <div className="group cursor-pointer">
-                  <p className="text-4xl font-black bg-gradient-to-r from-blushPink to-purple-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">200K+</p>
-                  <p className="text-xs text-softBrown mt-2 font-semibold">Matches Made</p>
+                  <p className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">200K+</p>
+                  <p className="text-[11px] sm:text-xs text-softBrown mt-1.5 font-semibold">Matches Made</p>
                 </div>
                 <div className="group cursor-pointer">
-                  <p className="text-4xl font-black bg-gradient-to-r from-blushPink to-purple-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">4.9★</p>
-                  <p className="text-xs text-softBrown mt-2 font-semibold">App Rating</p>
+                  <p className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">4.9★</p>
+                  <p className="text-[11px] sm:text-xs text-softBrown mt-1.5 font-semibold">App Rating</p>
                 </div>
               </div>
             </div>
@@ -165,38 +165,29 @@ export default function PremiumHero() {
             </p>
             <div className="grid md:grid-cols-3 gap-6 animate-fade-in-up" style={{ animationDelay: '0.9s' }}>
               {/* Testimonial 1 */}
-              <div className="bg-white bg-opacity-60 backdrop-blur-sm rounded-2xl p-6 border border-softPink hover:border-blushPink hover:shadow-lg transition-all">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-rose-200 hover:border-rose-400 hover:shadow-lg transition-all">
                 <p className="text-lg font-bold text-darkBrown mb-2">"Found my boyfriend here 💕"</p>
                 <p className="text-sm text-softBrown mb-4">Finally a dating app that actually verified everyone. Game changer.</p>
-                <p className="text-xs font-semibold text-blushPink">— Sarah, 20</p>
+                <p className="text-xs font-semibold text-rose-500">— Sarah, 20</p>
               </div>
 
               {/* Testimonial 2 */}
-              <div className="bg-white bg-opacity-60 backdrop-blur-sm rounded-2xl p-6 border border-softPink hover:border-blushPink hover:shadow-lg transition-all">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-rose-200 hover:border-rose-400 hover:shadow-lg transition-all">
                 <p className="text-lg font-bold text-darkBrown mb-2">"Actually private & safe"</p>
                 <p className="text-sm text-softBrown mb-4">The encryption and screenshot protection made me feel like my chats actually matter.</p>
-                <p className="text-xs font-semibold text-blushPink">— Jordan, 21</p>
+                <p className="text-xs font-semibold text-rose-500">— Jordan, 21</p>
               </div>
 
               {/* Testimonial 3 */}
-              <div className="bg-white bg-opacity-60 backdrop-blur-sm rounded-2xl p-6 border border-softPink hover:border-blushPink hover:shadow-lg transition-all">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-rose-200 hover:border-rose-400 hover:shadow-lg transition-all">
                 <p className="text-lg font-bold text-darkBrown mb-2">"Met my friend group here"</p>
                 <p className="text-sm text-softBrown mb-4">Not just dating—found people with actual shared interests. Love this community.</p>
-                <p className="text-xs font-semibold text-blushPink">— Ryan, 22</p>
+                <p className="text-xs font-semibold text-rose-500">— Ryan, 22</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* STICKY MOBILE CTA */}
-        <div className="fixed bottom-0 left-0 right-0 md:hidden bg-gradient-to-r from-blushPink to-purple-600 p-4 shadow-2xl z-50">
-          <Link to="/signup">
-            <button className="w-full bg-white text-blushPink font-bold py-3 rounded-full hover:scale-105 transition-transform active:scale-95 flex items-center justify-center gap-2">
-              <span>💕 Match Free Now</span>
-              <span>→</span>
-            </button>
-          </Link>
-        </div>
       </section>
     </div>
   );

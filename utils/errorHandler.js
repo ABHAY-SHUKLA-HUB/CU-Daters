@@ -22,6 +22,7 @@ export class AppError extends Error {
 export const globalErrorHandler = (err, req, res, _next) => {
   err.statusCode = err.statusCode || 500;
   err.message = err.message || 'Internal Server Error';
+  const requestId = req?.requestId;
 
   // Mongoose duplicate key error
   if (err.code === 11000) {
@@ -50,12 +51,13 @@ export const globalErrorHandler = (err, req, res, _next) => {
     err.statusCode = 401;
   }
 
-  console.error(`❌ [${new Date().toISOString()}] ${err.statusCode} - ${err.message}`);
+  console.error(`❌ [${new Date().toISOString()}] ${err.statusCode} - ${err.message}${requestId ? ` [requestId=${requestId}]` : ''}`);
 
   res.status(err.statusCode).json({
     success: false,
     statusCode: err.statusCode,
     message: err.message,
+    requestId,
     ...(process.env.NODE_ENV === 'development' && {
       stack: err.stack,
       details: err
@@ -75,6 +77,7 @@ export const jsonErrorHandler = (err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: 'Invalid JSON format',
+      requestId: req?.requestId,
       details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }

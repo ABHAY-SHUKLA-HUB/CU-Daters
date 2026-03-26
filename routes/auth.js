@@ -540,6 +540,12 @@ router.post('/login', asyncHandler(async (req, res, _next) => {
     throw new AppError('Your registration was rejected by admin. Please contact support.', 403);
   }
 
+  // Enforce role-specific sign-in paths: admin roles must use admin portal login.
+  if (ADMIN_ROLES.includes(user.role)) {
+    console.log(`❌ Admin role attempted user login route: ${user.email} (${user.role})`);
+    throw new AppError('Admin accounts must sign in via the admin portal (/admin-login).', 403);
+  }
+
   // Update last login
   user.last_login = new Date();
   await user.save();

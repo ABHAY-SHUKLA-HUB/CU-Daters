@@ -43,7 +43,12 @@ export default function Login() {
       } else if (err?.code === 'ECONNREFUSED' || err?.code === 'ENOTFOUND') {
         errorMsg = 'Cannot reach backend. Is server running?';
       } else if (err?.status === 401) {
-        errorMsg = 'Invalid email or password';
+        const rawMsg = String(err?.message || err?.data?.message || '').toLowerCase();
+        if (rawMsg.includes('admin portal') || rawMsg.includes('/admin-login')) {
+          errorMsg = 'This is an admin account. Please sign in from the Admin Portal login.';
+        } else {
+          errorMsg = 'Access denied for this account.';
+        }
       } else if (err?.status === 503) {
         errorMsg = 'Database unavailable. Please wait a moment and try again.';
       } else if (err?.message === 'Network Error') {
@@ -71,6 +76,11 @@ export default function Login() {
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">
               {error}
+              {String(error).toLowerCase().includes('admin account') ? (
+                <div className="mt-2">
+                  <Link to="/admin-login" className="font-bold underline text-rose-700">Go to Admin Login</Link>
+                </div>
+              ) : null}
             </div>
           )}
 

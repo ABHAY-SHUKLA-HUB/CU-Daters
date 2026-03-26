@@ -26,21 +26,21 @@ export default function Testimonials() {
   ];
 
   return (
-    <section className="py-20 px-4 bg-warmCream">
+    <section className="py-20 md:py-24 px-4 bg-[linear-gradient(180deg,#fffaf4_0%,#ffffff_55%,#fff8fb_100%)]">
       <div className="max-w-6xl mx-auto">
-        
+
         <h2 className="section-title">Students Are Loving CU Daters</h2>
         <p className="section-subtitle">Real stories from real CU students</p>
-        
-        <div className="grid md:grid-cols-3 gap-8 mt-12">
-          
+
+        <div className="grid md:grid-cols-3 gap-6 mt-12">
+
           {testimonials.map((testimonial, idx) => (
             <div 
               key={idx} 
-              className="card hover-lift"
+              className="h-full rounded-3xl border border-rose-200/70 bg-white/95 p-6 shadow-[0_16px_36px_rgba(190,24,93,0.08)] hover:-translate-y-1 hover:shadow-[0_22px_44px_rgba(190,24,93,0.14)] transition-all"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-blushPink text-white 
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-rose-500 to-orange-400 text-white 
                                 flex items-center justify-center font-bold text-sm">
                   {testimonial.initials}
                 </div>
@@ -49,11 +49,11 @@ export default function Testimonials() {
                   <p className="text-xs text-softBrown">{testimonial.major}</p>
                 </div>
               </div>
-              
-              <p className="text-softBrown mb-4 text-sm leading-relaxed">
+
+              <p className="text-softBrown mb-5 text-sm leading-relaxed">
                 "{testimonial.text}"
               </p>
-              
+
               <div className="flex gap-1">
                 {[...Array(testimonial.rating)].map((_, i) => (
                   <span key={i} className="text-yellow-400">⭐</span>
@@ -61,7 +61,7 @@ export default function Testimonials() {
               </div>
             </div>
           ))}
-        
+
         </div>
       </div>
     </section>

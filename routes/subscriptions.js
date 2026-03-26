@@ -147,7 +147,7 @@ router.get('/pricing-config', async (req, res) => {
         }
       },
       payment: {
-        enabled: Boolean(billing.upiEnabled || billing.qrEnabled),
+        enabled: Boolean(billing.upiEnabled || billing.qrEnabled || bankEnabled),
         methods: {
           upi: {
             enabled: billing.upiEnabled !== false,
@@ -202,7 +202,31 @@ router.post('/request', verifyAuth, upload.single('screenshot'), async (req, res
 
     // Parse payment details
     const paymentId = req.body.paymentId || req.body.utr || `PAY-${Date.now()}`;
-    const amount = req.body.amount || 99;
+
+    // Resolve billing config from DB and enforce server-side amount.
+    const billingSetting = await AppSetting.findOne({ key: 'billing_config' }).lean();
+    const billing = typeof billingSetting?.value === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(billingSetting.value);
+          } catch {
+            return {};
+          }
+        })()
+      : (billingSetting?.value || {});
+
+    const paymentEnabled = Boolean((billing.upiEnabled ?? true) || (billing.qrEnabled ?? true) || (billing.bankEnabled ?? true));
+    if (!paymentEnabled) {
+      return res.status(503).json(errorResponse('Payments are temporarily disabled by admin. Please try again later.'));
+    }
+
+    const normalizedPlan = String(plan || '').trim().toLowerCase();
+    const isPremiumPlan = normalizedPlan.includes('premium') || normalizedPlan.includes('crush+') || normalizedPlan.includes('paid');
+    const premiumPrice = Number(billing.premiumPrice || billing.monthlyPrice) || 99;
+    const requestedAmount = Number(req.body.amount);
+    const amount = isPremiumPlan
+      ? premiumPrice
+      : (Number.isFinite(requestedAmount) && requestedAmount > 0 ? requestedAmount : premiumPrice);
 
     // Check duplicate payment ID
     const isDuplicatePayment = await checkDuplicatePayment(Subscription, paymentId);

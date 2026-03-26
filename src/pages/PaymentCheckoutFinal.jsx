@@ -13,23 +13,22 @@ const PaymentCheckoutFinal = () => {
   console.log('PaymentCheckoutFinal rendered');
   console.log('Location state:', location.state);
   
-  const plan = location.state?.plan || {
-    id: 'default-plan',
-    name: 'Monthly Plan',
-    price: '₹99',
+  const selectedPlanInput = location.state?.plan;
+  const fallbackPlan = {
+    id: 'premium',
+    name: 'Premium',
+    price: 99,
+    currency: '₹',
     period: '/month',
     duration: '30 days',
   };
-
-  const numericPrice = typeof plan.price === 'string' 
-    ? parseInt(plan.price.replace(/[^\d]/g, '') || '99') 
-    : (plan.price || 99);
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [configLoading, setConfigLoading] = useState(true);
   const [error, setError] = useState('');
   const [paymentConfig, setPaymentConfig] = useState(null);
+  const [resolvedPlan, setResolvedPlan] = useState(fallbackPlan);
   const [paymentId, setPaymentId] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState('');
@@ -37,12 +36,37 @@ const PaymentCheckoutFinal = () => {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const fileInputRef = useRef(null);
 
+  const numericPrice = Number(resolvedPlan?.price) || 99;
+  const planName = resolvedPlan?.name || 'Premium';
+
   useEffect(() => {
     let mounted = true;
     const loadPricing = async () => {
       try {
-        const config = await pricingApi.getPricingConfig();
+        const config = await pricingApi.getPricingConfig(true);
         if (mounted) {
+          const plans = config?.plans || {};
+          const normalizedInput = String(
+            typeof selectedPlanInput === 'object'
+              ? selectedPlanInput?.id || selectedPlanInput?.name
+              : selectedPlanInput || ''
+          ).toLowerCase();
+
+          const selectedPlan =
+            plans[normalizedInput] ||
+            Object.values(plans).find(
+              (planItem) =>
+                String(planItem?.id || '').toLowerCase() === normalizedInput ||
+                String(planItem?.name || '').toLowerCase() === normalizedInput
+            ) ||
+            plans.premium ||
+            fallbackPlan;
+
+          setResolvedPlan({
+            ...fallbackPlan,
+            ...(typeof selectedPlanInput === 'object' ? selectedPlanInput : {}),
+            ...(selectedPlan || {})
+          });
           setPaymentConfig(config?.payment || null);
         }
       } catch (err) {
@@ -58,7 +82,7 @@ const PaymentCheckoutFinal = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [selectedPlanInput]);
 
   const paymentMethods = paymentConfig?.methods || {};
   const bankMethod = paymentMethods.bank || {};
@@ -150,7 +174,7 @@ const PaymentCheckoutFinal = () => {
 
       const formData = new FormData();
       formData.append('userId', userId);
-      formData.append('plan', plan.name);  // Backend expects 'plan' field
+      formData.append('plan', planName);  // Backend expects 'plan' field
       formData.append('amount', numericPrice);
       formData.append('paymentId', paymentId.toUpperCase());
       formData.append('senderName', senderName);
@@ -206,7 +230,7 @@ const PaymentCheckoutFinal = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Payment Checkout</h1>
-          <p className="text-gray-600">Complete your {plan.name} subscription</p>
+          <p className="text-gray-600">Complete your {planName} subscription</p>
         </div>
 
         {/* Step 1: Instructions */}
@@ -217,7 +241,7 @@ const PaymentCheckoutFinal = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Plan</p>
-                  <p className="text-2xl font-bold text-pink-600">{plan.name}</p>
+                  <p className="text-2xl font-bold text-pink-600">{planName}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600">Amount</p>
@@ -403,7 +427,7 @@ const PaymentCheckoutFinal = () => {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-700">Plan:</span>
-                  <span className="font-bold text-pink-600">{plan.name}</span>
+                  <span className="font-bold text-pink-600">{planName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-700">Amount:</span>

@@ -3357,10 +3357,19 @@ function ChatsPanel({ chats, moderationFilter, currentRole, onOpenDetail, visibi
 }
 
 function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSetting, settings = [], adminPin = '', onNotify }) {
-  const API_BASE_URL = getApiBaseUrl();
-  const API_ROOT = String(API_BASE_URL || '').replace(/\/api$/i, '');
   const billingSetting = settings.find((item) => item.key === 'billing_config');
-  const billingValue = billingSetting?.value || {};
+  const rawBillingValue = billingSetting?.value;
+  const billingValue = React.useMemo(() => {
+    if (!rawBillingValue) return {};
+    if (typeof rawBillingValue === 'string') {
+      try {
+        return JSON.parse(rawBillingValue);
+      } catch {
+        return {};
+      }
+    }
+    return typeof rawBillingValue === 'object' ? rawBillingValue : {};
+  }, [rawBillingValue]);
   const [billingDraft, setBillingDraft] = React.useState({
     premiumPrice: Number(billingValue.premiumPrice || billingValue.monthlyPrice) || 99,
     maxMessagesPerDay: Number(billingValue.maxMessagesPerDay) || 50,
@@ -3421,15 +3430,14 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
   const persistBillingConfig = async () => {
     setSavingConfig(true);
     try {
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('authToken');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      };
       const premiumPrice = Number(billingDraft.premiumPrice) || 99;
       const maxMessagesPerDay = Math.max(1, Number(billingDraft.maxMessagesPerDay) || 50);
       const maxActiveMatches = Math.max(1, Number(billingDraft.maxActiveMatches) || 1);
       const maxRequestsPerDay = Math.max(1, Number(billingDraft.maxRequestsPerDay) || 5);
+
+      if (premiumPrice < 1) {
+        throw new Error('Premium price must be at least 1');
+      }
 
       await onUpdateSetting?.('billing_config', {
         premiumPrice,
@@ -3456,55 +3464,7 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
         couponDiscountPct: Math.max(0, Math.min(95, Number(billingDraft.couponDiscountPct) || 0))
       });
 
-      await Promise.all([
-        fetch(`${API_ROOT}/api/config/admin/update-price`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ planId: 'premium', newPrice: premiumPrice })
-        }),
-        fetch(`${API_ROOT}/api/config/admin/update-limit`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ featureKey: 'messaging', plan: 'free', limitKey: 'maxMessagesPerDay', value: maxMessagesPerDay })
-        }),
-        fetch(`${API_ROOT}/api/config/admin/update-limit`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ featureKey: 'messaging', plan: 'free', limitKey: 'maxActiveMatches', value: maxActiveMatches })
-        }),
-        fetch(`${API_ROOT}/api/config/admin/update-limit`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ featureKey: 'requests', plan: 'free', limitKey: 'maxRequestsPerDay', value: maxRequestsPerDay })
-        }),
-        fetch(`${API_ROOT}/api/config/admin/global-override`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            premiumFree: Boolean(billingDraft.premiumFree),
-            disableFreeMode: Boolean(billingDraft.disableFreeMode)
-          })
-        }),
-        fetch(`${API_ROOT}/api/config/admin/payment-config`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            upiId: String(billingDraft.upiId || '').trim(),
-            offerText: String(billingDraft.offerText || '').trim(),
-            accountHolder: String(billingDraft.accountHolder || '').trim(),
-            bankName: String(billingDraft.bankName || '').trim(),
-            accountNumber: String(billingDraft.accountNumber || '').trim(),
-            ifscCode: String(billingDraft.ifscCode || '').trim(),
-            paymentInstructions: String(billingDraft.paymentInstructions || '').trim(),
-            bankEnabled: Boolean(billingDraft.bankEnabled),
-            upiEnabled: Boolean(billingDraft.upiEnabled),
-            qrEnabled: Boolean(billingDraft.qrEnabled),
-            enabled: Boolean(billingDraft.upiEnabled || billingDraft.qrEnabled)
-          })
-        })
-      ]);
-
-      onNotify?.('Pricing controls saved and synced to live 2-tier config.');
+      onNotify?.('Pricing controls saved successfully. Live checkout will now use updated values.');
     } catch (err) {
       onNotify?.(err?.message || 'Failed to save billing config', 'error');
     } finally {
@@ -3658,6 +3618,13 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
   const totalRevenue = Number(summary?.totalRevenue || 0);
   const approvalRate = totalPayments ? Math.round(((summary?.approvedPayments || approvedPayments.length) / totalPayments) * 100) : 0;
   const pendingAmount = pendingPayments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const effectivePremiumPrice = Math.max(1, Number(billingDraft.premiumPrice) || 0);
+  const effectiveCouponDiscountPct = billingDraft.couponsEnabled
+    ? Math.max(0, Math.min(95, Number(billingDraft.couponDiscountPct) || 0))
+    : 0;
+  const effectiveDiscountValue = Number(((effectivePremiumPrice * effectiveCouponDiscountPct) / 100).toFixed(2));
+  const effectiveCheckoutAmount = Number(Math.max(0, effectivePremiumPrice - effectiveDiscountValue).toFixed(2));
+  const hasAnyPaymentMethodEnabled = Boolean(billingDraft.upiEnabled || billingDraft.qrEnabled || billingDraft.bankEnabled);
   const inputClass = 'mt-1 w-full rounded-xl bg-white/8 border border-cyan-200/20 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/40';
 
   return (
@@ -3696,7 +3663,25 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
 
           <div className="grid sm:grid-cols-2 gap-3 mb-3">
             <label className="text-xs text-slate-300">Premium Price (INR)
-              <input type="number" value={billingDraft.premiumPrice} onChange={(event) => setBillingDraft((prev) => ({ ...prev, premiumPrice: event.target.value }))} className={inputClass} />
+              <div className="mt-1 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBillingDraft((prev) => ({ ...prev, premiumPrice: Math.max(1, Number(prev.premiumPrice || 0) - 10) }))}
+                  className="rounded-lg border border-cyan-300/30 bg-cyan-500/12 px-2.5 py-2 text-sm text-cyan-100 hover:bg-cyan-500/20 transition"
+                  title="Decrease by 10"
+                >
+                  -10
+                </button>
+                <input type="number" value={billingDraft.premiumPrice} onChange={(event) => setBillingDraft((prev) => ({ ...prev, premiumPrice: event.target.value }))} className={inputClass.replace('mt-1 ', '')} />
+                <button
+                  type="button"
+                  onClick={() => setBillingDraft((prev) => ({ ...prev, premiumPrice: Number(prev.premiumPrice || 0) + 10 }))}
+                  className="rounded-lg border border-cyan-300/30 bg-cyan-500/12 px-2.5 py-2 text-sm text-cyan-100 hover:bg-cyan-500/20 transition"
+                  title="Increase by 10"
+                >
+                  +10
+                </button>
+              </div>
             </label>
             <label className="text-xs text-slate-300">Free Plan Price
               <input type="number" value={0} disabled className={`${inputClass} opacity-65`} />
@@ -3765,6 +3750,17 @@ function PaymentsPanel({ payments, summary, onOpenDetail, onRefresh, onUpdateSet
             <label className="text-xs text-slate-300">Discount %
               <input type="number" min="0" max="95" value={billingDraft.couponDiscountPct} onChange={(event) => setBillingDraft((prev) => ({ ...prev, couponDiscountPct: event.target.value }))} className={inputClass} />
             </label>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-500/8 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-cyan-100/70">Live Checkout Preview</p>
+            <div className="mt-1 grid sm:grid-cols-2 gap-2 text-xs">
+              <p className="text-slate-200">Premium plan charge: <span className="font-semibold text-white">Rs {effectivePremiumPrice.toFixed(2)}</span></p>
+              <p className="text-slate-200">Coupon impact: <span className="font-semibold text-white">-{effectiveCouponDiscountPct}% (Rs {effectiveDiscountValue.toFixed(2)})</span></p>
+              <p className="text-slate-100">Expected checkout amount: <span className="font-bold text-cyan-100">Rs {effectiveCheckoutAmount.toFixed(2)}</span></p>
+              <p className="text-slate-300">Methods active: <span className={hasAnyPaymentMethodEnabled ? 'font-semibold text-emerald-300' : 'font-semibold text-rose-300'}>{hasAnyPaymentMethodEnabled ? 'At least one enabled' : 'None enabled (checkout blocked)'}</span></p>
+            </div>
+            {billingDraft.premiumFree ? <p className="mt-1 text-[11px] text-amber-200">Premium for everyone is ON. Users may bypass paid checkout.</p> : null}
           </div>
         </div>
 

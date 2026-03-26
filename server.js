@@ -4,6 +4,8 @@ import http from 'http';
 import mongoose from 'mongoose';
 import path from 'path';
 import fs from 'fs';
+import rateLimit from 'express-rate-limit';
+import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
@@ -60,6 +62,9 @@ const __dirname = dirname(__filename);
 const app = express();
 const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
 
 const normalizeOrigin = (origin) => {
   if (!origin || typeof origin !== 'string') return '';
@@ -194,9 +199,51 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
+app.use((req, res, next) => {
+  const requestId = req.headers['x-request-id'] || randomUUID();
+  req.requestId = String(requestId);
+  res.setHeader('x-request-id', req.requestId);
+
+  res.setHeader('x-content-type-options', 'nosniff');
+  res.setHeader('x-frame-options', 'DENY');
+  res.setHeader('referrer-policy', 'strict-origin-when-cross-origin');
+  res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('strict-transport-security', 'max-age=31536000; includeSubDomains');
+  }
+
+  next();
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(jsonErrorHandler);
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 450 : 2000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests from this IP. Please retry in a few minutes.',
+  },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 60 : 400,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many auth attempts. Please wait before retrying.',
+  },
+});
+
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
 
 // Guard API routes when DB is unavailable
 app.use('/api', (req, res, next) => {
@@ -226,6 +273,7 @@ app.use('/api', (req, res, next) => {
   return res.status(503).json({
     success: false,
     message: 'Database unavailable. Please try again in a moment.',
+    requestId: req.requestId,
   });
 });
 

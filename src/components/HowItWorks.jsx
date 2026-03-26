@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export default function HowItWorks() {
   const steps = [
@@ -33,7 +34,7 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section className="py-20 px-4 bg-gradient-to-b from-white via-creamyWhite to-white">
+    <section className="py-20 md:py-24 px-4 bg-[linear-gradient(180deg,#fff_0%,#fffaf4_52%,#fff_100%)]">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16 animate-fade-in-up">
@@ -44,7 +45,7 @@ export default function HowItWorks() {
         </div>
 
         {/* Steps Grid */}
-        <div className="grid md:grid-cols-4 gap-6 md:gap-4">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-6 md:gap-5">
           {steps.map((step, idx) => (
             <div
               key={idx}
@@ -53,11 +54,11 @@ export default function HowItWorks() {
             >
               {/* Connector Line (desktop only) */}
               {idx < steps.length - 1 && (
-                <div className="hidden md:block absolute top-12 -right-2 w-12 h-0.5 bg-gradient-to-r from-blushPink to-transparent"></div>
+                <div className="hidden xl:block absolute top-12 -right-2 w-12 h-0.5 bg-gradient-to-r from-rose-400 to-transparent"></div>
               )}
 
               {/* Step Card */}
-              <div className="relative bg-white rounded-2xl p-6 border-2 border-softPink hover:border-blushPink transition-all duration-300 hover:shadow-lg hover:scale-105">
+              <div className="relative h-full bg-white rounded-3xl p-6 border border-rose-200/70 shadow-[0_14px_30px_rgba(190,24,93,0.08)] hover:border-rose-400 transition-all duration-300 hover:shadow-[0_20px_40px_rgba(190,24,93,0.14)] hover:-translate-y-1">
                 {/* Circle Number */}
                 <div
                   className={`absolute -top-6 left-1/2 transform -translate-x-1/2 w-14 h-14 rounded-full bg-gradient-to-br ${step.color} text-white font-bold text-lg flex items-center justify-center shadow-lg`}
@@ -66,7 +67,7 @@ export default function HowItWorks() {
                 </div>
 
                 {/* Content */}
-                <div className="pt-6 text-center">
+                <div className="pt-6 text-center flex flex-col h-full">
                   <div className="text-4xl mb-4">{step.icon}</div>
                   <h3 className="text-lg font-bold text-darkBrown mb-3">{step.title}</h3>
                   <p className="text-sm text-softBrown leading-relaxed">{step.description}</p>
@@ -81,7 +82,9 @@ export default function HowItWorks() {
           <p className="text-lg text-darkBrown mb-6 font-semibold">
             Ready to find your people?
           </p>
-          <button className="btn-primary">Start Verifying Now →</button>
+          <Link to="/signup" className="inline-flex px-7 py-3 rounded-full font-bold text-white bg-gradient-to-r from-rose-500 to-orange-400 shadow-[0_14px_34px_rgba(244,63,94,0.28)] hover:brightness-110 transition">
+            Start Verifying Now →
+          </Link>
         </div>
       </div>
     </section>

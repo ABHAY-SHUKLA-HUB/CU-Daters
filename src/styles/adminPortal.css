@@ -1,25 +1,25 @@
 .admin-portal {
-  --admin-bg: #041126;
-  --admin-surface: rgba(8, 22, 45, 0.8);
-  --admin-surface-strong: rgba(6, 18, 39, 0.94);
-  --admin-border: rgba(125, 211, 252, 0.2);
-  --admin-text: #e2e8f0;
-  --admin-text-muted: #94a3b8;
-  --admin-accent: #06b6d4;
+  --admin-bg: #061225;
+  --admin-surface: rgba(9, 26, 50, 0.82);
+  --admin-surface-strong: rgba(8, 23, 45, 0.95);
+  --admin-border: rgba(56, 189, 248, 0.24);
+  --admin-text: #e6eef8;
+  --admin-text-muted: #9ab0c8;
+  --admin-accent: #22c1ee;
 }
 
 .admin-portal.admin-portal--light {
-  --admin-bg: #f4f8ff;
+  --admin-bg: #f2f7ff;
   --admin-surface: rgba(255, 255, 255, 0.92);
   --admin-surface-strong: rgba(255, 255, 255, 0.98);
-  --admin-border: rgba(59, 130, 246, 0.2);
+  --admin-border: rgba(14, 116, 144, 0.2);
   --admin-text: #0f172a;
-  --admin-text-muted: #475569;
+  --admin-text-muted: #3f4f68;
   --admin-accent: #0284c7;
 }
 
 .admin-portal {
-  background: radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 48%), var(--admin-bg);
+  background: radial-gradient(circle at 84% 8%, rgba(34, 193, 238, 0.2), transparent 46%), radial-gradient(circle at 12% 90%, rgba(59, 130, 246, 0.15), transparent 42%), var(--admin-bg);
   color: var(--admin-text);
 }
 
@@ -98,6 +98,51 @@
   box-shadow: 0 18px 40px rgba(2, 6, 23, 0.28);
   padding: 10px 12px;
   font-size: 13px;
+}
+
+.admin-portal .bg-gradient-to-r.from-cyan-500\/20.via-sky-500\/15.to-transparent {
+  background: linear-gradient(90deg, rgba(34, 193, 238, 0.22), rgba(14, 165, 233, 0.16), rgba(14, 165, 233, 0.02)) !important;
+}
+
+.admin-portal .bg-gradient-to-r.from-cyan-500.to-sky-500 {
+  background-image: linear-gradient(90deg, #0891b2, #2563eb) !important;
+}
+
+.admin-portal .from-cyan-500\/90.to-sky-500\/90 {
+  --tw-gradient-from: rgba(8, 145, 178, 0.96) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(37, 99, 235, 0.96) var(--tw-gradient-to-position) !important;
+}
+
+.admin-portal .text-cyan-100\/85,
+.admin-portal .text-cyan-100\/65,
+.admin-portal .text-cyan-100,
+.admin-portal .text-cyan-200\/70,
+.admin-portal .text-cyan-200\/45,
+.admin-portal .text-cyan-200 {
+  color: #c7e7f8 !important;
+}
+
+.admin-portal .border-cyan-200\/10,
+.admin-portal .border-cyan-200\/15,
+.admin-portal .border-cyan-200\/20,
+.admin-portal .border-cyan-200\/30,
+.admin-portal .border-cyan-200\/45,
+.admin-portal .border-cyan-300\/15,
+.admin-portal .border-cyan-300\/35 {
+  border-color: rgba(96, 165, 250, 0.24) !important;
+}
+
+.admin-portal.admin-portal--light .text-cyan-100\/85,
+.admin-portal.admin-portal--light .text-cyan-100\/65,
+.admin-portal.admin-portal--light .text-cyan-100,
+.admin-portal.admin-portal--light .text-cyan-200\/70,
+.admin-portal.admin-portal--light .text-cyan-200\/45,
+.admin-portal.admin-portal--light .text-cyan-200 {
+  color: #0f3f63 !important;
+}
+
+.admin-portal.admin-portal--light .bg-gradient-to-r.from-cyan-500\/20.via-sky-500\/15.to-transparent {
+  background: linear-gradient(90deg, rgba(2, 132, 199, 0.14), rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.02)) !important;
 }
 
 .admin-portal .admin-toast.success {

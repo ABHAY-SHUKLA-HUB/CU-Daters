@@ -8,7 +8,6 @@ import SocialProof from '../components/SocialProof';
 const HowItWorks = React.lazy(() => import('../components/HowItWorks'));
 const ChatShowcase = React.lazy(() => import('../components/ChatShowcase'));
 const SafetySection = React.lazy(() => import('../components/SafetySection'));
-const PremiumPlans = React.lazy(() => import('../components/PremiumPlans'));
 const Testimonials = React.lazy(() => import('../components/Testimonials'));
 const FAQSection = React.lazy(() => import('../components/FAQSection'));
 const FinalCTA = React.lazy(() => import('../components/FinalCTA'));
@@ -62,12 +61,12 @@ export default function Home() {
   ];
 
   return (
-    <div className="bg-white">
+    <div className="bg-[radial-gradient(circle_at_14%_-6%,rgba(244,114,182,0.1),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(251,191,36,0.12),transparent_30%),linear-gradient(180deg,#ffffff_0%,#fffafc_52%,#ffffff_100%)]">
       <PremiumHero />
 
       <SocialProof />
 
-      <section className="py-24 px-4 bg-[radial-gradient(circle_at_12%_12%,rgba(244,114,182,0.08),transparent_36%),radial-gradient(circle_at_86%_20%,rgba(251,191,36,0.08),transparent_32%),linear-gradient(180deg,#fff_0%,#fff8fb_52%,#fff_100%)]">
+      <section className="py-24 px-4 bg-[radial-gradient(circle_at_8%_15%,rgba(244,114,182,0.1),transparent_34%),radial-gradient(circle_at_92%_20%,rgba(251,191,36,0.1),transparent_30%),linear-gradient(180deg,#fff_0%,#fff7fb_52%,#fff_100%)]">
         <div className="max-w-7xl mx-auto">
           <ScrollReveal className="max-w-3xl" delayMs={40}>
             <p className="text-xs uppercase tracking-[0.2em] text-rose-500 font-bold">Product Narrative</p>
@@ -75,7 +74,7 @@ export default function Home() {
               Built Like A Real Startup,
               <span className="block bg-gradient-to-r from-rose-500 to-fuchsia-500 bg-clip-text text-transparent">Focused On Real Outcomes</span>
             </h2>
-            <p className="mt-4 text-lg text-softBrown leading-relaxed">
+            <p className="mt-4 text-base md:text-lg text-softBrown leading-relaxed">
               CU-Daters is designed as a trust-first social product: clearer intent, safer conversations, and a tighter campus network loop that grows with every verified student.
             </p>
           </ScrollReveal>
@@ -85,7 +84,7 @@ export default function Home() {
               <ScrollReveal
                 key={pillar.title}
                 delayMs={120 + index * 90}
-                className="rounded-3xl border border-rose-200/70 bg-white/90 backdrop-blur-xl p-6 shadow-[0_18px_50px_rgba(190,24,93,0.08)] hover:-translate-y-1 hover:shadow-[0_22px_56px_rgba(190,24,93,0.15)] transition-all duration-300"
+                className="rounded-3xl border border-rose-200/70 bg-white/95 backdrop-blur-xl p-6 shadow-[0_18px_52px_rgba(190,24,93,0.08)] hover:-translate-y-1 hover:shadow-[0_26px_66px_rgba(190,24,93,0.16)] transition-all duration-300"
               >
                 <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-rose-500 to-fuchsia-500 text-white flex items-center justify-center text-xl shadow-lg shadow-rose-200 mb-4">
                   {pillar.icon}
@@ -97,20 +96,20 @@ export default function Home() {
           </div>
 
           <ScrollReveal className="mt-10 grid sm:grid-cols-4 gap-3" delayMs={220}>
-            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center">
-              <p className="text-2xl font-black text-rose-500">50K+</p>
+            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center shadow-[0_8px_22px_rgba(190,24,93,0.08)]">
+              <p className="text-2xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">50K+</p>
               <p className="text-xs uppercase tracking-wide text-softBrown">Verified Students</p>
             </div>
-            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center">
-              <p className="text-2xl font-black text-rose-500">200K+</p>
+            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center shadow-[0_8px_22px_rgba(190,24,93,0.08)]">
+              <p className="text-2xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">200K+</p>
               <p className="text-xs uppercase tracking-wide text-softBrown">Matches</p>
             </div>
-            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center">
-              <p className="text-2xl font-black text-rose-500">4.9★</p>
+            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center shadow-[0_8px_22px_rgba(190,24,93,0.08)]">
+              <p className="text-2xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">4.9★</p>
               <p className="text-xs uppercase tracking-wide text-softBrown">User Rating</p>
             </div>
-            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center">
-              <p className="text-2xl font-black text-rose-500">24h</p>
+            <div className="rounded-2xl border border-rose-200/60 bg-white px-4 py-4 text-center shadow-[0_8px_22px_rgba(190,24,93,0.08)]">
+              <p className="text-2xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent">24h</p>
               <p className="text-xs uppercase tracking-wide text-softBrown">Safety Review SLA</p>
             </div>
           </ScrollReveal>
@@ -127,14 +126,14 @@ export default function Home() {
                 Every stage strengthens quality: verified onboarding reduces noise, smarter discovery improves intent, and private chat drives retention.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/features" className="px-5 py-3 rounded-full bg-gradient-to-r from-rose-500 to-fuchsia-500 text-white font-semibold shadow-md hover:brightness-110 transition">Explore Product</Link>
+                <Link to="/features" className="px-5 py-3 rounded-full bg-gradient-to-r from-rose-500 to-orange-400 text-white font-semibold shadow-[0_14px_32px_rgba(244,63,94,0.28)] hover:brightness-110 transition">Explore Product</Link>
                 <Link to="/signup" className="px-5 py-3 rounded-full border-2 border-rose-300 text-rose-600 font-semibold hover:bg-rose-50 transition">Join Free</Link>
               </div>
             </ScrollReveal>
 
             <div className="grid sm:grid-cols-2 gap-4">
               {productLoop.map((item, index) => (
-                <ScrollReveal key={item.step} delayMs={120 + index * 70} className="rounded-2xl border border-rose-200/60 bg-gradient-to-b from-white to-rose-50/40 p-5 hover:shadow-lg transition-shadow">
+                <ScrollReveal key={item.step} delayMs={120 + index * 70} className="rounded-2xl border border-rose-200/60 bg-gradient-to-b from-white to-rose-50/40 p-5 shadow-[0_10px_26px_rgba(190,24,93,0.08)] hover:shadow-[0_18px_32px_rgba(190,24,93,0.14)] transition-shadow">
                   <p className="text-xs font-black tracking-[0.2em] text-rose-500">{item.step}</p>
                   <h4 className="mt-2 text-lg font-extrabold text-darkBrown">{item.title}</h4>
                   <p className="mt-2 text-sm text-softBrown leading-relaxed">{item.desc}</p>
@@ -174,7 +173,7 @@ export default function Home() {
               </p>
               <div className="mt-6 space-y-3">
                 <div className="flex items-center gap-3 text-sm text-darkBrown"><span className="text-lg">✓</span><span>Operational admin controls for pricing, legal content, and support.</span></div>
-                <div className="flex items-center gap-3 text-sm text-darkBrown"><span className="text-lg">✓</span><span>Config-driven checkout and payment instructions managed by admin.</span></div>
+                <div className="flex items-center gap-3 text-sm text-darkBrown"><span className="text-lg">✓</span><span>Config-driven trust and platform controls managed by admin.</span></div>
                 <div className="flex items-center gap-3 text-sm text-darkBrown"><span className="text-lg">✓</span><span>Scalable moderation flows with privacy-aware access controls.</span></div>
               </div>
             </div>
@@ -199,12 +198,6 @@ export default function Home() {
           </div>
         </ScrollReveal>
       </section>
-
-      <LazySection fallback={sectionFallback}>
-        <React.Suspense fallback={sectionFallback}>
-          <PremiumPlans />
-        </React.Suspense>
-      </LazySection>
 
       <LazySection fallback={sectionFallback}>
         <React.Suspense fallback={sectionFallback}>

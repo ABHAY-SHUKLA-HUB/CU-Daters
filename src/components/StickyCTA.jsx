@@ -6,8 +6,8 @@ export default function StickyCTA() {
 
   useEffect(() => {
     const handleScroll = () => {
-      // Show sticky CTA after scrolling past hero (500px)
-      setIsVisible(window.scrollY > 500);
+      // Show sticky CTA after meaningful scroll depth
+      setIsVisible(window.scrollY > 420);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -19,26 +19,27 @@ export default function StickyCTA() {
   return (
     <>
       {/* Mobile Sticky CTA Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-blushPink to-softPink 
-                      px-4 py-4 shadow-2xl flex justify-between items-center z-40 md:hidden">
-        <div>
+      <div className="fixed bottom-3 left-3 right-3 bg-gradient-to-r from-rose-500 to-orange-400 rounded-2xl
+                      px-4 py-3 shadow-2xl flex justify-between items-center z-40 md:hidden border border-white/30"
+           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        <div className="pr-3">
           <p className="text-white font-bold text-sm">Ready to connect?</p>
           <p className="text-xs text-white opacity-90">Free signup • 2 mins</p>
         </div>
         <Link to="/signup">
-          <button className="bg-white text-blushPink px-6 py-2 rounded-full font-bold hover:scale-105 transition-all">
+          <button className="bg-white text-rose-500 px-5 py-2 rounded-full font-bold hover:scale-105 transition-all whitespace-nowrap">
             Get Started
           </button>
         </Link>
       </div>
 
       {/* Desktop Floating CTA */}
-      <div className="hidden md:block fixed bottom-8 right-8 bg-gradient-to-r from-blushPink to-softPink 
+      <div className="hidden md:block fixed bottom-8 right-8 bg-gradient-to-r from-rose-500 to-orange-400 
                       text-white p-6 rounded-2xl shadow-2xl z-40 max-w-xs hover:shadow-3xl transition-all">
         <p className="font-bold mb-3 text-sm">Join CU Students</p>
         <p className="text-xs opacity-90 mb-4">Finding real connections on campus</p>
         <Link to="/signup" className="block">
-          <button className="w-full bg-white text-blushPink px-6 py-2 rounded-full font-bold hover:scale-105 transition-all">
+          <button className="w-full bg-white text-rose-500 px-6 py-2 rounded-full font-bold hover:scale-105 transition-all">
             Start Free
           </button>
         </Link>

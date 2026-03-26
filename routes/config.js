@@ -84,7 +84,10 @@ router.get('/pricing', asyncHandler(async (req, res) => {
 
   const effectivePayment = {
     ...payment,
-    enabled: Boolean(billing.upiEnabled ?? payment.enabled) || Boolean(billing.qrEnabled ?? payment.methods?.qr?.enabled),
+    enabled:
+      Boolean(billing.upiEnabled ?? payment.enabled) ||
+      Boolean(billing.qrEnabled ?? payment.methods?.qr?.enabled) ||
+      Boolean(billing.bankEnabled ?? payment.methods?.bank?.enabled),
     methods: {
       ...payment.methods,
       upi: {
