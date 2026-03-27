@@ -211,7 +211,7 @@ export default function Signup() {
     try {
       const response = await axios.post(`${AUTH_API_BASE}/send-otp`, {
         name: formData.name.trim(),
-        email: formData.personalEmail.toLowerCase().trim(),
+        email: formData.email.toLowerCase().trim(),
         phone: formData.phone,
         password: formData.password,
         college: formData.college
