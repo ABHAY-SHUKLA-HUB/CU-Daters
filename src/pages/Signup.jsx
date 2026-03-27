@@ -11,7 +11,7 @@ export default function Signup() {
   const [errorModal, setErrorModal] = useState(null); // For OTP limit modal
   const [formData, setFormData] = useState({
     name: '',
-    personalEmail: '',
+    email: '', // FIXED: Was personalEmail, changed to email to match backend
     phone: '',
     password: '',
     confirmPassword: '',
@@ -161,8 +161,8 @@ export default function Signup() {
   const validateStep1 = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.personalEmail || !validateEmail(formData.personalEmail)) {
-      newErrors.personalEmail = 'Valid email is required';
+    if (!formData.email || !validateEmail(formData.email)) {
+      newErrors.email = 'Valid email is required';
     }
     if (!formData.phone || !validatePhone(formData.phone)) {
       newErrors.phone = 'Valid 10-digit phone number required';
@@ -281,7 +281,7 @@ export default function Signup() {
 
     try {
       const response = await axios.post(`${AUTH_API_BASE}/verify-otp`, {
-        email: formData.personalEmail.toLowerCase().trim(),
+        email: formData.email.toLowerCase().trim(),
         otp: formData.otp
       }, {
         headers: { 'Content-Type': 'application/json' },
@@ -326,7 +326,7 @@ export default function Signup() {
 
     try {
       const response = await axios.post(`${AUTH_API_BASE}/signup`, {
-        email: formData.personalEmail.toLowerCase().trim(),
+        email: formData.email.toLowerCase().trim(),
         gender: formData.gender,
         fieldOfWork: formData.fieldOfWork,
         experienceYears: Number(formData.experienceYears),
@@ -491,13 +491,13 @@ export default function Signup() {
                 <label className="block text-left text-darkBrown font-bold mb-2">Email Address *</label>
                 <input
                   type="email"
-                  name="personalEmail"
-                  value={formData.personalEmail}
+                  name="email"
+                  value={formData.email}
                   onChange={handleInputChange}
                   placeholder="your.email@gmail.com"
                   className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
                 />
-                {errors.personalEmail && <p className="text-red-600 text-sm mt-1">{errors.personalEmail}</p>}
+                {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email}</p>}
               </div>
 
               <div>
@@ -578,7 +578,7 @@ export default function Signup() {
               <div>
                 <p className="text-softBrown mb-4 text-sm text-center">
                   📧 We sent a 6-digit code to<br />
-                  <strong>{formData.personalEmail}</strong>
+                  <strong>{formData.email}</strong>
                 </p>
               </div>
 
