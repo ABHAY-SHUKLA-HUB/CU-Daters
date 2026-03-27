@@ -90,16 +90,22 @@ const sendViaMailgun = async (to, subject, text, html) => {
 
 // ===== Resend HTTP API Helper =====
 const sendViaResend = async (to, subject, text, html) => {
-  const response = await axios.post('https://api.resend.com/emails', {
-    from: 'CU-Daters <onboarding@resend.dev>',
-    to: to,
-    subject: subject,
-    html: html,
-    text: text
-  }, {
-    headers: { Authorization: `Bearer ${resendApiKey}` }
-  });
-  return response.data;
+  try {
+    const response = await axios.post('https://api.resend.com/emails', {
+      from: 'CU-Daters <onboarding@resend.dev>',
+      to: to,
+      subject: subject,
+      html: html,
+      text: text
+    }, {
+      headers: { Authorization: `Bearer ${resendApiKey}` },
+      timeout: 10000
+    });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Resend API failed:', error.response?.data?.message || error.message);
+    throw error; // Will trigger fallback to Gmail
+  }
 };
 
 export const sendOtpEmail = async (email, otp) => {
@@ -109,7 +115,13 @@ export const sendOtpEmail = async (email, otp) => {
   const text = `Verification code: ${otp}\n\nValid for 10 minutes. Do not share.`;
   const html = `<h2>CU-Daters Verification</h2><p>Your code: <strong>${otp}</strong></p><p>Valid for 10 minutes</p>`;
 
-  if (useResend) return sendViaResend(email, subject, text, html);
+  try {
+    if (useResend) return await sendViaResend(email, subject, text, html);
+  } catch (resendErr) {
+    console.warn('⚠️ Resend failed, falling back to Gmail...');
+    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  }
+  
   if (useMailgun) return sendViaMailgun(email, subject, text, html);
   if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
   
@@ -124,7 +136,13 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
   const text = `Click here to reset: ${resetLink}`;
   const html = `<p>Click <a href="${resetLink}">here</a> to reset your password.</p>`;
 
-  if (useResend) return sendViaResend(email, subject, text, html);
+  try {
+    if (useResend) return await sendViaResend(email, subject, text, html);
+  } catch (resendErr) {
+    console.warn('⚠️ Resend failed, falling back to Gmail...');
+    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  }
+  
   if (useMailgun) return sendViaMailgun(email, subject, text, html);
   if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
   
@@ -138,7 +156,13 @@ export const sendRegistrationConfirmationEmail = async (email, userName) => {
   const text = `Welcome ${userName}! Your account is now active.`;
   const html = `<h2>Welcome ${userName}!</h2><p>Your account is ready to use.</p>`;
 
-  if (useResend) return sendViaResend(email, subject, text, html);
+  try {
+    if (useResend) return await sendViaResend(email, subject, text, html);
+  } catch (resendErr) {
+    console.warn('⚠️ Resend failed, falling back to Gmail...');
+    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  }
+  
   if (useMailgun) return sendViaMailgun(email, subject, text, html);
   if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
   
@@ -152,7 +176,13 @@ export const sendApprovalEmail = async (email, userName) => {
   const text = `Hello ${userName},\n\nCongratulations! Your profile has been approved and is now live on CU-Daters.`;
   const html = `<h2>Profile Approved! 🎉</h2><p>Hello ${userName},</p><p>Your profile has been approved and is now visible to other users.</p>`;
 
-  if (useResend) return sendViaResend(email, subject, text, html);
+  try {
+    if (useResend) return await sendViaResend(email, subject, text, html);
+  } catch (resendErr) {
+    console.warn('⚠️ Resend failed, falling back to Gmail...');
+    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  }
+  
   if (useMailgun) return sendViaMailgun(email, subject, text, html);
   if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
   
@@ -166,7 +196,13 @@ export const sendRejectionEmail = async (email, userName, reason) => {
   const text = `Hello ${userName},\n\nYour profile was not approved. Reason: ${reason || 'Please review our community guidelines.'}`;
   const html = `<h2>Profile Review Required</h2><p>Hello ${userName},</p><p>Your profile needs further review. ${reason || 'Please review our community guidelines.'}</p>`;
 
-  if (useResend) return sendViaResend(email, subject, text, html);
+  try {
+    if (useResend) return await sendViaResend(email, subject, text, html);
+  } catch (resendErr) {
+    console.warn('⚠️ Resend failed, falling back to Gmail...');
+    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  }
+  
   if (useMailgun) return sendViaMailgun(email, subject, text, html);
   if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
   
