@@ -15,7 +15,7 @@ $testData = @{
     name = "Test User"
     email = "test$(Get-Random)@gmail.com"
     phone = "9999999999"
-    password = "Test123"
+    password = "Test1234"
     college = "Local Community"
 }
 

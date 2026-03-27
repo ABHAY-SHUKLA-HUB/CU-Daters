@@ -359,7 +359,13 @@ router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next)
   let emailError = null;
   
   try {
-    await sendOtpEmail(emailLower, otp);
+    // Add timeout to email sending (20 seconds max)
+    const emailPromise = sendOtpEmail(emailLower, otp);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email service timeout (20s)')), 20000)
+    );
+    
+    await Promise.race([emailPromise, timeoutPromise]);
     emailSent = true;
     console.log(`✅ OTP email sent successfully to ${emailLower}`);
   } catch (emailErr) {
