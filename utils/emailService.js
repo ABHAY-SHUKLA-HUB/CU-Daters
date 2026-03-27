@@ -956,12 +956,3 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
   }
 };
 
-export default {
-  getEmailServiceHealth,
-  sendOtpEmail,
-  sendApprovalEmail,
-  sendRejectionEmail,
-  sendPasswordResetEmail,
-  sendRegistrationConfirmationEmail
-};
-
