@@ -163,7 +163,7 @@ router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next)
   }
 
   if (!password || !validatePassword(password)) {
-    throw new AppError('Password must be at least 6 characters', 400);
+    throw new AppError('Password must be at least 8 characters with uppercase, lowercase, and number', 400);
   }
 
   if (!name || name.trim().length < 2) {

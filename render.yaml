@@ -8,7 +8,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: VITE_API_URL
-        value: https://datee.onrender.com
+        value: https://cu-daters-backend.onrender.com
       - key: VITE_APP_URL
         value: https://seeu-daters-found.netlify.app
       - key: FRONTEND_URL

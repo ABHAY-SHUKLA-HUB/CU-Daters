@@ -2,7 +2,7 @@
   command = "npm run build"
   functions = "netlify/functions"
   publish = "dist"
-  environment = { VITE_API_URL = "https://datee.onrender.com" }
+  environment = { VITE_API_URL = "https://cu-daters-backend.onrender.com" }
 
 [dev]
   command = "npm run dev"
