@@ -150,7 +150,12 @@ export default function Signup() {
   };
 
   const validatePassword = (password) => {
-    return password.length >= 6;
+    // Must be at least 8 characters with uppercase, lowercase, and digit
+    if (password.length < 8) return false;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    return hasUpperCase && hasLowerCase && hasDigit;
   };
 
   const validateStep1 = () => {
@@ -163,7 +168,7 @@ export default function Signup() {
       newErrors.phone = 'Valid 10-digit phone number required';
     }
     if (!formData.password || !validatePassword(formData.password)) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = 'Password must be at least 8 characters with uppercase, lowercase, and number';
     }
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
