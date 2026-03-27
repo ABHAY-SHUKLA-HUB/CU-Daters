@@ -4,13 +4,33 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Render/container networks sometimes resolve Gmail SMTP to IPv6 first, which can
-// fail with ENETUNREACH when IPv6 routing is unavailable. Prefer IPv4 globally.
-try {
-  dns.setDefaultResultOrder('ipv4first');
-} catch (error) {
-  console.warn('⚠️ Unable to set DNS result order to ipv4first:', error?.message || error);
-}
+/**
+ * CRITICAL FIX FOR RENDER IPv6 ISSUES:
+ * Render/container networks sometimes resolve Gmail SMTP to IPv6 first, which fails
+ * with ENETUNREACH when IPv6 routing is unavailable. Force IPv4 at multiple levels.
+ */
+const initializeDnsConfig = () => {
+  try {
+    // Try newer API first (Node 18.13+)
+    if (typeof dns.setDefaultResultOrder === 'function') {
+      dns.setDefaultResultOrder('ipv4only');
+      console.log('✅ DNS configured: IPv4-only mode enabled');
+    }
+  } catch (error) {
+    try {
+      // Fallback to older API
+      if (typeof dns.setDefaultResultOrder === 'function') {
+        dns.setDefaultResultOrder('ipv4first');
+        console.log('✅ DNS configured: IPv4-first mode enabled');
+      }
+    } catch (secondError) {
+      console.warn('⚠️ Unable to set DNS result order:', secondError?.message);
+    }
+  }
+};
+
+// Initialize DNS config IMMEDIATELY on module load
+initializeDnsConfig();
 
 // Detect if running in production
 const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('netlify'));
@@ -79,22 +99,46 @@ const smtpHealth = {
 let transporter;
 const fallbackTransporters = [];
 
-const createSmtpTransporter = ({ host, port, secure }) => nodemailer.createTransport({
-  host,
-  port,
-  secure,
-  requireTLS: !secure,
-  family: 4,
-  auth: {
-    user: sanitizedEmailUser,
-    pass: sanitizedEmailPassword
-  },
-  connectionTimeout: 15000,
-  socketTimeout: 15000,
-  tls: {
-    rejectUnauthorized: smtpTlsRejectUnauthorized
-  }
-});
+const createSmtpTransporter = ({ host, port, secure }) => {
+  // CRITICAL: Force IPv4 only - disable IPv6 completely to prevent ENETUNREACH on Render
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    requireTLS: !secure,
+    
+    // Force IPv4 at socket level (prevents DNS from resolving IPv6)
+    family: 4,
+    
+    // Enable detailed logging in development/production to diagnose issues
+    logger: process.env.NODE_ENV !== 'production' || process.env.DEBUG_EMAIL === 'true',
+    debug: process.env.NODE_ENV !== 'production' || process.env.DEBUG_EMAIL === 'true',
+    
+    auth: {
+      user: sanitizedEmailUser,
+      pass: sanitizedEmailPassword
+    },
+    
+    // Aggressive timeout settings to fail fast and trigger fallback on IPv6 issues
+    connectionTimeout: 8000,   // Fail faster if IPv6 is attempted
+    socketTimeout: 8000,       // Fail faster on socket issues
+    greetingTimeout: 4000,     // Fail faster on greeting timeout
+    
+    tls: {
+      rejectUnauthorized: smtpTlsRejectUnauthorized,
+      minVersion: 'TLSv1.2'
+    },
+    
+    // Don't use connection pool - use fresh connection each time
+    // This prevents IPv6 lingering issues in the connection pool
+    pool: false,
+    
+    // Additional transport options for reliability
+    maxConnections: 1,
+    maxMessages: 1,
+    rateDelta: 1000
+  });
+};
 
 const sendViaResend = async (mailOptions) => {
   const response = await fetch(`${resendApiBaseUrl}/emails`, {
@@ -139,6 +183,16 @@ const sendMailAsync = (mailTransporter, mailOptions) => new Promise((resolve, re
 const shouldTryFallback = (error) => {
   const code = String(error?.code || '').toUpperCase();
   const msg = String(error?.message || '').toLowerCase();
+  
+  // CRITICAL: Detect IPv6 address format in error messages (e.g., "2607:f8b0:...")
+  const hasIpv6Address = /[0-9a-f:]{5,}:/.test(msg);
+  const isIpv6Error = hasIpv6Address || code === 'ENETUNREACH' || msg.includes('ipv6');
+  
+  if (isIpv6Error) {
+    console.warn('⚠️ IPv6 connection error detected - will retry with IPv4-only');
+    return true;
+  }
+  
   return [
     'ETIMEDOUT',
     'ECONNECTION',

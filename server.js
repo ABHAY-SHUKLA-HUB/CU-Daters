@@ -119,10 +119,12 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isNetlify = hostname.endsWith('.netlify.app');
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
-  const isCuDatersTech = hostname === 'cudaters.tech' || hostname.endsWith('.cudaters.tech');
-  const isCuDashedDatersTech = hostname === 'cu-daters.tech' || hostname.endsWith('.cu-daters.tech');
-  const isSeeuDatersTech = hostname === 'seeudaters.tech' || hostname.endsWith('.seeudaters.tech');
-  const isSeeuDashedDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
+  
+  // Explicit domain checks with www support
+  const isCuDatersTech = hostname === 'cudaters.tech' || hostname === 'www.cudaters.tech' || hostname.endsWith('.cudaters.tech');
+  const isCuDashedDatersTech = hostname === 'cu-daters.tech' || hostname === 'www.cu-daters.tech' || hostname.endsWith('.cu-daters.tech');
+  const isSeeuDatersTech = hostname === 'seeudaters.tech' || hostname === 'www.seeudaters.tech' || hostname.endsWith('.seeudaters.tech');
+  const isSeeuDashedDatersTech = hostname === 'seeu-daters.tech' || hostname === 'www.seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
 
   const configuredFrontendHosts = [
     extractHostFromUrl(process.env.FRONTEND_URL),
@@ -130,7 +132,7 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   ].filter(Boolean);
 
   const isConfiguredFrontendHost = configuredFrontendHosts.some((configuredHost) => {
-    return hostname === configuredHost || hostname.endsWith(`.${configuredHost}`);
+    return hostname === configuredHost || hostname === `www.${configuredHost}` || hostname.endsWith(`.${configuredHost}`);
   });
 
   return isLocalDevHost || isNetlify || isVercel || isRender || isCuDatersTech || isCuDashedDatersTech || isSeeuDatersTech || isSeeuDashedDatersTech || isConfiguredFrontendHost;
