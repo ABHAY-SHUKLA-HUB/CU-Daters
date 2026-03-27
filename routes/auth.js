@@ -363,6 +363,75 @@ router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next)
   // Show remaining attempts
   const remainingAttempts = MAX_OTP_REQUESTS - tempUser.otpRequestCount;
 
+  // IMPORTANT: Respond immediately - send email in background
+  res.status(200).json(
+    successResponse('OTP sent successfully to your email. Valid for 5 minutes.', {
+      code: 'OTP_SENT',
+      email: emailLower,
+      expiresIn: OTP_EXPIRY_SECONDS,
+      resendAfterSeconds: 30,
+      otpRequestsRemaining: remainingAttempts,
+      maxRequests: MAX_OTP_REQUESTS,
+      emailStatus: 'queued'
+    })
+  );
+
+  // Send OTP email in background (don't wait for it)
+  setImmediate(async () => {
+    try {
+      // Add timeout to email sending (10 seconds max for background task)
+      const emailPromise = sendOtpEmail(emailLower, otp);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Email service timeout (10s)')), 10000)
+      );
+      
+      await Promise.race([emailPromise, timeoutPromise]);
+      console.log(`✅ OTP email sent successfully to ${emailLower}`);
+    } catch (emailErr) {
+      const emailError = emailErr.message;
+      console.error(`❌ OTP EMAIL FAILED for ${emailLower}:`, emailError);
+      console.error('Email Error Details:', emailErr);
+
+      // Try to log activity if DB is available
+      try {
+        const health = getEmailServiceHealth();
+        const isRepeatedFailure = Number(health?.counters?.consecutiveFailures || 0) >= SMTP_ALERT_FAILURE_THRESHOLD;
+
+        await logActivity({
+          user_id: tempUser?._id,
+          action: isRepeatedFailure ? 'otp_email_failed_repeated' : 'otp_email_failed',
+          description: isRepeatedFailure
+            ? `Repeated OTP email failures detected (${health.counters.consecutiveFailures} consecutive failures)`
+            : 'OTP email delivery failed',
+          ...getClientInfo(req),
+          status: 'failure',
+          error_message: emailError,
+          metadata: {
+            email: emailLower,
+            emailService: {
+              degraded: Boolean(health?.degraded),
+              consecutiveFailures: Number(health?.counters?.consecutiveFailures || 0),
+              lastErrorCode: health?.lastErrorCode || null,
+              lastFailureAt: health?.lastFailureAt || null
+            }
+          }
+        });
+
+        if (isRepeatedFailure) {
+          console.error(`🚨 SMTP ALERT: ${health.counters.consecutiveFailures} consecutive email failures detected.`);
+        }
+      } catch (activityError) {
+        console.error('⚠️ Failed to log OTP email failure activity:', activityError?.message || activityError);
+      }
+    }
+  });
+}));
+
+// Old code (kept for reference - commented out)
+/*
+  // Show remaining attempts
+  const remainingAttempts = MAX_OTP_REQUESTS - tempUser.otpRequestCount;
+
   // Send OTP email (important - wait for result to check errors)
   let emailSent = false;
   let emailError = null;
@@ -473,9 +542,7 @@ router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next)
       })
     );
   }
-}));
-
-// ===== VERIFY OTP =====
+*/
 router.post('/verify-otp', otpRequestLimiter, asyncHandler(async (req, res, _next) => {
   console.log('\n========== VERIFY OTP REQUEST ==========');
   
