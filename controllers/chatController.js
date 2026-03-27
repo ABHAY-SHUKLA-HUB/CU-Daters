@@ -80,6 +80,9 @@ const resolveViewerNickname = (conversation, viewerId) => {
 };
 
 const toClientMessage = (message) => {
+  if (!message) {
+    throw new AppError('Message is null or undefined', 400);
+  }
   const raw = typeof message?.toObject === 'function' ? message.toObject() : message;
   return {
     ...raw,

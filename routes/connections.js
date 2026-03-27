@@ -1,5 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import mongoose from 'mongoose';
 import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
 import { asyncHandler, AppError } from '../utils/errorHandler.js';
 import User from '../models/User.js';
@@ -14,7 +15,7 @@ const normalizePair = (a, b) => [a.toString(), b.toString()].sort();
 const toPairKey = (a, b) => normalizePair(a, b).join(':');
 
 const ensureValidObjectId = (id, field = 'id') => {
-  if (!id || !/^[a-f\d]{24}$/i.test(String(id))) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(`Invalid ${field}`, 400);
   }
 };

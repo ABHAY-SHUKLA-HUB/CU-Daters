@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import mongoose from 'mongoose';
 import { verifyToken } from '../utils/auth.js';
 import { verifyFirebaseIdToken, isFirebaseReady } from '../utils/firebaseAdmin.js';
 
@@ -98,8 +99,16 @@ export const verifyFirebaseOrJwtAuth = async (req, res, next) => {
     req.authProvider = 'jwt';
     next();
   } catch (error) {
+    // Distinguish between authentication errors and server errors
+    if (error instanceof mongoose.Error) {
+      // Database errors should be logged and handled by global error handler
+      console.error('[Auth Error - Database]:', error.message);
+      return res.status(500).json({ success: false, message: 'Database error during authentication' });
+    }
+    
+    // Authentication errors
     console.error('[Auth Error]:', error.message);
-    res.status(500).json({ success: false, message: 'Authentication error' });
+    res.status(401).json({ success: false, message: 'Authentication failed' });
   }
 };
 

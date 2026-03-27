@@ -13,8 +13,16 @@ export const validatePhone = (phone) => {
 
 // Validate password strength
 export const validatePassword = (password) => {
-  // At least 6 characters
-  return password && password.length >= 6;
+  // At least 8 characters, with uppercase, lowercase, and digit
+  if (!password || password.length < 8) {
+    return false;
+  }
+  
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+  
+  return hasUpperCase && hasLowerCase && hasDigit;
 };
 
 // Normalize enum fields to lowercase (gender, role, status, etc.)

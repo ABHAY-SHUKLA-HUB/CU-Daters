@@ -85,12 +85,17 @@ export const persistMessageAndFanout = async ({
   const outbound = toClientMessage(message);
 
   if (io && emitEvents && isNewMessage) {
-    io.to(`chat:${conversationId}`).emit('receive_message', outbound);
-    io.to(`user:${receiverId}`).emit('chat_notification', {
-      conversationId,
-      text: toConversationPreviewText({ messageType, text: message.text }),
-      senderId: senderId.toString()
-    });
+    try {
+      io.to(`chat:${conversationId}`).emit('receive_message', outbound);
+      io.to(`user:${receiverId}`).emit('chat_notification', {
+        conversationId,
+        text: toConversationPreviewText({ messageType, text: message.text }),
+        senderId: senderId.toString()
+      });
+    } catch (emitError) {
+      console.error('❌ Socket emission failed:', emitError.message);
+      // Log but don't throw - message was saved to DB successfully
+    }
   }
 
   return { message: outbound, isNewMessage };
