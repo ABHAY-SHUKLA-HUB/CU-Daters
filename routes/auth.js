@@ -157,12 +157,22 @@ router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next)
   
   const { email, name, phone, password, college } = req.body;
 
+  // Debug logging
+  console.log('Password received:', password);
+  console.log('Password type:', typeof password);
+  console.log('Password length:', password?.length);
+  console.log('validatePassword result:', validatePassword(password));
+
   // Validation
   if (!email || !validateEmail(email)) {
     throw new AppError('Valid email address is required', 400);
   }
 
   if (!password || !validatePassword(password)) {
+    console.log('Password validation failed!');
+    console.log('  Has Upper:', /[A-Z]/.test(password));
+    console.log('  Has Lower:', /[a-z]/.test(password));
+    console.log('  Has Digit:', /[0-9]/.test(password));
     throw new AppError('Password must be at least 8 characters with uppercase, lowercase, and number', 400);
   }
 
