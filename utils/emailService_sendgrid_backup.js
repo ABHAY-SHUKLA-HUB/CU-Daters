@@ -4,27 +4,25 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ===========================
-// EMAIL SERVICE - Mailgun HTTP API
+// EMAIL SERVICE - SendGrid HTTP API
 // ===========================
-// Uses Mailgun REST API (HTTPS)
-// ✅ No IPv4/IPv6 network issues
-// ✅ Free tier: 300 emails/month
-// ✅ Rock-solid reliability
+// Uses HTTPS REST API instead of SMTP
+// ✅ No IPv4/IPv6 issues
+// ✅ No network blocking
+// ✅ Works reliably on Render & all platforms
 
-const mailgunApiKey = String(process.env.MAILGUN_API_KEY || '').trim();
-const mailgunDomain = String(process.env.MAILGUN_DOMAIN || '').trim();
-const mailgunFromEmail = String(process.env.MAILGUN_FROM_EMAIL || 'noreply@cudaters.tech').trim();
-const hasMailgunConfig = Boolean(mailgunApiKey && mailgunDomain);
+const sendGridApiKey = String(process.env.SENDGRID_API_KEY || '').trim();
+const sendGridFromEmail = String(process.env.SENDGRID_FROM_EMAIL || 'noreply@cudaters.tech').trim();
+const hasSendGridConfig = Boolean(sendGridApiKey);
 
 console.log('\n' + '='.repeat(80));
 console.log('📧 EMAIL SERVICE CONFIGURATION');
 console.log('='.repeat(80));
-console.log(`Mailgun Configured: ${hasMailgunConfig ? '✅ YES' : '❌ NO'}`);
-if (hasMailgunConfig) {
-  console.log(`  Backend: Mailgun HTTPS REST API`);
-  console.log(`  Domain: ${mailgunDomain}`);
-  console.log(`  From Email: ${mailgunFromEmail}`);
-  console.log(`  Free Tier: 300 emails/month`);
+console.log(`SendGrid Configured: ${hasSendGridConfig ? '✅ YES' : '❌ NO'}`);
+if (hasSendGridConfig) {
+  console.log(`  Backend: SendGrid HTTPS API v3`);
+  console.log(`  From Email: ${sendGridFromEmail}`);
+  console.log(`  Endpoint: https://api.sendgrid.com/v3/mail/send`);
 }
 console.log('✅ HTTP/HTTPS - No SMTP/IPv6 blocking issues');
 console.log('='.repeat(80) + '\n');
@@ -60,8 +58,8 @@ const recordFailure = (error) => {
 };
 
 export const getEmailServiceHealth = () => ({
-  configured: hasMailgunConfig,
-  backend: 'mailgun',
+  configured: hasSendGridConfig,
+  backend: 'sendgrid',
   counters: {
     totalAttempts: emailHealth.totalAttempts,
     totalSuccesses: emailHealth.totalSuccesses,
@@ -76,50 +74,57 @@ export const getEmailServiceHealth = () => ({
 });
 
 // ===========================
-// Mailgun API Helper
+// SendGrid API Helper
 // ===========================
-const sendEmailViaMailgun = async (to, subject, htmlContent) => {
-  if (!hasMailgunConfig) {
-    const err = new Error('Mailgun not configured - set MAILGUN_API_KEY and MAILGUN_DOMAIN in .env');
+const sendEmailViaSendGrid = async (to, subject, htmlContent) => {
+  if (!hasSendGridConfig) {
+    const err = new Error('SendGrid not configured - set SENDGRID_API_KEY in .env');
     recordFailure(err);
     throw err;
   }
 
-  console.log(`[MAILGUN] Sending to ${to}...`);
-
-  const auth = Buffer.from(`api:${mailgunApiKey}`).toString('base64');
+  console.log(`[SENDGRID] Sending to ${to}...`);
 
   try {
     const response = await axios.post(
-      `https://api.mailgun.net/v3/${mailgunDomain}/messages`,
-      new URLSearchParams({
-        from: mailgunFromEmail,
-        to: to,
-        subject: subject,
-        html: htmlContent
-      }),
+      'https://api.sendgrid.com/v3/mail/send',
+      {
+        personalizations: [
+          {
+            to: [{ email: to }],
+            subject: subject
+          }
+        ],
+        from: { email: sendGridFromEmail },
+        content: [
+          {
+            type: 'text/html',
+            value: htmlContent
+          }
+        ]
+      },
       {
         headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
+          Authorization: `Bearer ${sendGridApiKey}`,
+          'Content-Type': 'application/json'
         },
         timeout: 30000  // 30s HTTP timeout
       }
     );
 
-    const messageId = response.data.id || 'unknown';
-    console.log(`[MAILGUN] ✅ Email sent successfully`);
-    console.log(`[MAILGUN]    To: ${to}`);
-    console.log(`[MAILGUN]    Message ID: ${messageId}`);
+    const messageId = response.headers['x-message-id'] || 'unknown';
+    console.log(`[SENDGRID] ✅ Email sent successfully`);
+    console.log(`[SENDGRID]    To: ${to}`);
+    console.log(`[SENDGRID]    Message ID: ${messageId}`);
     recordSuccess();
     return { messageId, to, status: 'success' };
   } catch (error) {
-    console.error(`[MAILGUN] ❌ Failed to send email`);
-    console.error(`[MAILGUN]    Error: ${error.message}`);
+    console.error(`[SENDGRID] ❌ Failed to send email`);
+    console.error(`[SENDGRID]    Error: ${error.message}`);
     if (error.response?.status === 401) {
-      console.error(`[MAILGUN]    ⚠️  API Key or Domain invalid`);
+      console.error(`[SENDGRID]    ⚠️  API Key invalid or unauthorized`);
     } else if (error.response?.status === 400) {
-      console.error(`[MAILGUN]    ⚠️  Bad request: ${error.response?.data?.message}`);
+      console.error(`[SENDGRID]    ⚠️  Bad request: ${JSON.stringify(error.response?.data)}`);
     }
     recordFailure(error);
     throw error;
@@ -189,7 +194,7 @@ export const sendOtpEmail = async (email, otp) => {
   `;
 
   try {
-    const result = await sendEmailViaMailgun(email, 'Your CU-Daters Email Verification Code', htmlContent);
+    const result = await sendEmailViaSendGrid(email, 'Your CU-Daters Email Verification Code', htmlContent);
     console.log(`[✅ OTP EMAIL SENT] ${email}`);
     return result;
   } catch (error) {
@@ -237,7 +242,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
   `;
 
   try {
-    const result = await sendEmailViaMailgun(email, 'Reset Your CU-Daters Password', htmlContent);
+    const result = await sendEmailViaSendGrid(email, 'Reset Your CU-Daters Password', htmlContent);
     console.log(`[✅ PASSWORD RESET EMAIL SENT] ${email}`);
     return result;
   } catch (error) {
@@ -286,7 +291,7 @@ export const sendRegistrationConfirmationEmail = async (email, userName) => {
   `;
 
   try {
-    const result = await sendEmailViaMailgun(email, 'Welcome to CU-Daters!', htmlContent);
+    const result = await sendEmailViaSendGrid(email, 'Welcome to CU-Daters!', htmlContent);
     console.log(`[✅ REGISTRATION EMAIL SENT] ${email}`);
     return result;
   } catch (error) {
