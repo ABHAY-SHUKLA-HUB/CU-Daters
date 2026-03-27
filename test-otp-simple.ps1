@@ -28,7 +28,7 @@ Write-Host $json -ForegroundColor Gray
 Write-Host ""
 
 try {
-    $response = Invoke-WebRequest -Uri $url -Method POST -ContentType "application/json" -Body $json -TimeoutSec 15
+    $response = Invoke-WebRequest -Uri $url -Method POST -ContentType "application/json" -Body $json -TimeoutSec 15 -UseBasicParsing
     
     $status = $response.StatusCode
     $body = $response.Content | ConvertFrom-Json
