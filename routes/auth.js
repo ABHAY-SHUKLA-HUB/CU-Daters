@@ -151,6 +151,15 @@ router.get('/onboarding/field-suggestions', asyncHandler(async (req, res) => {
   return res.json(successResponse('Field suggestions fetched', { suggestions: data }));
 }));
 
+// ===== EMAIL SERVICE HEALTH CHECK =====
+router.get('/email-health', (req, res) => {
+  const health = getEmailServiceHealth();
+  res.json({
+    status: 'ok',
+    email: health,
+  });
+});
+
 // ===== SEND OTP (Email) =====
 router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next) => {
   console.log('\n========== SEND OTP REQUEST ==========');

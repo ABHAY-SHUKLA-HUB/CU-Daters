@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import dns from 'node:dns';
+import { promises as dnsPromises } from 'node:dns';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -11,6 +12,23 @@ try {
 } catch (error) {
   console.warn('⚠️ Unable to set DNS result order to ipv4first:', error?.message || error);
 }
+
+// Force IPv4 DNS resolution for SMTP
+const dnsLookup = (hostname, options, callback) => {
+  // Force IPv4 (family: 4) for SMTP connections
+  dnsPromises.resolve4(hostname)
+    .then(addresses => {
+      if (addresses && addresses.length > 0) {
+        callback(null, addresses[0], 4);
+      } else {
+        callback(new Error(`No IPv4 address found for ${hostname}`));
+      }
+    })
+    .catch(err => {
+      // Fallback to default resolution if IPv4 fails
+      dns.lookup(hostname, { family: 4, all: false }, callback);
+    });
+};
 
 // Detect if running in production
 const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('netlify'));
@@ -85,6 +103,7 @@ const createSmtpTransporter = ({ host, port, secure }) => nodemailer.createTrans
   secure,
   requireTLS: !secure,
   family: 4,
+  lookup: dnsLookup,
   auth: {
     user: sanitizedEmailUser,
     pass: sanitizedEmailPassword
