@@ -5,28 +5,64 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ===== EMAIL SERVICE CONFIGURATION =====
-const gmailUser = String(process.env.GMAIL_USER || '').trim();
-const gmailPassword = String(process.env.GMAIL_PASSWORD || '').trim();
-const mailgunApiKey = String(process.env.MAILGUN_API_KEY || '').trim();
-const mailgunDomain = String(process.env.MAILGUN_DOMAIN || 'sandboxab3c5b29abb34e7a826f80de2fbe4e5a.mailgun.org').trim();
+// Support multiple variable name conventions
+const smtpHost = String(
+  process.env.SMTP_HOST || 
+  process.env.EMAIL_HOST || 
+  'smtp.gmail.com'
+).trim();
+
+const gmailUser = String(
+  process.env.GMAIL_USER || 
+  process.env.EMAIL_USER || 
+  process.env.SMTP_USER || ''
+).trim();
+
+const gmailPassword = String(
+  process.env.GMAIL_PASSWORD || 
+  process.env.EMAIL_PASSWORD || 
+  process.env.SMTP_PASSWORD || ''
+).trim();
+
+const mailgunApiKey = String(
+  process.env.MAILGUN_API_KEY || 
+  process.env.SENDGRID_API_KEY || ''
+).trim();
+
+const mailgunDomain = String(
+  process.env.MAILGUN_DOMAIN || ''
+).trim();
+
+const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
 
 const useMailgun = Boolean(mailgunApiKey);
 const useGmail = Boolean(gmailUser && gmailPassword);
 const isConfigured = useMailgun || useGmail;
 
 console.log('\n📧 EMAIL SERVICE initialized:');
-console.log(`   - Gmail available: ${useGmail ? '✅' : '❌'}`);
-console.log(`   - Mailgun available: ${useMailgun ? '✅' : '❌'}`);
-console.log(`   - Active service: ${useMailgun ? 'Mailgun (HTTP - Render compatible)' : useGmail ? 'Gmail (SMTP - Local only)' : 'NONE'}\n`);
+console.log(`   - SMTP available: ${useGmail ? '✅' : '❌'}`);
+console.log(`   - HTTP API available: ${useMailgun ? '✅' : '❌'}`);
+console.log(`   - Active service: ${useMailgun ? 'HTTP API (Mailgun/SendGrid)' : useGmail ? `SMTP (${smtpHost}:${smtpPort})` : '❌ NOT CONFIGURED'}\n`);
+if (!isConfigured) {
+  console.log(`   ⚠️  Set one of these on Render:\n`);
+  console.log(`   OPTION A - SMTP:`);
+  console.log(`      • EMAIL_USER or GMAIL_USER`);
+  console.log(`      • EMAIL_PASSWORD or GMAIL_PASSWORD`);
+  console.log(`      • SMTP_HOST (default: smtp.gmail.com)`);
+  console.log(`      • SMTP_PORT (default: 465)\n`);
+  console.log(`   OPTION B - HTTP API:`);
+  console.log(`      • MAILGUN_API_KEY or SENDGRID_API_KEY`);
+  console.log(`      • MAILGUN_DOMAIN (if using Mailgun)\n`);
+}
 
-// Gmail transporter (for local development)
+// SMTP or Gmail transporter (for local development or Render with SMTP)
 const gmailTransporter = useGmail ? nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpPort === 465,
   auth: { user: gmailUser, pass: gmailPassword },
-  connectionTimeout: 15000,
-  socketTimeout: 15000
+  connectionTimeout: 30000,
+  socketTimeout: 30000
 }) : null;
 
 // ===== Mailgun HTTP API Helper =====
