@@ -91,7 +91,7 @@ const sendViaMailgun = async (to, subject, text, html) => {
 // ===== Resend HTTP API Helper =====
 const sendViaResend = async (to, subject, text, html) => {
   const response = await axios.post('https://api.resend.com/emails', {
-    from: 'noreply@cudaters.tech',
+    from: 'CU-Daters <onboarding@resend.dev>',
     to: to,
     subject: subject,
     html: html,
