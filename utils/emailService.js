@@ -48,6 +48,19 @@ console.log('\n📧 EMAIL SERVICE initialized:');
 console.log(`   - SMTP available: ${useGmail ? '✅' : '❌'}`);
 console.log(`   - HTTP API available: ${useMailgun || useResend ? '✅' : '❌'}`);
 console.log(`   - Active service: ${useResend ? 'HTTP API (Resend)' : useMailgun ? 'HTTP API (Mailgun/SendGrid)' : useGmail ? `SMTP (${smtpHost}:${smtpPort})` : '❌ NOT CONFIGURED'}\n`);
+
+// DIAGNOSTIC: Log what environment variables are actually set
+if (process.env.NODE_ENV === 'production') {
+  console.log('🔍 PRODUCTION DIAGNOSTICS:');
+  console.log(`   - RESEND_API_KEY set: ${process.env.RESEND_API_KEY ? '✅ YES' : '❌ NO'}`);
+  if (process.env.RESEND_API_KEY) {
+    console.log(`   - RESEND_API_KEY length: ${process.env.RESEND_API_KEY.length}`);
+    console.log(`   - RESEND_API_KEY starts with: ${process.env.RESEND_API_KEY.substring(0, 10)}...`);
+  }
+  console.log(`   - GMAIL_USER set: ${process.env.GMAIL_USER ? '✅ YES' : '❌ NO'}`);
+  console.log(`   - GMAIL_PASSWORD set: ${process.env.GMAIL_PASSWORD ? '✅ YES' : '❌ NO'}`);
+  console.log(`   - NODE_ENV: ${process.env.NODE_ENV}\n`);
+}
 if (!isConfigured) {
   console.log(`   ⚠️  Set one of these on Render:\n`);
   console.log(`   OPTION A - Resend (RECOMMENDED for Render):`);
