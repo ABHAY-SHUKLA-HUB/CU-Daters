@@ -163,26 +163,27 @@ const staticAllowedOrigins = [
   'http://127.0.0.1:5179',
   'http://127.0.0.1:5180',
 
-  // Production
-  process.env.FRONTEND_URL,
-  process.env.FRONTEND_PUBLIC_URL,
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-  process.env.NETLIFY_URL,
-  'https://seeu-daters-found.netlify.app',
-  'https://www.seeu-daters-found.netlify.app',
-  'https://seeu-daters.vercel.app',
-  'https://www.seeu-daters.vercel.app',
+  // Production - CU-Daters
   'https://cudaters.tech',
   'https://www.cudaters.tech',
   'https://cu-daters.tech',
   'https://www.cu-daters.tech',
+
+  // Production - SeeU-Daters
   'https://seeudaters.tech',
   'https://www.seeudaters.tech',
   'https://seeu-daters.tech',
   'https://www.seeu-daters.tech',
+  'https://seeu-daters-found.netlify.app',
+  'https://www.seeu-daters-found.netlify.app',
+  'https://seeu-daters.vercel.app',
+  'https://www.seeu-daters.vercel.app',
 
-  // Backend URL
+  // Render backends - all subdomains allowed
   process.env.BACKEND_URL,
+  process.env.FRONTEND_PUBLIC_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  process.env.NETLIFY_URL,
   'https://datee.onrender.com',
 ]
   .filter(Boolean)
