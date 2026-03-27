@@ -1,32 +1,29 @@
-import axios from 'axios';
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 // ===========================
-// EMAIL SERVICE - Mailgun HTTP API
+// EMAIL SERVICE - Gmail SMTP
 // ===========================
-// Uses Mailgun REST API (HTTPS)
-// ✅ No IPv4/IPv6 network issues
-// ✅ Free tier: 300 emails/month
-// ✅ Rock-solid reliability
+// Uses your personal Gmail account
+// ✅ Works great locally
+// ⚠️ May timeout on Render (IPv6 network issue - use Mailgun for production)
 
-const mailgunApiKey = String(process.env.MAILGUN_API_KEY || '').trim();
-const mailgunDomain = String(process.env.MAILGUN_DOMAIN || '').trim();
-const mailgunFromEmail = String(process.env.MAILGUN_FROM_EMAIL || 'noreply@cudaters.tech').trim();
-const hasMailgunConfig = Boolean(mailgunApiKey && mailgunDomain);
+const gmailUser = String(process.env.GMAIL_USER || '').trim();
+const gmailPassword = String(process.env.GMAIL_PASSWORD || '').trim();
+const gmailFromEmail = gmailUser; // Send from Gmail address
+const hasGmailConfig = Boolean(gmailUser && gmailPassword);
 
 console.log('\n' + '='.repeat(80));
 console.log('📧 EMAIL SERVICE CONFIGURATION');
 console.log('='.repeat(80));
-console.log(`Mailgun Configured: ${hasMailgunConfig ? '✅ YES' : '❌ NO'}`);
-if (hasMailgunConfig) {
-  console.log(`  Backend: Mailgun HTTPS REST API`);
-  console.log(`  Domain: ${mailgunDomain}`);
-  console.log(`  From Email: ${mailgunFromEmail}`);
-  console.log(`  Free Tier: 300 emails/month`);
+console.log(`Gmail Configured: ${hasGmailConfig ? '✅ YES' : '❌ NO'}`);
+if (hasGmailConfig) {
+  console.log(`  Backend: Gmail SMTP`);
+  console.log(`  From Email: ${gmailFromEmail}`);
+  console.log(`  📌 Works locally - may timeout on Render (use Mailgun for production)`);
 }
-console.log('✅ HTTP/HTTPS - No SMTP/IPv6 blocking issues');
 console.log('='.repeat(80) + '\n');
 
 // Email health tracking
@@ -60,8 +57,8 @@ const recordFailure = (error) => {
 };
 
 export const getEmailServiceHealth = () => ({
-  configured: hasMailgunConfig,
-  backend: 'mailgun',
+  configured: hasGmailConfig,
+  backend: 'gmail',
   counters: {
     totalAttempts: emailHealth.totalAttempts,
     totalSuccesses: emailHealth.totalSuccesses,
@@ -76,54 +73,40 @@ export const getEmailServiceHealth = () => ({
 });
 
 // ===========================
-// Mailgun API Helper
+// Gmail Transporter
 // ===========================
-const sendEmailViaMailgun = async (to, subject, htmlContent) => {
-  if (!hasMailgunConfig) {
-    const err = new Error('Mailgun not configured - set MAILGUN_API_KEY and MAILGUN_DOMAIN in .env');
-    recordFailure(err);
-    throw err;
+const gmailTransporter = hasGmailConfig ? nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: gmailUser,
+    pass: gmailPassword  // App Password (not Gmail password!)
+  },
+  connectionTimeout: 30000,
+  socketTimeout: 30000
+}) : null;
+
+const sendEmailViaGmail = async (mailOptions) => {
+  if (!gmailTransporter) {
+    throw new Error('Gmail not configured - set GMAIL_USER and GMAIL_PASSWORD in .env');
   }
 
-  console.log(`[MAILGUN] Sending to ${to}...`);
+  console.log(`[GMAIL] Sending to ${mailOptions.to}...`);
 
-  const auth = Buffer.from(`api:${mailgunApiKey}`).toString('base64');
-
-  try {
-    const response = await axios.post(
-      `https://api.mailgun.net/v3/${mailgunDomain}/messages`,
-      new URLSearchParams({
-        from: mailgunFromEmail,
-        to: to,
-        subject: subject,
-        html: htmlContent
-      }),
-      {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        timeout: 30000  // 30s HTTP timeout
+  return new Promise((resolve, reject) => {
+    gmailTransporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error(`[GMAIL] ❌ Error:`, error.message);
+        recordFailure(error);
+        reject(error);
+      } else {
+        console.log(`[GMAIL] ✅ Email sent successfully`);
+        console.log(`[GMAIL]    To: ${mailOptions.to}`);
+        console.log(`[GMAIL]    Message ID: ${info.messageId}`);
+        recordSuccess();
+        resolve(info);
       }
-    );
-
-    const messageId = response.data.id || 'unknown';
-    console.log(`[MAILGUN] ✅ Email sent successfully`);
-    console.log(`[MAILGUN]    To: ${to}`);
-    console.log(`[MAILGUN]    Message ID: ${messageId}`);
-    recordSuccess();
-    return { messageId, to, status: 'success' };
-  } catch (error) {
-    console.error(`[MAILGUN] ❌ Failed to send email`);
-    console.error(`[MAILGUN]    Error: ${error.message}`);
-    if (error.response?.status === 401) {
-      console.error(`[MAILGUN]    ⚠️  API Key or Domain invalid`);
-    } else if (error.response?.status === 400) {
-      console.error(`[MAILGUN]    ⚠️  Bad request: ${error.response?.data?.message}`);
-    }
-    recordFailure(error);
-    throw error;
-  }
+    });
+  });
 };
 
 // ===========================
@@ -189,7 +172,12 @@ export const sendOtpEmail = async (email, otp) => {
   `;
 
   try {
-    const result = await sendEmailViaMailgun(email, 'Your CU-Daters Email Verification Code', htmlContent);
+    const result = await sendEmailViaGmail({
+      from: gmailFromEmail,
+      to: email,
+      subject: 'Your CU-Daters Email Verification Code',
+      html: htmlContent
+    });
     console.log(`[✅ OTP EMAIL SENT] ${email}`);
     return result;
   } catch (error) {
@@ -237,7 +225,12 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
   `;
 
   try {
-    const result = await sendEmailViaMailgun(email, 'Reset Your CU-Daters Password', htmlContent);
+    const result = await sendEmailViaGmail({
+      from: gmailFromEmail,
+      to: email,
+      subject: 'Reset Your CU-Daters Password',
+      html: htmlContent
+    });
     console.log(`[✅ PASSWORD RESET EMAIL SENT] ${email}`);
     return result;
   } catch (error) {
@@ -286,7 +279,12 @@ export const sendRegistrationConfirmationEmail = async (email, userName) => {
   `;
 
   try {
-    const result = await sendEmailViaMailgun(email, 'Welcome to CU-Daters!', htmlContent);
+    const result = await sendEmailViaGmail({
+      from: gmailFromEmail,
+      to: email,
+      subject: 'Welcome to CU-Daters!',
+      html: htmlContent
+    });
     console.log(`[✅ REGISTRATION EMAIL SENT] ${email}`);
     return result;
   } catch (error) {
