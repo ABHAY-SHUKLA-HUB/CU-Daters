@@ -160,6 +160,112 @@ router.get('/email-health', (req, res) => {
   });
 });
 
+// ===== TEST EMAIL ENDPOINT (Synchronous - Shows Errors Immediately) =====
+router.post('/test-email-sync', asyncHandler(async (req, res) => {
+  console.log('\n========== TEST EMAIL SYNC REQUEST ==========');
+  
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json(errorResponse('Email is required', { code: 'MISSING_EMAIL' }));
+  }
+
+  const health = getEmailServiceHealth();
+  console.log(`[TEST EMAIL SYNC] Email service health:`, health.counters);
+  console.log(`[TEST EMAIL SYNC] Email mode: ${health.mode}, Configured: ${health.configured}`);
+
+  try {
+    console.log(`[TEST EMAIL SYNC] ⏳ Starting SMTP attempt to ${email}...`);
+    
+    // Send DIRECTLY without background task
+    const result = await sendOtpEmail(email, '000000');
+    
+    console.log(`[TEST EMAIL SYNC] ✅ Email sent successfully: ${result.messageId}`);
+    
+    res.status(200).json(
+      successResponse('✅ Email sent successfully!', {
+        code: 'EMAIL_SENT',
+        email,
+        messageId: result.messageId,
+        timestamp: new Date().toISOString(),
+        instructions: 'Check your inbox and spam folder for the test email'
+      })
+    );
+  } catch (emailErr) {
+    console.error(`[TEST EMAIL SYNC] ❌ SMTP Error:`, emailErr);
+    
+    const errorInfo = {
+      code: emailErr.code || 'EMAIL_ERROR',
+      message: emailErr.message,
+      timestamp: new Date().toISOString(),
+      emailHealth: health.counters
+    };
+    
+    console.error(`[TEST EMAIL SYNC] Error details:`, JSON.stringify(errorInfo, null, 2));
+    
+    res.status(503).json(
+      errorResponse(`Email Error: ${emailErr.message}`, errorInfo)
+    );
+  }
+}));
+
+// ===== TEST EMAIL ENDPOINT =====
+router.post('/test-email', asyncHandler(async (req, res) => {
+  console.log('\n========== TEST EMAIL REQUEST ==========');
+  
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json(errorResponse('Email is required', { code: 'MISSING_EMAIL' }));
+  }
+
+  try {
+    console.log(`[TEST EMAIL] Attempting to send test email to ${email}...`);
+    
+    const testHTML = `
+      <html>
+        <body style="font-family: Arial; background: #fff5f7; padding: 20px;">
+          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 30px;">
+            <h1 style="color: #d4536f; text-align: center;">✅ Test Email Success!</h1>
+            <p style="text-align: center; font-size: 16px; color: #555;">
+              If you received this email, your SMTP credentials are working correctly!
+            </p>
+            <p style="text-align: center; color: #999; font-size: 12px;">
+              This is a test email from CU-Daters backend.
+            </p>
+            <p style="text-align: center; color: #ccc; font-size: 10px;">
+              Timestamp: ${new Date().toISOString()}
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const result = await sendOtpEmail(email, '000000');  // Using sendOtpEmail with dummy OTP
+    
+    console.log(`✅ [TEST EMAIL] Successfully sent to ${email}`);
+    
+    res.status(200).json(
+      successResponse('Test email sent successfully!', {
+        code: 'TEST_EMAIL_SENT',
+        email,
+        messageId: result.messageId,
+        timestamp: new Date().toISOString(),
+        instructions: 'Check your inbox and spam folder for the test email'
+      })
+    );
+  } catch (emailErr) {
+    console.error(`❌ [TEST EMAIL] Failed to send:`, emailErr.message);
+    
+    res.status(503).json(
+      errorResponse(`Failed to send test email: ${emailErr.message}`, {
+        code: 'TEST_EMAIL_FAILED',
+        error: emailErr.message
+      })
+    );
+  }
+}));
+
 // ===== SEND OTP (Email) =====
 router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next) => {
   console.log('\n========== SEND OTP REQUEST ==========');
@@ -376,54 +482,56 @@ router.post('/send-otp', otpRequestLimiter, asyncHandler(async (req, res, _next)
     })
   );
 
-  // Send OTP email in background (don't wait for it)
-  setImmediate(async () => {
-    try {
-      // Add timeout to email sending (10 seconds max for background task)
-      const emailPromise = sendOtpEmail(emailLower, otp);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Email service timeout (10s)')), 10000)
-      );
-      
-      await Promise.race([emailPromise, timeoutPromise]);
-      console.log(`✅ OTP email sent successfully to ${emailLower}`);
-    } catch (emailErr) {
-      const emailError = emailErr.message;
-      console.error(`❌ OTP EMAIL FAILED for ${emailLower}:`, emailError);
-      console.error('Email Error Details:', emailErr);
-
-      // Try to log activity if DB is available
+  // Send OTP email in background (fire and forget with error handling)
+  // Use process.nextTick to ensure response is sent first
+  process.nextTick(() => {
+    (async () => {
       try {
-        const health = getEmailServiceHealth();
-        const isRepeatedFailure = Number(health?.counters?.consecutiveFailures || 0) >= SMTP_ALERT_FAILURE_THRESHOLD;
+        console.log(`[BG] Starting background email send for ${emailLower}...`);
+        
+        // Send email (full SMTP timeout from config allows up to 45s)
+        await sendOtpEmail(emailLower, otp);
+        console.log(`✅ [BG] OTP email sent successfully to ${emailLower}`);
+      } catch (emailErr) {
+        const emailError = emailErr.message;
+        console.error(`❌ [BG] OTP EMAIL FAILED for ${emailLower}:`, emailError);
+        console.error('[BG] Email Error Details:', emailErr);
 
-        await logActivity({
-          user_id: tempUser?._id,
-          action: isRepeatedFailure ? 'otp_email_failed_repeated' : 'otp_email_failed',
-          description: isRepeatedFailure
-            ? `Repeated OTP email failures detected (${health.counters.consecutiveFailures} consecutive failures)`
-            : 'OTP email delivery failed',
-          ...getClientInfo(req),
-          status: 'failure',
-          error_message: emailError,
-          metadata: {
-            email: emailLower,
-            emailService: {
-              degraded: Boolean(health?.degraded),
-              consecutiveFailures: Number(health?.counters?.consecutiveFailures || 0),
-              lastErrorCode: health?.lastErrorCode || null,
-              lastFailureAt: health?.lastFailureAt || null
+        // Try to log activity if DB is available
+        try {
+          const health = getEmailServiceHealth();
+          const isRepeatedFailure = Number(health?.counters?.consecutiveFailures || 0) >= SMTP_ALERT_FAILURE_THRESHOLD;
+
+          await logActivity({
+            user_id: tempUser?._id,
+            action: isRepeatedFailure ? 'otp_email_failed_repeated' : 'otp_email_failed',
+            description: isRepeatedFailure
+              ? `Repeated OTP email failures detected (${health.counters.consecutiveFailures} consecutive failures)`
+              : 'OTP email delivery failed',
+            ...getClientInfo(req),
+            status: 'failure',
+            error_message: emailError,
+            metadata: {
+              email: emailLower,
+              emailService: {
+                degraded: Boolean(health?.degraded),
+                consecutiveFailures: Number(health?.counters?.consecutiveFailures || 0),
+                lastErrorCode: health?.lastErrorCode || null,
+                lastFailureAt: health?.lastFailureAt || null
+              }
             }
-          }
-        });
+          });
 
-        if (isRepeatedFailure) {
-          console.error(`🚨 SMTP ALERT: ${health.counters.consecutiveFailures} consecutive email failures detected.`);
+          if (isRepeatedFailure) {
+            console.error(`🚨 SMTP ALERT: ${health.counters.consecutiveFailures} consecutive email failures detected.`);
+          }
+        } catch (activityError) {
+          console.error('⚠️ [BG] Failed to log OTP email failure activity:', activityError?.message || activityError);
         }
-      } catch (activityError) {
-        console.error('⚠️ Failed to log OTP email failure activity:', activityError?.message || activityError);
       }
-    }
+    })().catch(err => {
+      console.error('[BG] Uncaught error in background email task:', err);
+    });
   });
 }));
 
