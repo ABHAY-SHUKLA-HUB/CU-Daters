@@ -148,12 +148,35 @@ export const sendOtpEmail = async (email, otp) => {
   if (useGmail) {
     try {
       console.log(`📧 Attempting Gmail SMTP for ${email}...`);
-      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      console.log(`   ├─ From: ${gmailUser}`);
+      console.log(`   ├─ To: ${email}`);
+      console.log(`   ├─ Host: ${smtpHost}:${smtpPort}`);
+      console.log(`   └─ Secure: ${smtpPort === 465}`);
+      
+      const result = await gmailTransporter.sendMail({ 
+        from: gmailUser, 
+        to: email, 
+        subject, 
+        text, 
+        html,
+        replyTo: gmailUser,
+        headers: {
+          'List-Unsubscribe': '<mailto:cudaters.verify@gmail.com>',
+          'X-Priority': '3',
+          'X-Mailer': 'CU-Daters'
+        }
+      });
+      
       console.log(`✅ Gmail SMTP succeeded for ${email}`);
+      console.log(`   └─ Response: ${result.response}`);
+      console.log(`   └─ MessageID: ${result.messageId}`);
       return result;
     } catch (gmailErr) {
       const errMsg = gmailErr?.message || gmailErr.toString();
       console.error(`❌ Gmail SMTP failed for ${email}: ${errMsg}`);
+      console.error(`   ├─ Error Code: ${gmailErr?.code}`);
+      console.error(`   ├─ Error Response: ${gmailErr?.response}`);
+      console.error(`   └─ Full Error:`, gmailErr);
       errors.push(`Gmail: ${errMsg}`);
     }
   }
@@ -204,7 +227,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
   if (useGmail) {
     try {
       console.log(`📧 Attempting Gmail SMTP for password reset to ${email}...`);
-      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html, replyTo: gmailUser, headers: { 'List-Unsubscribe': '<mailto:cudaters.verify@gmail.com>', 'X-Priority': '3', 'X-Mailer': 'CU-Daters' } });
       console.log(`✅ Gmail SMTP succeeded for password reset`);
       return result;
     } catch (gmailErr) {
@@ -256,7 +279,7 @@ export const sendRegistrationConfirmationEmail = async (email, userName) => {
   if (useGmail) {
     try {
       console.log(`📧 Attempting Gmail SMTP...`);
-      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html, replyTo: gmailUser, headers: { 'List-Unsubscribe': '<mailto:cudaters.verify@gmail.com>', 'X-Priority': '3', 'X-Mailer': 'CU-Daters' } });
       console.log(`✅ Gmail SMTP succeeded`);
       return result;
     } catch (gmailErr) {
@@ -306,7 +329,7 @@ export const sendApprovalEmail = async (email, userName) => {
   if (useGmail) {
     try {
       console.log(`📧 Attempting Gmail SMTP...`);
-      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html, replyTo: gmailUser, headers: { 'List-Unsubscribe': '<mailto:cudaters.verify@gmail.com>', 'X-Priority': '3', 'X-Mailer': 'CU-Daters' } });
       console.log(`✅ Gmail SMTP succeeded`);
       return result;
     } catch (gmailErr) {
@@ -356,7 +379,7 @@ export const sendRejectionEmail = async (email, userName, reason) => {
   if (useGmail) {
     try {
       console.log(`📧 Attempting Gmail SMTP...`);
-      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html, replyTo: gmailUser, headers: { 'List-Unsubscribe': '<mailto:cudaters.verify@gmail.com>', 'X-Priority': '3', 'X-Mailer': 'CU-Daters' } });
       console.log(`✅ Gmail SMTP succeeded`);
       return result;
     } catch (gmailErr) {
