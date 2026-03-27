@@ -1,4 +1,4 @@
-const PRODUCTION_API_URL = 'https://datee.onrender.com';
+const PRODUCTION_API_URL = 'https://cu-daters-backend.onrender.com';
 const LOCAL_API_URL = 'http://localhost:5000';
 
 function normalizeBaseUrl(url = '') {
