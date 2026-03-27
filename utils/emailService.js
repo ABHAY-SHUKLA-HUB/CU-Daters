@@ -128,17 +128,54 @@ export const sendOtpEmail = async (email, otp) => {
   const text = `Verification code: ${otp}\n\nValid for 10 minutes. Do not share.`;
   const html = `<h2>CU-Daters Verification</h2><p>Your code: <strong>${otp}</strong></p><p>Valid for 10 minutes</p>`;
 
-  try {
-    if (useResend) return await sendViaResend(email, subject, text, html);
-  } catch (resendErr) {
-    console.warn('⚠️ Resend failed, falling back to Gmail...');
-    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  const errors = [];
+
+  // Try Resend first
+  if (useResend) {
+    try {
+      console.log(`📧 Attempting Resend for ${email}...`);
+      const result = await sendViaResend(email, subject, text, html);
+      console.log(`✅ Resend succeeded for ${email}`);
+      return result;
+    } catch (resendErr) {
+      const errMsg = resendErr?.response?.data?.message || resendErr.message;
+      console.warn(`⚠️ Resend failed for ${email}: ${errMsg}`);
+      errors.push(`Resend: ${errMsg}`);
+    }
   }
-  
-  if (useMailgun) return sendViaMailgun(email, subject, text, html);
-  if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
-  
-  throw new Error('No email service configured');
+
+  // Fallback to Gmail
+  if (useGmail) {
+    try {
+      console.log(`📧 Attempting Gmail SMTP for ${email}...`);
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      console.log(`✅ Gmail SMTP succeeded for ${email}`);
+      return result;
+    } catch (gmailErr) {
+      const errMsg = gmailErr?.message || gmailErr.toString();
+      console.error(`❌ Gmail SMTP failed for ${email}: ${errMsg}`);
+      errors.push(`Gmail: ${errMsg}`);
+    }
+  }
+
+  // Fallback to Mailgun
+  if (useMailgun) {
+    try {
+      console.log(`📧 Attempting Mailgun for ${email}...`);
+      const result = await sendViaMailgun(email, subject, text, html);
+      console.log(`✅ Mailgun succeeded for ${email}`);
+      return result;
+    } catch (mailgunErr) {
+      const errMsg = mailgunErr?.message || mailgunErr.toString();
+      console.error(`❌ Mailgun failed for ${email}: ${errMsg}`);
+      errors.push(`Mailgun: ${errMsg}`);
+    }
+  }
+
+  // All providers failed
+  const errorSummary = errors.join(' | ');
+  console.error(`🚨 ALL EMAIL PROVIDERS FAILED for ${email}: ${errorSummary}`);
+  throw new Error(`Email service unavailable: ${errorSummary}`);
 };
 
 export const sendPasswordResetEmail = async (email, resetToken) => {
@@ -149,17 +186,49 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
   const text = `Click here to reset: ${resetLink}`;
   const html = `<p>Click <a href="${resetLink}">here</a> to reset your password.</p>`;
 
-  try {
-    if (useResend) return await sendViaResend(email, subject, text, html);
-  } catch (resendErr) {
-    console.warn('⚠️ Resend failed, falling back to Gmail...');
-    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  const errors = [];
+
+  if (useResend) {
+    try {
+      console.log(`📧 Attempting Resend for password reset to ${email}...`);
+      const result = await sendViaResend(email, subject, text, html);
+      console.log(`✅ Resend succeeded for ${email}`);
+      return result;
+    } catch (resendErr) {
+      const errMsg = resendErr?.response?.data?.message || resendErr.message;
+      console.warn(`⚠️ Resend failed: ${errMsg}`);
+      errors.push(`Resend: ${errMsg}`);
+    }
   }
-  
-  if (useMailgun) return sendViaMailgun(email, subject, text, html);
-  if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
-  
-  throw new Error('No email service configured');
+
+  if (useGmail) {
+    try {
+      console.log(`📧 Attempting Gmail SMTP for password reset to ${email}...`);
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      console.log(`✅ Gmail SMTP succeeded for password reset`);
+      return result;
+    } catch (gmailErr) {
+      const errMsg = gmailErr?.message || gmailErr.toString();
+      console.error(`❌ Gmail SMTP failed: ${errMsg}`);
+      errors.push(`Gmail: ${errMsg}`);
+    }
+  }
+
+  if (useMailgun) {
+    try {
+      const result = await sendViaMailgun(email, subject, text, html);
+      console.log(`✅ Mailgun succeeded for password reset`);
+      return result;
+    } catch (mailgunErr) {
+      const errMsg = mailgunErr?.message || mailgunErr.toString();
+      console.error(`❌ Mailgun failed: ${errMsg}`);
+      errors.push(`Mailgun: ${errMsg}`);
+    }
+  }
+
+  const errorSummary = errors.join(' | ');
+  console.error(`🚨 ALL PROVIDERS FAILED for password reset: ${errorSummary}`);
+  throw new Error(`Email service unavailable: ${errorSummary}`);
 };
 
 export const sendRegistrationConfirmationEmail = async (email, userName) => {
@@ -169,17 +238,47 @@ export const sendRegistrationConfirmationEmail = async (email, userName) => {
   const text = `Welcome ${userName}! Your account is now active.`;
   const html = `<h2>Welcome ${userName}!</h2><p>Your account is ready to use.</p>`;
 
-  try {
-    if (useResend) return await sendViaResend(email, subject, text, html);
-  } catch (resendErr) {
-    console.warn('⚠️ Resend failed, falling back to Gmail...');
-    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  const errors = [];
+
+  if (useResend) {
+    try {
+      console.log(`📧 Attempting Resend for registration confirmation to ${email}...`);
+      const result = await sendViaResend(email, subject, text, html);
+      console.log(`✅ Resend succeeded`);
+      return result;
+    } catch (resendErr) {
+      const errMsg = resendErr?.response?.data?.message || resendErr.message;
+      console.warn(`⚠️ Resend failed: ${errMsg}`);
+      errors.push(`Resend: ${errMsg}`);
+    }
   }
-  
-  if (useMailgun) return sendViaMailgun(email, subject, text, html);
-  if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
-  
-  throw new Error('No email service configured');
+
+  if (useGmail) {
+    try {
+      console.log(`📧 Attempting Gmail SMTP...`);
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      console.log(`✅ Gmail SMTP succeeded`);
+      return result;
+    } catch (gmailErr) {
+      const errMsg = gmailErr?.message || gmailErr.toString();
+      console.error(`❌ Gmail SMTP failed: ${errMsg}`);
+      errors.push(`Gmail: ${errMsg}`);
+    }
+  }
+
+  if (useMailgun) {
+    try {
+      const result = await sendViaMailgun(email, subject, text, html);
+      console.log(`✅ Mailgun succeeded`);
+      return result;
+    } catch (mailgunErr) {
+      errors.push(`Mailgun: ${mailgunErr.message}`);
+    }
+  }
+
+  const errorSummary = errors.join(' | ');
+  console.error(`🚨 ALL PROVIDERS FAILED: ${errorSummary}`);
+  throw new Error(`Email service unavailable: ${errorSummary}`);
 };
 
 export const sendApprovalEmail = async (email, userName) => {
@@ -189,17 +288,47 @@ export const sendApprovalEmail = async (email, userName) => {
   const text = `Hello ${userName},\n\nCongratulations! Your profile has been approved and is now live on CU-Daters.`;
   const html = `<h2>Profile Approved! 🎉</h2><p>Hello ${userName},</p><p>Your profile has been approved and is now visible to other users.</p>`;
 
-  try {
-    if (useResend) return await sendViaResend(email, subject, text, html);
-  } catch (resendErr) {
-    console.warn('⚠️ Resend failed, falling back to Gmail...');
-    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  const errors = [];
+
+  if (useResend) {
+    try {
+      console.log(`📧 Attempting Resend for approval to ${email}...`);
+      const result = await sendViaResend(email, subject, text, html);
+      console.log(`✅ Resend succeeded`);
+      return result;
+    } catch (resendErr) {
+      const errMsg = resendErr?.response?.data?.message || resendErr.message;
+      console.warn(`⚠️ Resend failed: ${errMsg}`);
+      errors.push(`Resend: ${errMsg}`);
+    }
   }
-  
-  if (useMailgun) return sendViaMailgun(email, subject, text, html);
-  if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
-  
-  throw new Error('No email service configured');
+
+  if (useGmail) {
+    try {
+      console.log(`📧 Attempting Gmail SMTP...`);
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      console.log(`✅ Gmail SMTP succeeded`);
+      return result;
+    } catch (gmailErr) {
+      const errMsg = gmailErr?.message || gmailErr.toString();
+      console.error(`❌ Gmail SMTP failed: ${errMsg}`);
+      errors.push(`Gmail: ${errMsg}`);
+    }
+  }
+
+  if (useMailgun) {
+    try {
+      const result = await sendViaMailgun(email, subject, text, html);
+      console.log(`✅ Mailgun succeeded`);
+      return result;
+    } catch (mailgunErr) {
+      errors.push(`Mailgun: ${mailgunErr.message}`);
+    }
+  }
+
+  const errorSummary = errors.join(' | ');
+  console.error(`🚨 ALL PROVIDERS FAILED: ${errorSummary}`);
+  throw new Error(`Email service unavailable: ${errorSummary}`);
 };
 
 export const sendRejectionEmail = async (email, userName, reason) => {
@@ -209,17 +338,47 @@ export const sendRejectionEmail = async (email, userName, reason) => {
   const text = `Hello ${userName},\n\nYour profile was not approved. Reason: ${reason || 'Please review our community guidelines.'}`;
   const html = `<h2>Profile Review Required</h2><p>Hello ${userName},</p><p>Your profile needs further review. ${reason || 'Please review our community guidelines.'}</p>`;
 
-  try {
-    if (useResend) return await sendViaResend(email, subject, text, html);
-  } catch (resendErr) {
-    console.warn('⚠️ Resend failed, falling back to Gmail...');
-    if (useGmail) return await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+  const errors = [];
+
+  if (useResend) {
+    try {
+      console.log(`📧 Attempting Resend for rejection to ${email}...`);
+      const result = await sendViaResend(email, subject, text, html);
+      console.log(`✅ Resend succeeded`);
+      return result;
+    } catch (resendErr) {
+      const errMsg = resendErr?.response?.data?.message || resendErr.message;
+      console.warn(`⚠️ Resend failed: ${errMsg}`);
+      errors.push(`Resend: ${errMsg}`);
+    }
   }
-  
-  if (useMailgun) return sendViaMailgun(email, subject, text, html);
-  if (useGmail) return gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
-  
-  throw new Error('No email service configured');
+
+  if (useGmail) {
+    try {
+      console.log(`📧 Attempting Gmail SMTP...`);
+      const result = await gmailTransporter.sendMail({ from: gmailUser, to: email, subject, text, html });
+      console.log(`✅ Gmail SMTP succeeded`);
+      return result;
+    } catch (gmailErr) {
+      const errMsg = gmailErr?.message || gmailErr.toString();
+      console.error(`❌ Gmail SMTP failed: ${errMsg}`);
+      errors.push(`Gmail: ${errMsg}`);
+    }
+  }
+
+  if (useMailgun) {
+    try {
+      const result = await sendViaMailgun(email, subject, text, html);
+      console.log(`✅ Mailgun succeeded`);
+      return result;
+    } catch (mailgunErr) {
+      errors.push(`Mailgun: ${mailgunErr.message}`);
+    }
+  }
+
+  const errorSummary = errors.join(' | ');
+  console.error(`🚨 ALL PROVIDERS FAILED: ${errorSummary}`);
+  throw new Error(`Email service unavailable: ${errorSummary}`);
 };
 
 export const getEmailServiceHealth = () => ({
