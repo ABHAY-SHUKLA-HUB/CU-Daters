@@ -5,18 +5,17 @@ import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 
 export default function Signup() {
-  const [step, setStep] = useState(1); // 1=Basic, 2=OTP, 3=Profile, 4=Photos
+  const [step, setStep] = useState(1); // 1=Basic + T&C, 2=Profile, 3=Photos
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [errorModal, setErrorModal] = useState(null); // For OTP limit modal
   const [formData, setFormData] = useState({
     name: '',
-    email: '', // FIXED: Was personalEmail, changed to email to match backend
+    email: '',
     phone: '',
     password: '',
     confirmPassword: '',
-    college: '', // NEW - Community/organization selection
-    otp: '', // NEW - For OTP verification
+    college: '',
+    termsAccepted: false, // NEW - T&C acceptance
     gender: '',
     fieldOfWork: '',
     experienceYears: '',
@@ -176,11 +175,14 @@ export default function Signup() {
     if (!formData.college) {
       newErrors.college = 'Community or organization is required';
     }
+    if (!formData.termsAccepted) {
+      newErrors.termsAccepted = 'You must accept the Terms & Conditions';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const validateStep3 = () => {
+  const validateStep2 = () => {
     const newErrors = {};
     if (!formData.gender) newErrors.gender = 'Please select gender';
     if (!formData.fieldOfWork.trim()) newErrors.fieldOfWork = 'Please enter your branch/field of work';
@@ -197,123 +199,18 @@ export default function Signup() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Send OTP
-  const handleSendOtp = async () => {
-    // Validate Step 1
-    if (!validateStep1()) {
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    setErrorModal(null);
-
-    try {
-      const response = await axios.post(`${AUTH_API_BASE}/send-otp`, {
-        name: formData.name.trim(),
-        email: formData.email.toLowerCase().trim(),
-        phone: formData.phone,
-        password: formData.password,
-        college: formData.college
-      }, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 45000
-      });
-
-      // If success, move to Step 2
-      if (response.data?.success) {
-        if (response.data?.data?.emailStatus === 'failed') {
-          setError('Unable to send OTP email right now. Please try again in 1-2 minutes.');
-        } else {
-          // Email sent successfully, move to Step 2
-          setStep(2);
-        }
-      } else {
-        throw new Error(response.data?.message || 'Server returned success=false');
-      }
-    } catch (err) {
-      let errorMsg = 'Failed to send OTP. Please try again.';
-      
-      if (err.response?.status === 429) {
-        errorMsg = err.response.data?.message || 'You have reached your OTP limit. Please try again after 20 minutes.';
-        setErrorModal({
-          title: '⏱️ OTP Request Limit Reached',
-          message: errorMsg,
-          type: 'limit',
-          isRateLimit: true
-        });
-      } else if (err.response?.status === 403) {
-        errorMsg = err.response?.data?.message || 'OTP request blocked by server policy (CORS or access rule). Please verify frontend domain is whitelisted.';
-        setError(errorMsg);
-      } else if (err.response?.status === 409) {
-        errorMsg = 'Email already registered. Please login instead.';
-        setError(errorMsg);
-      } else if (err.response?.status === 503) {
-        const errorCode = err.response?.data?.details?.code;
-        if (errorCode === 'OTP_EMAIL_PROVIDER_AUTH_FAILED') {
-          errorMsg = 'OTP service configuration issue detected. Please contact support/admin to fix email credentials.';
-        } else {
-          errorMsg = err.response?.data?.message || 'Email service is temporarily unavailable. Please retry in 1-2 minutes.';
-        }
-        setError(errorMsg);
-      } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
-        errorMsg = '❌ Cannot connect to server. Backend might be down.';
-        setError(errorMsg);
-      } else if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError(errorMsg);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Verify OTP
-  const handleVerifyOtp = async () => {
-    if (!formData.otp || formData.otp.length !== 6) {
-      setErrors({ otp: 'Please enter a valid 6-digit OTP' });
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await axios.post(`${AUTH_API_BASE}/verify-otp`, {
-        email: formData.email.toLowerCase().trim(),
-        otp: formData.otp
-      }, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 45000
-      });
-
-      if (response.data.success) {
-        setStep(3);
-      }
-    } catch (err) {
-      let errorMsg = 'Invalid or expired OTP. Please try again.';
-      if (err.response?.data?.message) {
-        errorMsg = err.response.data.message;
-      }
-      setError(errorMsg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Next step navigation
   const handleNext = () => {
     if (step === 1 && validateStep1()) {
-      handleSendOtp();
-    } else if (step === 3 && validateStep3()) {
-      setStep(4);
+      setStep(2);
+    } else if (step === 2 && validateStep2()) {
+      setStep(3);
     }
   };
 
   // Complete profile and submit photos
   const handleSubmit = async () => {
-    if (step === 4) {
+    if (step === 3) {
       const newErrors = {};
       if (!formData.livePhoto) newErrors.livePhoto = 'Live photo required';
       if (!formData.idCard) newErrors.idCard = 'ID card image required';
@@ -326,7 +223,11 @@ export default function Signup() {
 
     try {
       const response = await axios.post(`${AUTH_API_BASE}/signup`, {
+        name: formData.name.trim(),
         email: formData.email.toLowerCase().trim(),
+        phone: formData.phone,
+        password: formData.password,
+        college: formData.college,
         gender: formData.gender,
         fieldOfWork: formData.fieldOfWork,
         experienceYears: Number(formData.experienceYears),
@@ -376,65 +277,6 @@ export default function Signup() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-creamyWhite via-warmCream to-softPink px-4 pt-24 pb-12">
       <div className="max-w-2xl mx-auto">
-        {/* OTP Limit/Info Modal */}
-        {errorModal && (errorModal.isRateLimit || errorModal.type === 'info') && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-bounce-in">
-              {/* Header with gradient */}
-              <div className={`px-6 py-8 text-center ${errorModal.type === 'info' ? 'bg-gradient-to-r from-blue-400 to-cyan-400' : 'bg-gradient-to-r from-blushPink to-softPink'}`}>
-                <div className="text-6xl mb-3">{errorModal.type === 'info' ? '📧' : '⏱️'}</div>
-                <h2 className="text-2xl font-bold text-white">{errorModal.title}</h2>
-              </div>
-              
-              {/* Content */}
-              <div className="px-6 py-8 text-center">
-                <p className="text-lg text-darkBrown font-semibold mb-4 whitespace-pre-wrap">
-                  {errorModal.message}
-                </p>
-                
-                {errorModal.isRateLimit && (
-                  <>
-                    {/* Security Note */}
-                    <div className="bg-amber-50 border-2 border-amber-200 rounded-xl px-4 py-4 mb-6">
-                      <p className="text-sm text-amber-800">
-                        🔒 <strong>Security Note:</strong> This limit protects your account from unauthorized attempts.
-                      </p>
-                    </div>
-
-                    {/* Tips */}
-                    <div className="bg-blue-50 rounded-xl px-4 py-3 mb-6">
-                      <p className="text-xs text-blue-800">
-                        💡 <strong>Tip:</strong> While you wait, check your email for the OTP or prepare your other registration details.
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="bg-gray-50 px-6 py-6 border-t-2 border-softPink">
-                <button
-                  onClick={() => {
-                    if (errorModal.onClose) {
-                      errorModal.onClose();
-                    } else {
-                      setErrorModal(null);
-                    }
-                  }}
-                  className="w-full bg-gradient-to-r from-blushPink to-softPink hover:from-darkBrown hover:to-blushPink text-white font-bold py-3 px-6 rounded-lg transition transform hover:scale-105"
-                >
-                  {errorModal.type === 'info' ? '✓ Got It, Continue' : '✓ Understand'}
-                </button>
-                {errorModal.isRateLimit && (
-                  <p className="text-xs text-softBrown mt-4 text-center">
-                    You can try again after 20 minutes
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="card">
           <div className="text-center mb-8">
             <div className="text-5xl mb-2">💕</div>
@@ -442,9 +284,9 @@ export default function Signup() {
             <p className="text-softBrown">Create Your Account</p>
           </div>
 
-          {/* Progress Bar - 4 Steps */}
+          {/* Progress Bar - 3 Steps */}
           <div className="flex gap-2 mb-8">
-            {[1, 2, 3, 4].map((s) => (
+            {[1, 2, 3].map((s) => (
               <div
                 key={s}
                 className={`flex-1 h-2 rounded-full transition ${
@@ -462,16 +304,15 @@ export default function Signup() {
 
           <div className="text-center mb-6">
             <p className="text-softBrown">
-              Step {step} of 4: {
-                step === 1 ? 'Account Details' : 
-                step === 2 ? 'Email Verification' : 
-                step === 3 ? 'Profile Info' : 
+              Step {step} of 3: {
+                step === 1 ? 'Account Details & Terms' : 
+                step === 2 ? 'Profile Info' : 
                 'Photo Upload'
               }
             </p>
           </div>
 
-          {/* Step 1: Account Details + Community */}
+          {/* Step 1: Account Details + Community + Terms & Conditions */}
           {step === 1 && (
             <div className="space-y-4">
               <div>
@@ -539,7 +380,7 @@ export default function Signup() {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters with uppercase, lowercase, and number"
                   className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
                 />
                 {errors.password && <p className="text-red-600 text-sm mt-1">{errors.password}</p>}
@@ -558,12 +399,40 @@ export default function Signup() {
                 {errors.confirmPassword && <p className="text-red-600 text-sm mt-1">{errors.confirmPassword}</p>}
               </div>
 
+              {/* Terms & Conditions Checkbox */}
+              <div className="flex items-start gap-3 p-4 bg-softPink rounded-lg">
+                <input
+                  type="checkbox"
+                  name="termsAccepted"
+                  checked={formData.termsAccepted}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, termsAccepted: e.target.checked }));
+                    if (errors.termsAccepted) {
+                      setErrors(prev => ({ ...prev, termsAccepted: '' }));
+                    }
+                  }}
+                  className="w-5 h-5 mt-1 cursor-pointer"
+                />
+                <div>
+                  <label className="text-darkBrown font-bold cursor-pointer">
+                    I agree to the Terms & Conditions
+                  </label>
+                  <p className="text-sm text-softBrown mt-1">
+                    I have read and accept the{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blushPink font-bold hover:underline">
+                      Terms & Conditions
+                    </a>
+                  </p>
+                </div>
+              </div>
+              {errors.termsAccepted && <p className="text-red-600 text-sm mt-1">{errors.termsAccepted}</p>}
+
               <button
-                onClick={handleSendOtp}
+                onClick={handleNext}
                 disabled={loading}
                 className="btn-primary w-full disabled:opacity-50"
               >
-                {loading ? '⏳ Sending OTP...' : '📧 Send OTP to Email'}
+                {loading ? '⏳ Loading...' : 'Next: Profile Info →'}
               </button>
 
               <p className="text-center text-sm text-softBrown">
@@ -572,56 +441,8 @@ export default function Signup() {
             </div>
           )}
 
-          {/* Step 2: Email OTP Verification */}
+          {/* Step 2: Profile Info (was Step 3) */}
           {step === 2 && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-softBrown mb-4 text-sm text-center">
-                  📧 We sent a 6-digit code to<br />
-                  <strong>{formData.email}</strong>
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-left text-darkBrown font-bold mb-2">Enter OTP Code *</label>
-                <input
-                  type="text"
-                  name="otp"
-                  value={formData.otp}
-                  onChange={handleInputChange}
-                  onlyNumbers
-                  placeholder="000000"
-                  maxLength="6"
-                  className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold text-center text-2xl tracking-widest"
-                />
-                {errors.otp && <p className="text-red-600 text-sm mt-1">{errors.otp}</p>}
-                <p className="text-xs text-softBrown mt-2 text-center">Valid for 5 minutes</p>
-              </div>
-
-              <button
-                onClick={handleVerifyOtp}
-                disabled={loading}
-                className="btn-primary w-full disabled:opacity-50"
-              >
-                {loading ? '🔄 Verifying...' : '✓ Verify OTP'}
-              </button>
-
-
-
-              <button
-                onClick={() => {
-                  setStep(1);
-                  setFormData(prev => ({ ...prev, otp: '' }));
-                }}
-                className="btn-secondary w-full"
-              >
-                ← Back to Email
-              </button>
-            </div>
-          )}
-
-          {/* Step 3: Profile Info */}
-          {step === 3 && (
             <div className="space-y-4">
               <div>
                 <label className="block text-left text-darkBrown font-bold mb-2">Gender *</label>
@@ -692,11 +513,18 @@ export default function Signup() {
               >
                 Next: Upload Photos →
               </button>
+
+              <button
+                onClick={() => setStep(1)}
+                className="btn-secondary w-full"
+              >
+                ← Back to Account Details
+              </button>
             </div>
           )}
 
-          {/* Step 4: Photo Upload */}
-          {step === 4 && (
+          {/* Step 3: Photo Upload (was Step 4) */}
+          {step === 3 && (
             <div className="space-y-4">
               <div>
                 <label className="block text-left text-darkBrown font-bold mb-2">📸 Live Photo *</label>
@@ -809,7 +637,7 @@ export default function Signup() {
               </button>
 
               <button
-                onClick={() => setStep(3)}
+                onClick={() => setStep(2)}
                 className="btn-secondary w-full"
               >
                 ← Back
