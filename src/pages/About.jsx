@@ -3,7 +3,7 @@ import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function About() {
   const contactConfig = useSupportContactConfig();
-  const supportEmail = contactConfig.supportEmail || 'support@seeudaters.in';
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.tech';
   const escalationEmail = contactConfig.escalationEmail || supportEmail;
 
   const team = [

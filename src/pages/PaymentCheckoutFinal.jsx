@@ -15,7 +15,7 @@ const FALLBACK_PLAN = {
 
 const PaymentCheckoutFinal = () => {
   const contactConfig = useSupportContactConfig();
-  const supportEmail = contactConfig.supportEmail || 'support@seeudaters.in';
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.tech';
   const location = useLocation();
   const navigate = useNavigate();
   

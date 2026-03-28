@@ -5297,7 +5297,7 @@ function SettingsPanel({ settings, onUpdate }) {
       privacyLastUpdated: parsedLegal.privacyLastUpdated || 'March 2026',
       legalEmail: parsedLegal.legalEmail || 'legal@seeudaters.in',
       privacyEmail: parsedLegal.privacyEmail || 'privacy@seeudaters.in',
-      supportEmail: parsedLegal.supportEmail || 'support@seeudaters.in',
+      supportEmail: parsedLegal.supportEmail || 'support@cudaters.tech',
       disputeResponseDays: parsedLegal.disputeResponseDays || '7',
       arbitrationCity: parsedLegal.arbitrationCity || 'New Delhi, India',
       governingLaw: parsedLegal.governingLaw || 'Laws of India',

@@ -37,7 +37,7 @@ export default function UserStatusGuard({ children }) {
           <h1 className="text-2xl font-bold text-darkBrown mb-2">Registration Rejected</h1>
           <p className="text-softBrown mb-6">Your registration was not approved. Please contact support for more information.</p>
           <a 
-            href="mailto:support@seeudaters.in" 
+            href="mailto:support@cudaters.tech" 
             className="btn-primary inline-block"
           >
             Contact Support
@@ -56,7 +56,7 @@ export default function UserStatusGuard({ children }) {
           <h1 className="text-2xl font-bold text-darkBrown mb-2">Account Suspended</h1>
           <p className="text-softBrown mb-6">Your account has been suspended. Please contact support for assistance.</p>
           <a 
-            href="mailto:support@seeudaters.in" 
+            href="mailto:support@cudaters.tech" 
             className="btn-primary inline-block"
           >
             Contact Support

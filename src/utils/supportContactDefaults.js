@@ -1,5 +1,5 @@
 export const defaultSupportContact = {
-  supportEmail: 'support@seeudaters.in',
+  supportEmail: 'support@cudaters.tech',
   escalationEmail: 'escalations@seeudaters.in',
   supportPhone: '',
   whatsapp: '',

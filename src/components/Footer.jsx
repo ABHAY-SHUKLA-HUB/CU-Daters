@@ -4,7 +4,7 @@ import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function Footer() {
   const contactConfig = useSupportContactConfig();
-  const supportEmail = contactConfig.supportEmail || 'support@seeudaters.in';
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.tech';
   const instagramHref = contactConfig.instagramId ? `https://instagram.com/${String(contactConfig.instagramId).replace(/^@/, '')}` : '#';
   const telegramHref = contactConfig.telegramId ? `https://t.me/${String(contactConfig.telegramId).replace(/^@/, '')}` : '#';
   const helpCenterHref = contactConfig.helpCenterUrl || '#';

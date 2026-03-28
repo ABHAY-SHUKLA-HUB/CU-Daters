@@ -231,7 +231,7 @@ router.get('/plan/:planId', asyncHandler(async (req, res) => {
  */
 router.get('/support-contact', asyncHandler(async (req, res) => {
   const defaults = {
-    supportEmail: 'support@seeudaters.in',
+    supportEmail: 'support@cudaters.tech',
     escalationEmail: 'escalations@seeudaters.in',
     supportPhone: '',
     whatsapp: '',

@@ -5,7 +5,7 @@ import useSupportContactConfig from '../hooks/useSupportContactConfig';
 
 export default function PendingApproval() {
   const contactConfig = useSupportContactConfig();
-  const supportEmail = contactConfig.supportEmail || 'support@seeudaters.in';
+  const supportEmail = contactConfig.supportEmail || 'support@cudaters.tech';
   const [user, setUser] = useState(null);
   const [, setLoading] = useState(false);
   const navigate = useNavigate();
