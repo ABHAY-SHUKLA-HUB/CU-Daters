@@ -12,6 +12,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PricingTiers from '../components/PricingTiers';
+import RazorpayBadge from '../components/RazorpayBadge';
 import ScrollReveal from '../components/ScrollReveal';
 import LazySection from '../components/LazySection';
 
@@ -61,6 +62,15 @@ export default function Pricing() {
           </div>
         </ScrollReveal>
       </LazySection>
+
+      {/* Razorpay Secure Badge */}
+      <section className="px-4 py-12">
+        <div className="max-w-7xl mx-auto flex justify-center">
+          <ScrollReveal delayMs={140}>
+            <RazorpayBadge variant="full" />
+          </ScrollReveal>
+        </div>
+      </section>
 
       <LazySection fallback={sectionFallback}>
         <section className="px-4 pt-16">

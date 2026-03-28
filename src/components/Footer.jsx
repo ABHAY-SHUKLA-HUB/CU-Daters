@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import useSupportContactConfig from '../hooks/useSupportContactConfig';
+import RazorpayBadge from './RazorpayBadge';
 
 export default function Footer() {
   const contactConfig = useSupportContactConfig();
@@ -79,13 +80,13 @@ export default function Footer() {
         </div>
 
         {/* Bottom: Copyright & Trust */}
-        <div className="border-t border-gray-700 pt-12 flex flex-col md:flex-row justify-between items-center">
+        <div className="border-t border-gray-700 pt-12 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
             <p className="text-sm text-gray-400 mb-4 md:mb-0">
               © 2026 SeeU-Daters. All rights reserved. Made with 💕 for real people.
             </p>
           </div>
-          <div className="flex gap-6 flex-wrap justify-center md:justify-end">
+          <div className="flex gap-3 flex-wrap justify-center md:justify-end items-center">
             <div className="text-xs text-gray-400 px-3 py-1 rounded-full bg-gray-800">
               🔐 GDPR Compliant
             </div>
@@ -95,6 +96,7 @@ export default function Footer() {
             <div className="text-xs text-gray-400 px-3 py-1 rounded-full bg-gray-800">
               🛡️ End-to-End Encrypted
             </div>
+            <RazorpayBadge variant="compact" className="bg-gray-800 border-gray-700" />
           </div>
         </div>
       </div>
