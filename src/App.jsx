@@ -24,6 +24,7 @@ const Features = React.lazy(() => import('./pages/Features'));
 const Pricing = React.lazy(() => import('./pages/Pricing'));
 const About = React.lazy(() => import('./pages/About'));
 const Contact = React.lazy(() => import('./pages/Contact'));
+const Terms = React.lazy(() => import('./pages/Terms'));
 const PaymentCheckoutFinal = React.lazy(() => import('./pages/PaymentCheckoutFinal'));
 const PendingApproval = React.lazy(() => import('./pages/PendingApproval'));
 import AdminRouteGuard from './components/admin/AdminRouteGuard';
@@ -99,6 +100,7 @@ function AppContent() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="/login" element={<PublicAuthRoute><Login /></PublicAuthRoute>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
