@@ -12,6 +12,8 @@ import { dirname } from 'path';
 // ===== LOAD ENVIRONMENT VARIABLES FIRST =====
 import './init-env.js';
 
+// ===== VERSION: OTP-REMOVED-FIX =====
+
 import { Server as SocketIOServer } from 'socket.io';
 import connectDB from './config/database.js';
 import { globalErrorHandler, notFoundHandler, jsonErrorHandler } from './utils/errorHandler.js';
