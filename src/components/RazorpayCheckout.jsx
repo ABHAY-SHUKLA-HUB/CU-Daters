@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import classNames from 'classnames';
 
 export default function RazorpayCheckout({ planType = 'monthly', amount = 99, onSuccess, onError }) {
   const { user, isAuthenticated } = useAuth();
@@ -171,13 +170,11 @@ export default function RazorpayCheckout({ planType = 'monthly', amount = 99, on
       <button
         onClick={handlePaymentClick}
         disabled={loading || !isAuthenticated}
-        className={classNames(
-          'w-full px-4 py-3 rounded-lg font-semibold text-white transition duration-200',
-          {
-            'bg-gradient-to-r from-rose-500 to-fuchsia-500 hover:brightness-110 cursor-pointer': !loading && isAuthenticated,
-            'bg-gray-400 cursor-not-allowed opacity-60': loading || !isAuthenticated
-          }
-        )}
+        className={`w-full px-4 py-3 rounded-lg font-semibold text-white transition duration-200 ${
+          !loading && isAuthenticated
+            ? 'bg-gradient-to-r from-rose-500 to-fuchsia-500 hover:brightness-110 cursor-pointer'
+            : 'bg-gray-400 cursor-not-allowed opacity-60'
+        }`}
       >
         {loading ? 'Processing...' : `Pay ₹${amount}`}
       </button>
