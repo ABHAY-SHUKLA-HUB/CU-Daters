@@ -1,0 +1,7 @@
+BUILD: 2026-03-29-OTP-REMOVAL-FIX-v3
+TIMESTAMP: 2026-03-29T14:51:00Z
+FEATURES:
+- OTP verification completely removed
+- Users can sign up directly without email verification
+- Combined account + profile + photos in one signup request
+- 3-step flow: Account -> Profile+Photos -> Pending Approval
