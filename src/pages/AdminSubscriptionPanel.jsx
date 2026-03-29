@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import adminApi from '../services/adminApi';
 
 const AdminSubscriptionPanel = () => {
   const [requests, setRequests] = useState([]);
@@ -68,18 +68,7 @@ const AdminSubscriptionPanel = () => {
 
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-
-      await axios.post(
-        'http://localhost:5000/api/admin/approve',
-        {
-          requestId,
-          notes: approvalNotes
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+      await adminApi.approveSubscription(requestId, { adminNotes: approvalNotes || '' });
 
       setSuccess('✓ Subscription approved successfully');
       setApprovalNotes('');
@@ -87,7 +76,7 @@ const AdminSubscriptionPanel = () => {
       fetchRequests();
       fetchStats();
     } catch (err) {
-      setError('Failed to approve request: ' + (err.response?.data?.message || err.message));
+      setError('Failed to approve request: ' + (err?.data?.message || err?.message));
     } finally {
       setActionLoading(false);
     }
@@ -103,18 +92,7 @@ const AdminSubscriptionPanel = () => {
 
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-
-      await axios.post(
-        'http://localhost:5000/api/admin/reject',
-        {
-          requestId,
-          reason: rejectionReason
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+      await adminApi.rejectSubscription(requestId, { reason: rejectionReason });
 
       setSuccess('✓ Subscription rejected successfully');
       setRejectionReason('');
@@ -122,7 +100,7 @@ const AdminSubscriptionPanel = () => {
       fetchRequests();
       fetchStats();
     } catch (err) {
-      setError('Failed to reject request: ' + (err.response?.data?.message || err.message));
+      setError('Failed to reject request: ' + (err?.data?.message || err?.message));
     } finally {
       setActionLoading(false);
     }

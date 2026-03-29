@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import adminApi from '../services/adminApi';
 
 const AdminSubscriptionRequests = () => {
   // State management
@@ -68,17 +68,7 @@ const AdminSubscriptionRequests = () => {
 
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      await axios.post(
-        'http://localhost:5000/api/admin/subscription/approve',
-        { 
-          request_id: requestId,
-          notes: approvalNotes
-        },
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
+      await adminApi.approveSubscription(requestId, { adminNotes: approvalNotes || '' });
 
       alert('✓ Subscription approved!');
       setRequests(requests.filter(r => r.request_id !== requestId));
@@ -86,7 +76,7 @@ const AdminSubscriptionRequests = () => {
       setApprovalNotes('');
       fetchStats();
     } catch (error) {
-      alert('Error: ' + (error.response?.data?.message || 'Failed to approve'));
+      alert('Error: ' + (error?.data?.message || error?.message || 'Failed to approve'));
     } finally {
       setActionLoading(false);
     }
@@ -102,17 +92,7 @@ const AdminSubscriptionRequests = () => {
 
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      await axios.post(
-        'http://localhost:5000/api/admin/subscription/reject',
-        {
-          request_id: requestId,
-          reason: rejectionReason
-        },
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
+      await adminApi.rejectSubscription(requestId, { reason: rejectionReason });
 
       alert('✓ Subscription rejected!');
       setRequests(requests.filter(r => r.request_id !== requestId));
@@ -120,7 +100,7 @@ const AdminSubscriptionRequests = () => {
       setRejectionReason('');
       fetchStats();
     } catch (error) {
-      alert('Error: ' + (error.response?.data?.message || 'Failed to reject'));
+      alert('Error: ' + (error?.data?.message || error?.message || 'Failed to reject'));
     } finally {
       setActionLoading(false);
     }
