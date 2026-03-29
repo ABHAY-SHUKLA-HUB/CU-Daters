@@ -26,6 +26,7 @@ const About = React.lazy(() => import('./pages/About'));
 const Contact = React.lazy(() => import('./pages/Contact'));
 const Terms = React.lazy(() => import('./pages/Terms'));
 const PaymentCheckoutFinal = React.lazy(() => import('./pages/PaymentCheckoutFinal'));
+const PremiumUpgrade = React.lazy(() => import('./pages/PremiumUpgrade'));
 const PendingApproval = React.lazy(() => import('./pages/PendingApproval'));
 import AdminRouteGuard from './components/admin/AdminRouteGuard';
 import UserStatusGuard from './components/UserStatusGuard';
@@ -114,6 +115,7 @@ function AppContent() {
           <Route path="/chat" element={<UserStatusGuard><ChatPage /></UserStatusGuard>} />
           <Route path="/checkout" element={<UserStatusGuard><PaymentCheckoutFinal /></UserStatusGuard>} />
           <Route path="/payment" element={<UserStatusGuard><PaymentCheckoutFinal /></UserStatusGuard>} />
+          <Route path="/premium-upgrade" element={<UserStatusGuard><PremiumUpgrade /></UserStatusGuard>} />
           <Route path="/pending-approval" element={<PendingApproval />} />
           
           {/* Admin Routes */}

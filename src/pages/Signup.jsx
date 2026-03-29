@@ -5,7 +5,7 @@ import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 
 export default function Signup() {
-  const [step, setStep] = useState(1); // 1=Basic + T&C, 2=Profile, 3=Photos
+  const [step, setStep] = useState(1); // 1=Account Details + T&C, 2=Profile + Photos, 3=Pending Approval
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -15,7 +15,7 @@ export default function Signup() {
     password: '',
     confirmPassword: '',
     college: '',
-    termsAccepted: false, // NEW - T&C acceptance
+    termsAccepted: false,
     gender: '',
     fieldOfWork: '',
     experienceYears: '',
@@ -182,36 +182,30 @@ export default function Signup() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const validateStep2 = () => {
-    const newErrors = {};
-    if (!formData.gender) newErrors.gender = 'Please select gender';
-    if (!formData.fieldOfWork.trim()) newErrors.fieldOfWork = 'Please enter your branch/field of work';
-    const years = Number(formData.experienceYears);
-    if (!formData.experienceYears) {
-      newErrors.experienceYears = 'Experience/Year is required';
-    } else if (!Number.isFinite(years) || years < 1 || years > 40) {
-      newErrors.experienceYears = 'Enter a number between 1 and 40';
-    }
-    if (formData.bio.length < 20) {
-      newErrors.bio = 'Bio must be at least 20 characters';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Next step navigation
-  const handleNext = () => {
-    if (step === 1 && validateStep1()) {
+  // Next step navigation (validate Step 1)
+  const handleNextToPhotos = async () => {
+    if (!validateStep1()) return;
+    
+    setLoading(true);
+    setError('');
+    try {
+      // Just move to step 2, no OTP needed
       setStep(2);
-    } else if (step === 2 && validateStep2()) {
-      setStep(3);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Complete profile and submit photos
+
+  // Complete profile and submit photos (now includes account details)
   const handleSubmit = async () => {
-    if (step === 3) {
+    if (step === 2) {
+      // Validate step 2
       const newErrors = {};
+      if (!formData.gender) newErrors.gender = 'Gender required';
+      if (!formData.fieldOfWork) newErrors.fieldOfWork = 'Field of work required';
+      if (!formData.experienceYears || Number.isNaN(Number(formData.experienceYears))) newErrors.experienceYears = 'Experience must be a number';
+      if (!formData.bio || formData.bio.length < 20) newErrors.bio = 'Bio must be at least 20 characters';
       if (!formData.livePhoto) newErrors.livePhoto = 'Live photo required';
       if (!formData.idCard) newErrors.idCard = 'ID card image required';
       setErrors(newErrors);
@@ -223,15 +217,18 @@ export default function Signup() {
 
     try {
       const response = await axios.post(`${AUTH_API_BASE}/signup`, {
+        // Account details
         name: formData.name.trim(),
         email: formData.email.toLowerCase().trim(),
         phone: formData.phone,
         password: formData.password,
         college: formData.college,
+        // Profile details
         gender: formData.gender,
         fieldOfWork: formData.fieldOfWork,
         experienceYears: Number(formData.experienceYears),
         bio: formData.bio,
+        // Photos
         liveSelfie: formData.livePhoto,
         idProofFile: formData.idCard,
         idProofType: formData.idProofType
@@ -247,9 +244,8 @@ export default function Signup() {
           setAuth({ token: resolvedToken, user: userData });
         }
 
-        setTimeout(() => {
-          navigate('/pending-approval');
-        }, 500);
+        // Move to pending approval step
+        setStep(3);
       }
     } catch (err) {
       let errorMsg = 'Registration failed. Please try again.';
@@ -262,8 +258,6 @@ export default function Signup() {
         errorMsg = 'File size too large. Please use smaller images.';
       } else if (err.response?.status === 400) {
         errorMsg = err.response.data?.message || 'Validation error. Check all fields.';
-      } else if (err.response?.status === 404) {
-        errorMsg = err.response.data?.message || 'User not found. Please complete email verification.';
       } else if (err.response?.data?.message) {
         errorMsg = err.response.data.message;
       }
@@ -306,8 +300,8 @@ export default function Signup() {
             <p className="text-softBrown">
               Step {step} of 3: {
                 step === 1 ? 'Account Details & Terms' : 
-                step === 2 ? 'Profile Info' : 
-                'Photo Upload'
+                step === 2 ? 'Profile & Photos' : 
+                'Pending Approval'
               }
             </p>
           </div>
@@ -428,11 +422,11 @@ export default function Signup() {
               {errors.termsAccepted && <p className="text-red-600 text-sm mt-1">{errors.termsAccepted}</p>}
 
               <button
-                onClick={handleNext}
+                onClick={handleNextToPhotos}
                 disabled={loading}
                 className="btn-primary w-full disabled:opacity-50"
               >
-                {loading ? '⏳ Loading...' : 'Next: Profile Info →'}
+                {loading ? '⏳ Loading...' : 'Next: Profile & Photos →'}
               </button>
 
               <p className="text-center text-sm text-softBrown">
@@ -441,7 +435,7 @@ export default function Signup() {
             </div>
           )}
 
-          {/* Step 2: Profile Info (was Step 3) */}
+          {/* Step 2: Profile Info + Photo Upload */}
           {step === 2 && (
             <div className="space-y-4">
               <div>
@@ -507,25 +501,6 @@ export default function Signup() {
                 {errors.bio && <p className="text-red-600 text-sm mt-1">{errors.bio}</p>}
               </div>
 
-              <button
-                onClick={handleNext}
-                className="btn-primary w-full"
-              >
-                Next: Upload Photos →
-              </button>
-
-              <button
-                onClick={() => setStep(1)}
-                className="btn-secondary w-full"
-              >
-                ← Back to Account Details
-              </button>
-            </div>
-          )}
-
-          {/* Step 3: Photo Upload (was Step 4) */}
-          {step === 3 && (
-            <div className="space-y-4">
               <div>
                 <label className="block text-left text-darkBrown font-bold mb-2">📸 Live Photo *</label>
                 {!photoTaken ? (
@@ -637,10 +612,48 @@ export default function Signup() {
               </button>
 
               <button
-                onClick={() => setStep(2)}
+                onClick={() => setStep(1)}
                 className="btn-secondary w-full"
               >
-                ← Back
+                ← Back to Account Details
+              </button>
+            </div>
+          )}
+
+          {/* Step 3: Pending Approval Success Screen */}
+          {step === 3 && (
+            <div className="space-y-6 text-center">
+              <div className="text-5xl mb-4">✅</div>
+              <h2 className="text-2xl font-bold text-darkBrown">Registration Successful!</h2>
+              <p className="text-softBrown text-lg">
+                Your account has been created and is now pending admin approval.
+              </p>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-softBrown">
+                  ⏳ <strong>What's Next?</strong><br/>
+                  Our team will review your profile and photos. You'll receive an email notification once approved.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-softBrown">
+                  📧 We've sent a confirmation email to <strong>{formData.email}</strong>
+                </p>
+              </div>
+
+              <button
+                onClick={() => navigate('/pending-approval')}
+                className="btn-primary w-full"
+              >
+                View Status
+              </button>
+
+              <button
+                onClick={() => navigate('/login')}
+                className="btn-secondary w-full"
+              >
+                Go to Login
               </button>
             </div>
           )}

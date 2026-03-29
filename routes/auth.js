@@ -734,12 +734,16 @@ router.post('/verify-otp', otpRequestLimiter, asyncHandler(async (req, res, _nex
   );
 }));
 
-// ===== SIGNUP (After OTP Verification) =====
+// ===== SIGNUP (No OTP Required) =====
 router.post('/signup', asyncHandler(async (req, res, _next) => {
   console.log('\n========== SIGNUP REQUEST (Complete Profile) ==========');
   
   const {
     email,
+    name,
+    phone,
+    password,
+    college,
     gender,
     course,
     year,
@@ -778,7 +782,7 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
 
   const emailLower = email.toLowerCase().trim();
 
-  // Find the user by any identity email field.
+  // Find the user by any identity email field (may or may not exist)
   let user = await User.findOne({
     $or: [
       { email: emailLower },
@@ -787,13 +791,38 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
     ]
   });
 
+  // Create user if they don't exist (no OTP verification required)
   if (!user) {
-    throw new AppError('User not found. Please complete email verification first.', 404);
-  }
+    console.log(`Creating new user for email: ${emailLower}`);
+    
+    // Validate account details for new account
+    if (!name || name.trim().length < 2) {
+      throw new AppError('Name is required', 400);
+    }
+    if (!phone || !validatePhone(phone)) {
+      throw new AppError('Valid 10-digit phone number is required', 400);
+    }
+    if (!password || !validatePassword(password)) {
+      throw new AppError('Password must be at least 8 characters with uppercase, lowercase, and number', 400);
+    }
+    if (!college) {
+      throw new AppError('College selection is required', 400);
+    }
 
-  // Check if email was verified
-  if (!user.emailVerified) {
-    throw new AppError('Email not verified. Please verify OTP first.', 400);
+    // Create new user
+    user = new User({
+      name: name.trim(),
+      email: emailLower,
+      personalEmail: emailLower,
+      collegeEmail: emailLower,
+      phone,
+      password,
+      college,
+      emailVerified: true, // Mark as verified since no OTP process
+      status: 'pending',
+      role: 'user',
+      subscription_status: 'none'
+    });
   }
 
   // Update user with profile information
