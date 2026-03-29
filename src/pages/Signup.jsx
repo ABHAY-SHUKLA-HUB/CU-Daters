@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import authApi from '../services/authApi';\nimport api from '../services/api';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 
@@ -120,12 +120,12 @@ export default function Signup() {
     const controller = new AbortController();
     const timeout = setTimeout(async () => {
       try {
-        const response = await axios.get(`${AUTH_API_BASE}/onboarding/field-suggestions`, {
+        const response = await api.get('/api/auth/onboarding/field-suggestions', {
           params: { q: query },
           signal: controller.signal,
           timeout: 10000
         });
-        const suggestions = response.data?.data?.suggestions || [];
+        const suggestions = response?.data?.suggestions || [];
         setFieldSuggestions(Array.isArray(suggestions) ? suggestions : []);
       } catch {
         setFieldSuggestions([]);
@@ -216,7 +216,7 @@ export default function Signup() {
     setError('');
 
     try {
-      const response = await axios.post(`${AUTH_API_BASE}/signup`, {
+      const response = await authApi.signup({
         // Account details
         name: formData.name.trim(),
         email: formData.email.toLowerCase().trim(),
@@ -232,12 +232,9 @@ export default function Signup() {
         liveSelfie: formData.livePhoto,
         idProofFile: formData.idCard,
         idProofType: formData.idProofType
-      }, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 90000
       });
 
-      if (response.data.success || response.status === 201) {
+      if (response.success || response.status === 201) {
         const resolvedToken = response.data.data?.token || response.data.data?.authToken || '';
         const userData = response.data.data?.user || response.data.user;
         if (userData && resolvedToken) {

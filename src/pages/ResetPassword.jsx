@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import axios from 'axios';
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import authApi from '../services/authApi';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -12,8 +11,6 @@ export default function ResetPassword() {
   const [successMessage, setSuccessMessage] = useState('');
   const [tokenValid, setTokenValid] = useState(false);
   const navigate = useNavigate();
-  const API_URL = getApiBaseUrl();
-  const AUTH_API_BASE = API_URL.endsWith('/api') ? `${API_URL}/auth` : `${API_URL}/api/auth`;
 
   const token = searchParams.get('token');
 
@@ -121,24 +118,11 @@ export default function ResetPassword() {
 
     try {
       console.log('🔐 Submitting password reset...');
-      const response = await axios.post(
-        `${AUTH_API_BASE}/reset-password`,
-        {
-          token,
-          password: formData.password,
-          confirmPassword: formData.confirmPassword
-        },
-        {
-          timeout: 30000,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await authApi.resetPassword(token, formData.password);
 
-      if (response.data.success) {
+      if (response.success) {
         setSuccess(true);
-        setSuccessMessage(response.data.message || 'Password reset successful! Redirecting to login...');
+        setSuccessMessage(response.message || 'Password reset successful! Redirecting to login...');
         setFormData({
           password: '',
           confirmPassword: '',

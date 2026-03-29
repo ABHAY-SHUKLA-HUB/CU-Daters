@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import {
   AUTH_EVENTS,
@@ -77,11 +77,7 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const baseUrl = getApiBaseUrl();
-        const response = await axios.get(`${baseUrl}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${stored.token}` },
-          timeout: 15000
-        });
+        const response = await api.get('/api/auth/me');
 
         const resolvedUser = response?.data?.data || response?.data?.user || null;
         if (resolvedUser) {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import authApi from '../services/authApi';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -10,8 +9,6 @@ export default function ForgotPassword() {
   const [success, setSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
-  const API_URL = getApiBaseUrl();
-  const AUTH_API_BASE = API_URL.endsWith('/api') ? `${API_URL}/auth` : `${API_URL}/api/auth`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,20 +23,11 @@ export default function ForgotPassword() {
     setSuccess(false);
 
     try {
-      console.log('📧 Sending forgot password request to:', `${AUTH_API_BASE}/forgot-password`);
+      const response = await authApi.requestPasswordReset(email.toLowerCase().trim());
       
-      const response = await axios.post(`${AUTH_API_BASE}/forgot-password`, {
-        email: email.toLowerCase().trim()
-      }, {
-        timeout: 30000,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.data.success) {
+      if (response.success) {
         setSuccess(true);
-        setSuccessMessage(response.data.message || 'Password reset link sent! Check your email.');
+        setSuccessMessage(response.message || 'Password reset link sent! Check your email.');
         setEmail('');
         console.log('✅ Forgot password request successful');
         
@@ -48,22 +36,22 @@ export default function ForgotPassword() {
           navigate('/login');
         }, 5000);
       } else {
-        setError(response.data.message || 'Failed to process request');
+        setError(response.message || 'Failed to process request');
       }
     } catch (err) {
       console.error('❌ Error details:', {
         message: err.message,
-        status: err.response?.status,
-        data: err.response?.data
+        status: err.status,
+        data: err.data
       });
       
       let errorMsg = 'Failed to process your request. Please try again.';
-      if (err.response?.status === 429) {
+      if (err.status === 429) {
         errorMsg = 'Too many requests. Please try again later.';
-      } else if (err.response?.data?.message) {
-        errorMsg = err.response.data.message;
-      } else if (err.code === 'ECONNABORTED') {
-        errorMsg = 'Request timeout. Please try again.';
+      } else if (err.data?.message) {
+        errorMsg = err.data.message;
+      } else if (err.message) {
+        errorMsg = err.message;
       }
       
       setError(errorMsg);

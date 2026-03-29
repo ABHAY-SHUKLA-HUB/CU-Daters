@@ -143,18 +143,13 @@ const SubscriptionRequest = () => {
       formData.append('payment_method', paymentMethod);
       formData.append('screenshot', screenshot);
 
-      const response = await axios.post(
-        'http://localhost:5000/api/subscription/request',
-        formData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
+      const response = await api.post('/api/subscription/request', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
         }
-      );
+      });
 
-      setRequestId(response.data.request_id);
+      setRequestId(response?.data?.request_id || response?.request_id);
       setSuccess(true);
       setStep(3);
     } catch (err) {

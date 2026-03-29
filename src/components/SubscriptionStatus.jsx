@@ -5,7 +5,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
 
 const SubscriptionStatus = ({ userId }) => {
   const [subscriptionData, setSubscriptionData] = useState(null);
@@ -21,13 +22,7 @@ const SubscriptionStatus = ({ userId }) => {
 
   const fetchSubscriptionStatus = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await axios.get(
-        'http://localhost:5000/api/v1/subscription/status',
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
+      const response = await api.get('/api/v1/subscription/status');
       setSubscriptionData(response.data);
       setError(null);
     } catch (err) {

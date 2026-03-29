@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import adminApi from '../services/adminApi';
+import api from '../services/api';
 
 const AdminSubscriptionRequests = () => {
   // State management
@@ -31,18 +32,13 @@ const AdminSubscriptionRequests = () => {
 
   const fetchPendingRequests = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await axios.get(
-        'http://localhost:5000/api/admin/subscription/requests',
-        {
-          headers: { 'Authorization': `Bearer ${token}` },
-          params: { status: 'pending_review', limit: 50, offset: 0 }
-        }
-      );
+      const response = await api.get('/api/admin/subscription/requests', {
+        params: { status: 'pending_review', limit: 50, offset: 0 }
+      });
       setRequests(response.data);
     } catch (error) {
       console.error('Error fetching requests:', error);
-      alert('Failed to fetch requests');
+      alert('Failed to fetch requests: ' + (error?.message || ''));
     } finally {
       setLoading(false);
     }
