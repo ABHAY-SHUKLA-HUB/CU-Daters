@@ -8,11 +8,22 @@ import { errorResponse, successResponse, checkDuplicatePayment } from '../utils/
 
 const router = express.Router();
 
-// Initialize Razorpay instance
-const razorpayInstance = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+// Initialize Razorpay instance only if keys are available
+let razorpayInstance = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  try {
+    razorpayInstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+    console.log('✓ Razorpay initialized successfully');
+  } catch (err) {
+    console.error('❌ Failed to initialize Razorpay:', err.message);
+    razorpayInstance = null;
+  }
+} else {
+  console.warn('⚠️  Razorpay keys not found in environment. Payment features will be disabled.');
+}
 
 // ===== GET RAZORPAY KEY =====
 router.get('/key', (req, res) => {
@@ -30,6 +41,10 @@ router.get('/key', (req, res) => {
 // ===== CREATE ORDER =====
 router.post('/order', verifyAuth, async (req, res) => {
   try {
+    if (!razorpayInstance) {
+      return res.status(503).json(errorResponse('Razorpay service is temporarily unavailable. Please try again later.'));
+    }
+
     const { amount, planType = 'monthly' } = req.body;
     const userId = req.user?.id || req.userId;
 
@@ -73,6 +88,10 @@ router.post('/order', verifyAuth, async (req, res) => {
 // ===== VERIFY PAYMENT =====
 router.post('/verify', verifyAuth, async (req, res) => {
   try {
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(503).json(errorResponse('Razorpay service is not configured.'));
+    }
+
     const { orderId, paymentId, signature, planType = 'monthly', amount } = req.body;
     const userId = req.user?.id || req.userId;
 
