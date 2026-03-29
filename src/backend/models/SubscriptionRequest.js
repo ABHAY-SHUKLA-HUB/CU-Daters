@@ -149,7 +149,7 @@ subscriptionRequestSchema.index({ status: 1, created_at: -1 });
 subscriptionRequestSchema.index({ fraud_score: -1, status: 1 });
 
 // Pre-save middleware
-subscriptionRequestSchema.pre('save', function(next) {
+subscriptionRequestSchema.pre('save', async function() {
   this.updated_at = new Date();
   
   // Calculate fraud level based on score
@@ -162,8 +162,6 @@ subscriptionRequestSchema.pre('save', function(next) {
   } else {
     this.fraud_level = 'very_high';
   }
-  
-  next();
 });
 
 // Instance method to calculate fraud score

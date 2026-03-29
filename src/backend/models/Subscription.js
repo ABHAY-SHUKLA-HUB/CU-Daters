@@ -90,9 +90,8 @@ subscriptionSchema.index({ status: 1, expiry_date: 1 });
 subscriptionSchema.index({ expiry_date: 1 }, { expireAfterSeconds: 2592000 }); // TTL index
 
 // Middleware to update updated_at
-subscriptionSchema.pre('save', function(next) {
+subscriptionSchema.pre('save', async function() {
   this.updated_at = new Date();
-  next();
 });
 
 // Instance method to check if subscription is active
