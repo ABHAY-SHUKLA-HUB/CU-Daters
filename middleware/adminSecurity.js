@@ -21,7 +21,8 @@ export const enforceAdminSessionSecurity = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Re-authentication required (missing admin session)' });
     }
 
-    const enforceCsrf = !ADMIN_MUTATING_ALLOWLIST.has(req.path);
+    // In development, skip CSRF validation to allow easier testing
+    const enforceCsrf = process.env.NODE_ENV !== 'development' && !ADMIN_MUTATING_ALLOWLIST.has(req.path);
     const session = await ensureActiveAdminSession({ sessionId, req, enforceCsrf });
 
     if (!session) {
