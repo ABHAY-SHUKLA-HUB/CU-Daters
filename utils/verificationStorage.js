@@ -6,9 +6,11 @@ const PRIVATE_VERIFICATION_DIR = path.join(process.cwd(), 'private_uploads', 've
 
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',  // Some browsers send image/jpg instead of image/jpeg
   'image/png': 'png',
   'image/webp': 'webp',
   'image/heic': 'heic',
+  'image/heif': 'heif',
   'application/pdf': 'pdf'
 };
 
@@ -22,18 +24,26 @@ const ensurePrivateDir = async () => {
 
 export const parseDataUrl = (dataUrl) => {
   const value = String(dataUrl || '').trim();
-  const match = value.match(/^data:([^;]+);base64,(.+)$/);
+  const match = value.match(/^data:([^;,]+)(?:;[^,]*)?,(.+)$/);
   if (!match) {
     throw new Error('Unsupported file format. Use base64 data URL.');
   }
 
-  const mimeType = String(match[1] || '').toLowerCase();
+  let mimeType = String(match[1] || '').toLowerCase().trim();
   const base64Payload = match[2] || '';
+
+  // Remove charset if present
+  if (mimeType.includes(';')) {
+    mimeType = mimeType.split(';')[0].trim();
+  }
+
   const buffer = Buffer.from(base64Payload, 'base64');
 
   if (!buffer.length) {
     throw new Error('Uploaded file is empty');
   }
+
+  console.log('[PARSE] Detected MIME type:', mimeType);
 
   return { mimeType, buffer };
 };
@@ -43,9 +53,22 @@ export const saveVerificationMediaFromDataUrl = async ({ userId, documentType, d
     await ensurePrivateDir();
 
     const { mimeType, buffer } = parseDataUrl(dataUrl);
-    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']);
+
+    // Support multiple MIME type variants
+    const allowedTypes = new Set([
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+      'application/pdf'
+    ]);
+
     if (!allowedTypes.has(mimeType)) {
-      throw new Error('Only JPG, PNG, WEBP, HEIC or PDF files are allowed');
+      console.error('[STORAGE] Unsupported MIME type:', mimeType);
+      console.error('[STORAGE] Allowed types:', Array.from(allowedTypes));
+      throw new Error(`Unsupported file format: ${mimeType}. Allowed: JPG, PNG, WEBP, HEIC or PDF`);
     }
 
     if (buffer.length > maxBytes) {
@@ -58,6 +81,13 @@ export const saveVerificationMediaFromDataUrl = async ({ userId, documentType, d
     const safeUserId = String(userId || 'unknown').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
     const relativeStorageKey = `${safeUserId}/${safeDocumentType}-${Date.now()}-${randomPart}.${extension}`;
     const absolutePath = path.join(PRIVATE_VERIFICATION_DIR, relativeStorageKey);
+
+    console.log('[STORAGE] Saving file:', {
+      mimeType,
+      extension,
+      sizeBytes: buffer.length,
+      path: relativeStorageKey
+    });
 
     try {
       await fs.mkdir(path.dirname(absolutePath), { recursive: true });

@@ -595,7 +595,7 @@ export default function Signup() {
                   <label className="block cursor-pointer">
                     <input
                       type="file"
-                      accept="image/*,application/pdf"
+                      accept=".jpg,.jpeg,.png,.webp,.pdf,.heic,.heif"
                       onChange={handleIdCardChange}
                       className="hidden"
                     />
