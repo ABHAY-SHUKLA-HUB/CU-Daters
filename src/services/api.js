@@ -78,6 +78,13 @@ api.interceptors.response.use(
   },
   (error) => {
     const statusCode = error?.response?.status;
+    const errorMessage = error?.response?.data?.message || formatErrorMessage(error);
+    const isAdminPinError = errorMessage?.includes('Admin PIN') || errorMessage?.includes('PIN verification');
+
+    // Log admin-related errors for debugging
+    if (statusCode === 403 && isAdminPinError) {
+      console.warn('[API] Admin PIN verification failed:', errorMessage);
+    }
 
     if (statusCode === 401 && !error?.config?._retry) {
       const user = getStoredUser();
@@ -133,10 +140,10 @@ api.interceptors.response.use(
       }
     }
 
-    // Return structured error
+    // Return structured error - DO NOT clear auth for 403 (permission denied) or PIN errors
     return Promise.reject({
       status: statusCode,
-      message: formatErrorMessage(error),
+      message: errorMessage,
       data: error?.response?.data ?? null,
       error
     });

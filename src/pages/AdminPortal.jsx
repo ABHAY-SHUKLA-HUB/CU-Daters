@@ -932,7 +932,7 @@ export default function AdminPortal() {
 
   const handleRegistrationApproval = async (userId, action, options = {}) => {
     if (pinEnabled && !pinVerified && !adminPin) {
-      notify('Verify admin PIN before registration actions.', 'error');
+      notify('⚠️ Verify admin PIN before registration actions.', 'error');
       return false;
     }
 
@@ -948,6 +948,14 @@ export default function AdminPortal() {
     }
 
     try {
+      console.log('[ADMIN] Processing registration action:', {
+        userId,
+        action,
+        hasPIN: Boolean(adminPin),
+        pinVerified,
+        pinEnabled
+      });
+
       if (action === 'approve') {
         await adminApi.approveRegistration(userId, { adminNotes: String(options?.adminNotes || '').trim() }, adminPin);
       } else if (action === 'resubmission') {
@@ -955,7 +963,7 @@ export default function AdminPortal() {
       } else {
         await adminApi.rejectRegistration(userId, { reason }, adminPin);
       }
-      
+
       // Remove from pending list immediately for terminal decisions.
       const removeRow = () => {
         setRegistrationApprovals((prev) => {
@@ -975,12 +983,30 @@ export default function AdminPortal() {
       } else {
         removeRow();
       }
-      
-      notify(action === 'resubmission' ? 'Resubmission requested successfully.' : `User ${action}ed successfully.`);
+
+      console.log('[ADMIN] Action completed successfully');
+      notify(action === 'resubmission' ? '✅ Resubmission requested successfully.' : `✅ User ${action}ed successfully.`);
       return true;
-      
+
     } catch (err) {
-      notify(err?.response?.data?.message || `Network error while processing approval: ${err.message}`, 'error');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Unknown error';
+      const status = err?.response?.status || err?.status;
+
+      console.error('[ADMIN] Action failed:', {
+        status,
+        message: errorMsg,
+        error: err
+      });
+
+      // Check if it's a PIN issue
+      if (status === 403 && (errorMsg.includes('PIN') || errorMsg.includes('verification'))) {
+        notify('❌ Admin PIN verification failed. Please verify your PIN again.', 'error');
+        setPinVerified(false);
+        setAdminPin('');
+      } else {
+        notify(`❌ ${errorMsg}`, 'error');
+      }
+
       return false;
     }
   };
