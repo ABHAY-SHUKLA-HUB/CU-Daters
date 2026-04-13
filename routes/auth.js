@@ -737,7 +737,9 @@ router.post('/verify-otp', otpRequestLimiter, asyncHandler(async (req, res, _nex
 // ===== SIGNUP (No OTP Required) =====
 router.post('/signup', asyncHandler(async (req, res, _next) => {
   console.log('\n========== SIGNUP REQUEST (Complete Profile) ==========');
-  
+  console.log('Request body size:', JSON.stringify(req.body).length, 'bytes');
+  console.log('Received fields:', Object.keys(req.body));
+
   const {
     email,
     name,
@@ -757,28 +759,61 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
     idProofType
   } = req.body;
 
+  console.log('[SIGNUP] Photo payload sizes:');
+  console.log('  - liveSelfie:', liveSelfie?.length, 'bytes');
+  console.log('  - livePhoto:', livePhoto?.length, 'bytes');
+  console.log('  - idProofFile:', idProofFile?.length, 'bytes');
+  console.log('  - idCard:', idCard?.length, 'bytes');
+
   const normalizedFieldOfWork = normalizeFieldOfWork(fieldOfWork || course);
   const normalizedExperienceYears = parseExperienceYears(experienceYears ?? year);
   const normalizedIdProofType = normalizeIdProofType(idProofType);
   const selfiePayload = liveSelfie || livePhoto;
   const idProofPayload = idProofFile || idCard;
 
+  console.log('[SIGNUP] Validation:');
+  console.log('  - email:', email ? '✓' : '✗');
+  console.log('  - gender:', gender ? '✓' : '✗');
+  console.log('  - fieldOfWork:', normalizedFieldOfWork ? '✓' : '✗');
+  console.log('  - experienceYears:', normalizedExperienceYears ? '✓' : '✗');
+  console.log('  - bio length:', bio?.length, '(min: 20)');
+  console.log('  - selfie:', selfiePayload ? '✓' : '✗');
+  console.log('  - idProof:', idProofPayload ? '✓' : '✗');
+
   // Validation
   if (!email || !validateEmail(email)) {
+    console.log('[SIGNUP] ✗ Valid email is required');
     throw new AppError('Valid email is required', 400);
   }
 
-  if (!gender) throw new AppError('Gender is required', 400);
-  if (!normalizedFieldOfWork) throw new AppError('Field of work is required', 400);
+  if (!gender) {
+    console.log('[SIGNUP] ✗ Gender is required');
+    throw new AppError('Gender is required', 400);
+  }
+  if (!normalizedFieldOfWork) {
+    console.log('[SIGNUP] ✗ Field of work is required');
+    throw new AppError('Field of work is required', 400);
+  }
   if (Number.isNaN(normalizedExperienceYears)) {
+    console.log('[SIGNUP] ✗ Experience/Year must be a number between 1 and 40');
     throw new AppError('Experience/Year must be a number between 1 and 40', 400);
   }
   if (normalizedExperienceYears === null) {
+    console.log('[SIGNUP] ✗ Experience/Year is required');
     throw new AppError('Experience/Year is required', 400);
   }
-  if (!bio || bio.length < 20) throw new AppError('Bio must be at least 20 characters', 400);
-  if (!selfiePayload) throw new AppError('Live selfie is required', 400);
-  if (!idProofPayload) throw new AppError('ID proof image is required', 400);
+  if (!bio || bio.length < 20) {
+    console.log('[SIGNUP] ✗ Bio must be at least 20 characters');
+    throw new AppError('Bio must be at least 20 characters', 400);
+  }
+  if (!selfiePayload) {
+    console.log('[SIGNUP] ✗ Live selfie is required');
+    throw new AppError('Live selfie is required', 400);
+  }
+  if (!idProofPayload) {
+    console.log('[SIGNUP] ✗ ID proof image is required');
+    throw new AppError('ID proof image is required', 400);
+  }
 
   const emailLower = email.toLowerCase().trim();
 

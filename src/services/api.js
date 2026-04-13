@@ -29,11 +29,14 @@ const normalizeApiPath = (url = '', baseURL = '') => {
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 15000, // Keep UI responsive when a backend endpoint is slow/unavailable
+  timeout: 60000, // 60 seconds for large file uploads (signup with base64 images)
   headers: {
     'Content-Type': 'application/json'
   },
-  withCredentials: true // Allow cookies to be sent/received for CSRF and session management
+  withCredentials: true, // Allow cookies to be sent/received for CSRF and session management
+  // Allow larger payloads for image uploads
+  maxContentLength: 50 * 1024 * 1024, // 50MB
+  maxBodyLength: 50 * 1024 * 1024 // 50MB
 });
 
 const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'];

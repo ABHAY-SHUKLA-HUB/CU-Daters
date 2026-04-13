@@ -220,6 +220,21 @@ export default function Signup() {
     setError('');
 
     try {
+      console.log('[SIGNUP] Submitting form with data:', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        college: formData.college,
+        gender: formData.gender,
+        fieldOfWork: formData.fieldOfWork,
+        experienceYears: formData.experienceYears,
+        bioLength: formData.bio?.length,
+        hasLivePhoto: !!formData.livePhoto,
+        hasIdCard: !!formData.idCard,
+        livePhotoSize: formData.livePhoto?.length,
+        idCardSize: formData.idCard?.length
+      });
+
       const response = await authApi.signup({
         // Account details
         name: formData.name.trim(),
@@ -238,9 +253,11 @@ export default function Signup() {
         idProofType: formData.idProofType
       });
 
+      console.log('[SIGNUP] Response:', response);
+
       if (response.success || response.status === 201) {
-        const resolvedToken = response.data.data?.token || response.data.data?.authToken || '';
-        const userData = response.data.data?.user || response.data.user;
+        const resolvedToken = response.data?.data?.token || response.data?.data?.authToken || '';
+        const userData = response.data?.data?.user || response.data?.user;
         if (userData && resolvedToken) {
           setAuth({ token: resolvedToken, user: userData });
         }
@@ -249,20 +266,29 @@ export default function Signup() {
         setStep(3);
       }
     } catch (err) {
+      console.error('[SIGNUP] Error:', err);
+
       let errorMsg = 'Registration failed. Please try again.';
 
       if (err.code === 'ECONNABORTED') {
-        errorMsg = '⏳ Server is slow (Render free tier waking up). Please wait 60 seconds and try again.';
+        errorMsg = '⏳ Server is slow. Please wait 60 seconds and try again.';
       } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
         errorMsg = 'Cannot connect to server. Backend might be down.';
       } else if (err.response?.status === 413) {
         errorMsg = 'File size too large. Please use smaller images.';
       } else if (err.response?.status === 400) {
         errorMsg = err.response.data?.message || 'Validation error. Check all fields.';
+      } else if (err.response?.status === 409) {
+        errorMsg = err.response.data?.message || 'Phone or email already registered.';
+      } else if (err.response?.status === 500) {
+        errorMsg = err.response.data?.message || 'Server error. Please try again.';
       } else if (err.response?.data?.message) {
         errorMsg = err.response.data.message;
+      } else if (err.message) {
+        errorMsg = `Error: ${err.message}`;
       }
 
+      console.error('[SIGNUP] Final error message:', errorMsg);
       setError(errorMsg);
     } finally {
       setLoading(false);
