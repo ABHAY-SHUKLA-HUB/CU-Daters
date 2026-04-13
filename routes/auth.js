@@ -844,16 +844,33 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
   user.status = 'pending'; // Always pending until admin approves
   user.updated_at = new Date();
 
-  const selfieDocument = await saveVerificationMediaFromDataUrl({
-    userId: user._id,
-    documentType: 'selfie',
-    dataUrl: selfiePayload
-  });
-  const idProofDocument = await saveVerificationMediaFromDataUrl({
-    userId: user._id,
-    documentType: 'id-proof',
-    dataUrl: idProofPayload
-  });
+  let selfieDocument, idProofDocument;
+
+  try {
+    console.log('[SIGNUP] Saving selfie document...');
+    selfieDocument = await saveVerificationMediaFromDataUrl({
+      userId: user._id,
+      documentType: 'selfie',
+      dataUrl: selfiePayload
+    });
+    console.log('[SIGNUP] Selfie saved successfully');
+  } catch (fileErr) {
+    console.error('[SIGNUP] Failed to save selfie:', fileErr.message);
+    throw new AppError(`Failed to save selfie: ${fileErr.message}`, 400);
+  }
+
+  try {
+    console.log('[SIGNUP] Saving ID proof document...');
+    idProofDocument = await saveVerificationMediaFromDataUrl({
+      userId: user._id,
+      documentType: 'id-proof',
+      dataUrl: idProofPayload
+    });
+    console.log('[SIGNUP] ID proof saved successfully');
+  } catch (fileErr) {
+    console.error('[SIGNUP] Failed to save ID proof:', fileErr.message);
+    throw new AppError(`Failed to save ID proof: ${fileErr.message}`, 400);
+  }
 
   const existingSubmission = await VerificationSubmission.findOne({ userId: user._id });
   let submission;
@@ -898,8 +915,13 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
 
   user.verification_submission = submission._id;
 
-  await user.save();
-  console.log(`✓ User profile completed: ${user._id} (${email})`);
+  try {
+    await user.save();
+    console.log(`✓ User profile completed: ${user._id} (${email})`);
+  } catch (saveErr) {
+    console.error('[SIGNUP] Failed to save user:', saveErr.message);
+    throw new AppError(`Failed to save user: ${saveErr.message}`, 500);
+  }
 
   // Send registration confirmation email (separate from OTP)
   try {

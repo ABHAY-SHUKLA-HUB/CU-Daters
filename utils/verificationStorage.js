@@ -39,33 +39,51 @@ export const parseDataUrl = (dataUrl) => {
 };
 
 export const saveVerificationMediaFromDataUrl = async ({ userId, documentType, dataUrl, maxBytes = 8 * 1024 * 1024 }) => {
-  await ensurePrivateDir();
+  try {
+    await ensurePrivateDir();
 
-  const { mimeType, buffer } = parseDataUrl(dataUrl);
-  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']);
-  if (!allowedTypes.has(mimeType)) {
-    throw new Error('Only JPG, PNG, WEBP, HEIC or PDF files are allowed');
+    const { mimeType, buffer } = parseDataUrl(dataUrl);
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']);
+    if (!allowedTypes.has(mimeType)) {
+      throw new Error('Only JPG, PNG, WEBP, HEIC or PDF files are allowed');
+    }
+
+    if (buffer.length > maxBytes) {
+      throw new Error('File is too large. Max allowed size is 8MB');
+    }
+
+    const extension = MIME_EXTENSION_MAP[mimeType] || 'bin';
+    const randomPart = randomBytes(12).toString('hex');
+    const safeDocumentType = String(documentType || 'document').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
+    const safeUserId = String(userId || 'unknown').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
+    const relativeStorageKey = `${safeUserId}/${safeDocumentType}-${Date.now()}-${randomPart}.${extension}`;
+    const absolutePath = path.join(PRIVATE_VERIFICATION_DIR, relativeStorageKey);
+
+    try {
+      await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+    } catch (mkdirErr) {
+      console.error('[STORAGE] Failed to create directory:', path.dirname(absolutePath), mkdirErr);
+      throw new Error('Unable to create storage directory. Please contact support.');
+    }
+
+    try {
+      await fs.writeFile(absolutePath, buffer);
+    } catch (writeErr) {
+      console.error('[STORAGE] Failed to write file:', absolutePath, writeErr);
+      throw new Error('Unable to save file. Please contact support.');
+    }
+
+    console.log(`[STORAGE] File saved successfully: ${relativeStorageKey}`);
+
+    return {
+      storageKey: relativeStorageKey,
+      mimeType,
+      sizeBytes: buffer.length
+    };
+  } catch (err) {
+    console.error('[STORAGE ERROR]', err.message);
+    throw err;
   }
-
-  if (buffer.length > maxBytes) {
-    throw new Error('File is too large. Max allowed size is 8MB');
-  }
-
-  const extension = MIME_EXTENSION_MAP[mimeType] || 'bin';
-  const randomPart = randomBytes(12).toString('hex');
-  const safeDocumentType = String(documentType || 'document').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
-  const safeUserId = String(userId || 'unknown').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
-  const relativeStorageKey = `${safeUserId}/${safeDocumentType}-${Date.now()}-${randomPart}.${extension}`;
-  const absolutePath = path.join(PRIVATE_VERIFICATION_DIR, relativeStorageKey);
-
-  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-  await fs.writeFile(absolutePath, buffer);
-
-  return {
-    storageKey: relativeStorageKey,
-    mimeType,
-    sizeBytes: buffer.length
-  };
 };
 
 export const resolveVerificationMediaPath = (storageKey) => {
