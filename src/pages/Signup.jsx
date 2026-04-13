@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import authApi from '../services/authApi';\nimport api from '../services/api';
+import authApi from '../services/authApi';
+import api from '../services/api';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 
@@ -103,7 +104,10 @@ export default function Signup() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    const nextValue = name === 'experienceYears' ? value.replace(/[^\d]/g, '').slice(0, 2) : value;
+    let nextValue = value;
+    if (name === 'experienceYears') {
+      nextValue = value.split('').filter(ch => ch >= '0' && ch <= '9').join('').slice(0, 2);
+    }
     setFormData(prev => ({ ...prev, [name]: nextValue }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
