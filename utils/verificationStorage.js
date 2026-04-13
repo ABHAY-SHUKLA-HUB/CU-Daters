@@ -62,8 +62,21 @@ export const saveVerificationMediaFromDataUrl = async ({ userId, documentType, d
       'image/webp',
       'image/heic',
       'image/heif',
-      'application/pdf'
+      'application/pdf',
+      'application/octet-stream' // Fallback: some browsers send this for valid images
     ]);
+
+    // If octet-stream, try to validate by extension if storageKey has extension
+    let finalMimeType = mimeType;
+    const extensionMap = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'webp': 'image/webp',
+      'heic': 'image/heic',
+      'heif': 'image/heif',
+      'pdf': 'application/pdf'
+    };
 
     if (!allowedTypes.has(mimeType)) {
       console.error('[STORAGE] Unsupported MIME type:', mimeType);
@@ -75,7 +88,7 @@ export const saveVerificationMediaFromDataUrl = async ({ userId, documentType, d
       throw new Error('File is too large. Max allowed size is 8MB');
     }
 
-    const extension = MIME_EXTENSION_MAP[mimeType] || 'bin';
+    const extension = MIME_EXTENSION_MAP[finalMimeType] || (MIME_EXTENSION_MAP[mimeType] !== undefined ? MIME_EXTENSION_MAP[mimeType] : 'bin');
     const randomPart = randomBytes(12).toString('hex');
     const safeDocumentType = String(documentType || 'document').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
     const safeUserId = String(userId || 'unknown').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
@@ -84,6 +97,7 @@ export const saveVerificationMediaFromDataUrl = async ({ userId, documentType, d
 
     console.log('[STORAGE] Saving file:', {
       mimeType,
+      finalMimeType,
       extension,
       sizeBytes: buffer.length,
       path: relativeStorageKey
@@ -107,7 +121,7 @@ export const saveVerificationMediaFromDataUrl = async ({ userId, documentType, d
 
     return {
       storageKey: relativeStorageKey,
-      mimeType,
+      mimeType: finalMimeType,
       sizeBytes: buffer.length
     };
   } catch (err) {

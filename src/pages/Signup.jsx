@@ -88,10 +88,59 @@ export default function Signup() {
     const file = e.target.files[0];
     if (file) {
       setIdUploading(true);
+
+      // Get correct MIME type - fallback to extension if needed
+      const getMimeType = (filename, filetype) => {
+        console.log('[ID UPLOAD] File info:', { name: filename, type: filetype });
+
+        // Map of extensions to MIME types
+        const extMap = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.webp': 'image/webp',
+          '.heic': 'image/heic',
+          '.heif': 'image/heif',
+          '.pdf': 'application/pdf'
+        };
+
+        // If MIME type is octet-stream or empty, use extension
+        if (!filetype || filetype === 'application/octet-stream' || filetype.startsWith('application/octet')) {
+          const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
+          const correctedType = extMap[ext];
+          if (correctedType) {
+            console.log('[ID UPLOAD] Corrected MIME type from extension:', { ext, correctedType });
+            return correctedType;
+          }
+        }
+
+        // Return original if valid
+        if (filetype && !filetype.includes('octet')) {
+          return filetype;
+        }
+
+        // Fallback
+        return 'application/octet-stream';
+      };
+
+      const correctMimeType = getMimeType(file.name, file.type);
+
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, idCard: reader.result }));
-        setIdCardPreview(reader.result);
+        let dataUrl = reader.result;
+
+        // If MIME type was corrected, rebuild the data URL with correct type
+        if (correctMimeType && correctMimeType !== 'application/octet-stream') {
+          // Extract base64 part
+          const base64Match = dataUrl.match(/,(.+)$/);
+          if (base64Match) {
+            dataUrl = `data:${correctMimeType};base64,${base64Match[1]}`;
+            console.log('[ID UPLOAD] Rebuilt data URL with corrected MIME type:', { mimeType: correctMimeType, size: base64Match[1].length });
+          }
+        }
+
+        setFormData(prev => ({ ...prev, idCard: dataUrl }));
+        setIdCardPreview(dataUrl);
         setIdUploading(false);
       };
       reader.onerror = () => {
@@ -613,7 +662,7 @@ export default function Signup() {
                     <label className="block cursor-pointer">
                       <input
                         type="file"
-                        accept="image/*,application/pdf"
+                        accept=".jpg,.jpeg,.png,.webp,.pdf,.heic,.heif"
                         onChange={handleIdCardChange}
                         className="hidden"
                       />
