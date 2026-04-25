@@ -827,7 +827,7 @@ export default function AdminPortal() {
                 🛡️
               </div>
               <div>
-                <h1 className="text-base font-bold tracking-wide text-white">CU DATERS OPS</h1>
+                <h1 className="text-base font-bold tracking-wide text-white">SEEU-DATERS OPS</h1>
                 <p className="text-[11px] text-cyan-100/85 uppercase tracking-[0.18em]">Admin System</p>
               </div>
             </div>
@@ -900,7 +900,7 @@ export default function AdminPortal() {
           <div className="admin-surface border-b px-6 xl:px-8 py-4 backdrop-blur-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">CU DATERS / Admin / {visibleSections.find((s) => s.id === section)?.label || 'Overview'}</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">SEEU-DATERS / Admin / {visibleSections.find((s) => s.id === section)?.label || 'Overview'}</p>
                 <h2 className="text-2xl font-bold text-white mt-1">{visibleSections.find((s) => s.id === section)?.label || 'Overview'}</h2>
                 <p className="text-sm text-slate-200/85 mt-1">Operational controls, moderation safety workflows, and platform governance.</p>
               </div>

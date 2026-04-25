@@ -137,7 +137,7 @@ transporter.verify((error) => {
     const mailOptions = {
       from: EMAIL_USER,
       to: testEmail,
-      subject: '💖 CU Daters SMTP Test Email',
+      subject: '💖 SeeU-Daters SMTP Test Email',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5; border-radius: 10px;">
           <h2 style="color: #d4536f;">✅ Gmail SMTP Connection Test Successful!</h2>
@@ -151,7 +151,7 @@ transporter.verify((error) => {
             <li>Timestamp: ${new Date().toISOString()}</li>
           </ul>
           <p>You can now start your backend and OTP emails will be sent via Gmail SMTP.</p>
-          <p style="color: #999; font-size: 12px; margin-top: 30px;">CU Daters - Campus Dating Platform</p>
+          <p style="color: #999; font-size: 12px; margin-top: 30px;">SeeU-Daters - Campus Dating Platform</p>
         </div>
       `,
       text: 'Gmail SMTP Connection Test Successful! OTP emails will now be sent via Gmail SMTP.'

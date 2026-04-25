@@ -189,7 +189,7 @@ const PaymentCheckoutFinal = () => {
               <div className="space-y-3 bg-blue-50 p-6 rounded-lg">
                 <div className="flex justify-between">
                   <span className="text-gray-700">Account Holder:</span>
-                  <span className="font-bold">CU Daters Pvt Ltd</span>
+                  <span className="font-bold">SeeU-Daters Pvt Ltd</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-700">Bank:</span>

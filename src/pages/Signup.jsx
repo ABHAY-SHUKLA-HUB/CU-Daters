@@ -376,7 +376,7 @@ export default function Signup() {
         <div className="card">
           <div className="text-center mb-8">
             <div className="text-5xl mb-2">💕</div>
-            <h1 className="text-3xl font-bold gradient-text mb-2">CU Daters</h1>
+            <h1 className="text-3xl font-bold gradient-text mb-2">SeeU-Daters</h1>
             <p className="text-softBrown">Create Your Account</p>
           </div>
 

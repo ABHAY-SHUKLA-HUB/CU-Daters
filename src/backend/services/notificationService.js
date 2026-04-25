@@ -282,7 +282,7 @@ class NotificationService {
       const message = {
         notification: {
           title: '🧪 Test Notification',
-          body: 'This is a test notification from CU Daters.'
+          body: 'This is a test notification from SeeU-Daters.'
         },
         data: {
           type: 'test_notification',

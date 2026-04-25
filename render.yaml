@@ -10,10 +10,10 @@ services:
       - key: VITE_API_URL
         value: https://datee.onrender.com
       - key: VITE_APP_URL
-        value: https://cu-daters-found.netlify.app
+        value: https://seeu-daters-found.netlify.app
       - key: FRONTEND_URL
-        value: https://cu-daters.vercel.app
+        value: https://seeu-daters.vercel.app
       - key: FRONTEND_PUBLIC_URL
-        value: https://cu-daters.vercel.app
+        value: https://seeu-daters.vercel.app
       - key: CORS_ALLOWED_ORIGINS
-        value: https://cu-daters.vercel.app,https://www.cu-daters.vercel.app,https://cu-daters-git-main-abhay-shukla-hubs-projects.vercel.app
+        value: https://seeu-daters.vercel.app,https://www.seeu-daters.vercel.app,https://seeu-daters-git-main-abhay-shukla-hubs-projects.vercel.app

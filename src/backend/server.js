@@ -1,6 +1,6 @@
 // src/backend/server.js
 /**
- * CU Daters - Subscription System Backend Server
+ * SeeU-Daters - Subscription System Backend Server
  * 
  * Main entry point for the backend API server
  * Start with: npm run server
@@ -168,7 +168,7 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`
 ╔════════════════════════════════════════╗
-║   CU Daters Backend Server        ║
+║   SeeU-Daters Backend Server        ║
 ║   Subscription System API              ║
 ╚════════════════════════════════════════╝
 

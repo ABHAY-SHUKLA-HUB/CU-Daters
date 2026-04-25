@@ -107,7 +107,7 @@ const AdminDashboard = () => {
             <div>
               <h3 className="text-lg font-bold mb-4">ℹ️ Details</h3>
               <div className="space-y-2 text-sm text-gray-700">
-                <p><strong>App:</strong> CU Daters</p>
+                <p><strong>App:</strong> SeeU-Daters</p>
                 <p><strong>Backend:</strong> http://localhost:5000</p>
                 <p><strong>Frontend:</strong> http://localhost:5173</p>
                 <p><strong>Auth:</strong> JWT</p>

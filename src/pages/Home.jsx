@@ -25,9 +25,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
           <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="section-title text-4xl mb-4">Why CU Daters Stands Out</h2>
+            <h2 className="section-title text-4xl mb-4">Why SeeU-Daters Stands Out</h2>
             <p className="section-subtitle max-w-3xl mx-auto text-lg">
-              Built by students, for students. Six powerful features that make CU Daters the safest, most private college dating platform.
+              Built by students, for students. Six powerful features that make SeeU-Daters the safest, most private college dating platform.
             </p>
           </div>
 

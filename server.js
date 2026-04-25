@@ -103,7 +103,7 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
   const isCudatersTech = hostname === 'cudaters.tech' || hostname.endsWith('.cudaters.tech');
-  const isCuDatersTech = hostname === 'cu-daters.tech' || hostname.endsWith('.cu-daters.tech');
+  const isCuDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
 
   return isLocalDevHost || isNetlify || isVercel || isRender || isCudatersTech || isCuDatersTech;
 };
@@ -140,14 +140,14 @@ const staticAllowedOrigins = [
   process.env.FRONTEND_PUBLIC_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
   process.env.NETLIFY_URL,
-  'https://cu-daters-found.netlify.app',
-  'https://www.cu-daters-found.netlify.app',
-  'https://cu-daters.vercel.app',
-  'https://www.cu-daters.vercel.app',
+  'https://seeu-daters-found.netlify.app',
+  'https://www.seeu-daters-found.netlify.app',
+  'https://seeu-daters.vercel.app',
+  'https://www.seeu-daters.vercel.app',
   'https://cudaters.tech',
   'https://www.cudaters.tech',
-  'https://cu-daters.tech',
-  'https://www.cu-daters.tech',
+  'https://seeu-daters.tech',
+  'https://www.seeu-daters.tech',
 
   // Backend URL
   process.env.BACKEND_URL,
@@ -264,7 +264,7 @@ app.use('/api/profile-access', profileAccessRoutes);
 // ===== ROOT ROUTE =====
 app.get('/', (req, res) => {
   res.json({
-    message: 'CU Daters Backend API',
+    message: 'SeeU-Daters Backend API',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
@@ -315,7 +315,7 @@ httpServer.on('error', (error) => {
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`\n${'='.repeat(50)}`);
-  console.log(`🚀 CU Daters Backend Server`);
+  console.log(`🚀 SeeU-Daters Backend Server`);
   console.log(`${'='.repeat(50)}`);
   console.log(`✓ Server running on http://0.0.0.0:${PORT}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV}`);
