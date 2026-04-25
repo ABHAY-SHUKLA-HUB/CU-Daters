@@ -146,7 +146,7 @@ export default function Terms() {
               <li>• Multiple credible reports of misconduct are filed</li>
             </ul>
             <p className="text-softBrown mt-4">
-              Violations may result in permanent ban without refund. You have the right to appeal account decisions via support@cudaters.tech.
+              Violations may result in permanent ban without refund. You have the right to appeal account decisions via support@seeu-daters.tech.
             </p>
           </div>
 
@@ -156,7 +156,7 @@ export default function Terms() {
               If you have a dispute with CU CRUSH:
             </p>
             <ul className="text-softBrown space-y-2 ml-4">
-              <li>• Contact support@cudaters.tech with details</li>
+              <li>• Contact support@seeu-daters.tech with details</li>
               <li>• We will respond within 7 business days</li>
               <li>• If unresolved, disputes will be handled through arbitration (not court)</li>
               <li>• Arbitration will be conducted in Chandigarh, India</li>
@@ -200,7 +200,7 @@ export default function Terms() {
               For questions about these Terms, contact:
             </p>
             <p className="text-softBrown mt-4">
-              <strong>Email:</strong> info@cudaters.tech<br/>
+              <strong>Email:</strong> info@seeu-daters.tech<br/>
               <strong>Address:</strong> Chandigarh University, Chandigarh, India
             </p>
           </div>

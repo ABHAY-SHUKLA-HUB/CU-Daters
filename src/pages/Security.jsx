@@ -97,8 +97,8 @@ export default function Security() {
           {/* CTA */}
           <div className="text-center mt-16">
             <h3 className="text-2xl font-bold text-darkBrown mb-4">Have Security Questions?</h3>
-            <p className="text-softBrown mb-6">Contact our security team at security@cudaters.tech</p>
-            <a href="mailto:security@cudaters.tech" className="inline-block px-8 py-3 bg-gradient-to-r from-blushPink to-softPink text-white font-bold rounded-full hover:shadow-lg transition">
+            <p className="text-softBrown mb-6">Contact our security team at security@seeu-daters.tech</p>
+            <a href="mailto:security@seeu-daters.tech" className="inline-block px-8 py-3 bg-gradient-to-r from-blushPink to-softPink text-white font-bold rounded-full hover:shadow-lg transition">
               Email Security Team
             </a>
           </div>

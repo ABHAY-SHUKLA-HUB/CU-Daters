@@ -10,7 +10,7 @@ The **Content Management System (CMS)** allows you to update website content wit
 
 1. **Login to Admin Portal**
    - Go to `http://localhost:5174/admin-login`
-   - Enter your admin credentials (e.g., `admin@cudaters.tech` / `admin123`)
+   - Enter your admin credentials (e.g., `admin@seeu-daters.tech` / `admin123`)
 
 2. **Navigate to Content Management**
    - Once logged in, click **📝 Content Management** in the left sidebar

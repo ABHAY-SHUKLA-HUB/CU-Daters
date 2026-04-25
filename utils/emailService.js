@@ -37,7 +37,7 @@ const defaultFromAddress = String(
   process.env.EMAIL_FROM ||
   process.env.SMTP_FROM ||
   sanitizedEmailUser ||
-  'cudaters.verify@gmail.com'
+  'seeu-daters.verify@gmail.com'
 ).trim();
 
 const smtpHealth = {
