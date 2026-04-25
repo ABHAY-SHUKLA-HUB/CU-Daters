@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export default function ChatShowcase() {
   const features = [
@@ -149,7 +150,9 @@ export default function ChatShowcase() {
           <p className="text-lg text-softBrown mb-8 max-w-2xl mx-auto">
             Find your match and start chatting in completely private, encrypted conversations.
           </p>
-          <button className="btn-primary">Match & Start Chatting 💬</button>
+          <Link to="/signup">
+            <button className="btn-primary">Match & Start Chatting 💬</button>
+          </Link>
         </div>
       </div>
     </section>

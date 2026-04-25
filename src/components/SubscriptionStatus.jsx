@@ -155,7 +155,7 @@ const SubscriptionStatus = ({ userId }) => {
               <p className="text-amber-900 text-sm">
                 <strong>⏰ Renewal Reminder:</strong> Your subscription expires in {daysRemaining} days. 
                 <button
-                  onClick={() => window.location.href = '/premium'}
+                  onClick={() => window.location.href = '/razorpay-checkout'}
                   className="ml-2 text-amber-700 font-bold hover:underline"
                 >
                   Renew now
@@ -238,7 +238,7 @@ const SubscriptionStatus = ({ userId }) => {
             Unlock premium features and connect with more verified members!
           </p>
           <button
-            onClick={() => window.location.href = '/premium'}
+            onClick={() => window.location.href = '/razorpay-checkout'}
             className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8 py-3 rounded-lg font-bold hover:shadow-lg transition"
           >
             Upgrade to Premium ✨
@@ -267,7 +267,7 @@ const SubscriptionStatus = ({ userId }) => {
             <li>✓ Payment was made from your account</li>
           </ul>
           <button
-            onClick={() => window.location.href = '/premium'}
+            onClick={() => window.location.href = '/razorpay-checkout'}
             className="bg-pink-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-pink-600 transition"
           >
             Try Again →

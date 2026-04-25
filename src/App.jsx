@@ -4,6 +4,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import StickyCTA from './components/StickyCTA';
+import GlobalAnnouncementBanner from './components/GlobalAnnouncementBanner';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -25,7 +26,14 @@ import Features from './pages/Features';
 import Pricing from './pages/Pricing';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import Security from './pages/Security';
+import Careers from './pages/Careers';
+import Blog from './pages/Blog';
+import Safety from './pages/Safety';
+import CookiePolicy from './pages/CookiePolicy';
 import PaymentCheckoutFinal from './pages/PaymentCheckoutFinal';
+import RazorpayCheckoutPage from './pages/RazorpayCheckoutPage';
+import PremiumPage from './pages/PremiumPage';
 import PendingApproval from './pages/PendingApproval';
 import AdminRouteGuard from './components/admin/AdminRouteGuard';
 import UserStatusGuard from './components/UserStatusGuard';
@@ -84,6 +92,7 @@ function AppContent() {
 
   return (
     <div className="app-shell">
+      <GlobalAnnouncementBanner />
       {!hideHeader && <Header />}
       <main className={`app-main min-h-screen ${immersiveSurface ? 'bg-transparent' : 'bg-creamyWhite'}`}>
         <Routes>
@@ -93,6 +102,12 @@ function AppContent() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/security" element={<Security />} />
+          <Route path="/careers" element={<Careers />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/safety" element={<Safety />} />
+          <Route path="/cookies" element={<CookiePolicy />} />
+          <Route path="/premium" element={<PremiumPage />} />
           <Route path="/login" element={<PublicAuthRoute><Login /></PublicAuthRoute>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -106,6 +121,7 @@ function AppContent() {
           <Route path="/chat" element={<UserStatusGuard><ChatPage /></UserStatusGuard>} />
           <Route path="/checkout" element={<UserStatusGuard><PaymentCheckoutFinal /></UserStatusGuard>} />
           <Route path="/payment" element={<UserStatusGuard><PaymentCheckoutFinal /></UserStatusGuard>} />
+          <Route path="/razorpay-checkout" element={<UserStatusGuard><RazorpayCheckoutPage /></UserStatusGuard>} />
           <Route path="/pending-approval" element={<PendingApproval />} />
           
           {/* Admin Routes */}

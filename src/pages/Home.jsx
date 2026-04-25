@@ -5,7 +5,6 @@ import PremiumFeatureCard from '../components/PremiumFeatureCard';
 import HowItWorks from '../components/HowItWorks';
 import ChatShowcase from '../components/ChatShowcase';
 import SafetySection from '../components/SafetySection';
-import PremiumPlans from '../components/PremiumPlans';
 import Testimonials from '../components/Testimonials';
 import FAQSection from '../components/FAQSection';
 import FinalCTA from '../components/FinalCTA';
@@ -87,9 +86,6 @@ export default function Home() {
 
       {/* SAFETY & VERIFICATION SECTION */}
       <SafetySection />
-
-      {/* PREMIUM PLANS SECTION */}
-      <PremiumPlans />
 
       {/* TESTIMONIALS SECTION */}
       <Testimonials />

@@ -5,7 +5,7 @@ export default function Features() {
     {
       icon: '🎓',
       title: 'Verified CU Students',
-      desc: 'Only emails from @cumail.in & @cu.ac.in are accepted. Live face detection, Student ID verification, and admin approval required.'
+      desc: 'Only emails from @culkomail.in & @cumail.in are accepted. Live face detection, Student ID verification, and admin approval required.'
     },
     {
       icon: '🤫',
@@ -120,24 +120,52 @@ export default function Features() {
       {/* Privacy Guarantee */}
       <section className="py-16 px-4 bg-softPink">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-darkBrown mb-6">🔐 Privacy is Sacred</h2>
+          <h2 className="text-3xl font-bold text-darkBrown mb-8">🔐 Privacy is Sacred</h2>
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white p-6 rounded-lg">
-              <h4 className="text-lg font-bold text-darkBrown mb-2">✅ You Have</h4>
-              <ul className="text-left text-softBrown space-y-2">
-                <li>✓ Full control of your profile visibility</li>
-                <li>✓ Block/report bad actors immediately</li>
-                <li>✓ All chats encrypted and private</li>
-                <li>✓ Delete account anytime</li>
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
+              <h4 className="text-lg font-bold text-darkBrown mb-4 flex items-center justify-center gap-2">
+                <span className="text-2xl">✅</span> Your Controls
+              </h4>
+              <ul className="text-left text-softBrown space-y-3">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 font-bold mt-0.5">•</span>
+                  <span>Full control over who sees your profile</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 font-bold mt-0.5">•</span>
+                  <span>Instant block and report for any user</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 font-bold mt-0.5">•</span>
+                  <span>All conversations encrypted and private</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 font-bold mt-0.5">•</span>
+                  <span>Delete your account anytime with one click</span>
+                </li>
               </ul>
             </div>
-            <div className="bg-white p-6 rounded-lg">
-              <h4 className="text-lg font-bold text-darkBrown mb-2">❌ Admin Cannot</h4>
-              <ul className="text-left text-softBrown space-y-2">
-                <li>✗ Read your private messages</li>
-                <li>✗ View your private photos</li>
-                <li>✗ Monitor your chats</li>
-                <li>✗ Share your data with anyone</li>
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
+              <h4 className="text-lg font-bold text-darkBrown mb-4 flex items-center justify-center gap-2">
+                <span className="text-2xl">❌</span> Platform Does Not
+              </h4>
+              <ul className="text-left text-softBrown space-y-3">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 font-bold mt-0.5">•</span>
+                  <span>Have access to your private messages</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 font-bold mt-0.5">•</span>
+                  <span>Have ability to view your private photos</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 font-bold mt-0.5">•</span>
+                  <span>Monitor your chats</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 font-bold mt-0.5">•</span>
+                  <span>Share your data with third parties</span>
+                </li>
               </ul>
             </div>
           </div>

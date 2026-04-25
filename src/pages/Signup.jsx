@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
+import { validateCollegeEmailDomain } from '../../utils/validation';
 
 export default function Signup() {
   const [step, setStep] = useState(1); // 1=Basic, 2=OTP, 3=Profile, 4=Photos
@@ -12,12 +13,13 @@ export default function Signup() {
   const [otpRequestsRemaining, setOtpRequestsRemaining] = useState(5); // Track remaining attempts
   const [formData, setFormData] = useState({
     name: '',
+    collegeEmail: '',
     personalEmail: '',
     phone: '',
     password: '',
     confirmPassword: '',
-    college: '', // NEW - College selection
-    otp: '', // NEW - For OTP verification
+    college: '', // College selection
+    otp: '', // For OTP verification
     gender: '',
     course: '',
     year: '',
@@ -113,12 +115,26 @@ export default function Signup() {
     return password.length >= 6;
   };
 
+  const validateCollegeEmailDomainLocal = (email) => {
+    return validateCollegeEmailDomain(email);
+  };
+
   const validateStep1 = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.personalEmail || !validateEmail(formData.personalEmail)) {
-      newErrors.personalEmail = 'Valid email is required';
+    
+    // College Email - Required with domain validation
+    if (!formData.collegeEmail || !validateEmail(formData.collegeEmail)) {
+      newErrors.collegeEmail = 'Valid college email is required';
+    } else if (!validateCollegeEmailDomainLocal(formData.collegeEmail)) {
+      newErrors.collegeEmail = 'Only @cumail.in and @culkomail.in domains allowed';
     }
+    
+    // Personal Email - Optional
+    if (formData.personalEmail && !validateEmail(formData.personalEmail)) {
+      newErrors.personalEmail = 'Please enter a valid personal email';
+    }
+    
     if (!formData.phone || !validatePhone(formData.phone)) {
       newErrors.phone = 'Valid 10-digit phone number required';
     }
@@ -161,7 +177,7 @@ export default function Signup() {
     try {
       const response = await axios.post(`${AUTH_API_BASE}/send-otp`, {
         name: formData.name.trim(),
-        email: formData.personalEmail.toLowerCase().trim(),
+        email: formData.collegeEmail.toLowerCase().trim(),
         phone: formData.phone,
         password: formData.password,
         college: formData.college
@@ -220,7 +236,7 @@ export default function Signup() {
 
     try {
       const response = await axios.post(`${AUTH_API_BASE}/verify-otp`, {
-        email: formData.personalEmail.toLowerCase().trim(),
+        email: formData.collegeEmail.toLowerCase().trim(),
         otp: formData.otp
       }, {
         headers: { 'Content-Type': 'application/json' },
@@ -265,7 +281,7 @@ export default function Signup() {
 
     try {
       const response = await axios.post(`${AUTH_API_BASE}/signup`, {
-        email: formData.personalEmail.toLowerCase().trim(),
+        email: formData.collegeEmail.toLowerCase().trim(),
         gender: formData.gender,
         course: formData.course,
         year: formData.year,
@@ -426,7 +442,21 @@ export default function Signup() {
               </div>
 
               <div>
-                <label className="block text-left text-darkBrown font-bold mb-2">Email Address *</label>
+                <label className="block text-left text-darkBrown font-bold mb-2">College Email *</label>
+                <input
+                  type="email"
+                  name="collegeEmail"
+                  value={formData.collegeEmail}
+                  onChange={handleInputChange}
+                  placeholder="your.name@cumail.in"
+                  className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
+                />
+                <p className="text-xs text-softBrown mt-1">Must be @cumail.in or @culkomail.in</p>
+                {errors.collegeEmail && <p className="text-red-600 text-sm mt-1">{errors.collegeEmail}</p>}
+              </div>
+
+              <div>
+                <label className="block text-left text-darkBrown font-bold mb-2">Personal Email (optional)</label>
                 <input
                   type="email"
                   name="personalEmail"
@@ -435,6 +465,7 @@ export default function Signup() {
                   placeholder="your.email@gmail.com"
                   className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
                 />
+                <p className="text-xs text-softBrown mt-1">For account recovery & backup</p>
                 {errors.personalEmail && <p className="text-red-600 text-sm mt-1">{errors.personalEmail}</p>}
               </div>
 
@@ -516,7 +547,7 @@ export default function Signup() {
               <div>
                 <p className="text-softBrown mb-4 text-sm text-center">
                   📧 We sent a 6-digit code to<br />
-                  <strong>{formData.personalEmail}</strong>
+                  <strong>{formData.collegeEmail}</strong>
                 </p>
               </div>
 

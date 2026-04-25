@@ -23,7 +23,7 @@ export default function Terms() {
             <ul className="text-softBrown space-y-2 ml-4">
               <li>• Be 18 years or older (or legal age of majority in your jurisdiction)</li>
               <li>• Be a current student or staff member of Chandigarh University</li>
-              <li>• Have a valid CU email address (@cumail.in or @cu.ac.in)</li>
+              <li>• Have a valid CU email address (@culkomail.in or @cumail.in)</li>
               <li>• Not be a registered sex offender or have violent crime convictions</li>
               <li>• Not be restricted by law from using dating services</li>
               <li>• Agree to use only one account (multiple accounts will result in permanent ban)</li>
@@ -146,7 +146,7 @@ export default function Terms() {
               <li>• Multiple credible reports of misconduct are filed</li>
             </ul>
             <p className="text-softBrown mt-4">
-              Violations may result in permanent ban without refund. You have the right to appeal account decisions via support@cucrush.in.
+              Violations may result in permanent ban without refund. You have the right to appeal account decisions via support@cudaters.tech.
             </p>
           </div>
 
@@ -156,7 +156,7 @@ export default function Terms() {
               If you have a dispute with CU CRUSH:
             </p>
             <ul className="text-softBrown space-y-2 ml-4">
-              <li>• Contact support@cucrush.in with details</li>
+              <li>• Contact support@cudaters.tech with details</li>
               <li>• We will respond within 7 business days</li>
               <li>• If unresolved, disputes will be handled through arbitration (not court)</li>
               <li>• Arbitration will be conducted in Chandigarh, India</li>
@@ -200,7 +200,7 @@ export default function Terms() {
               For questions about these Terms, contact:
             </p>
             <p className="text-softBrown mt-4">
-              <strong>Email:</strong> legal@cucrush.in<br/>
+              <strong>Email:</strong> info@cudaters.tech<br/>
               <strong>Address:</strong> Chandigarh University, Chandigarh, India
             </p>
           </div>
