@@ -164,7 +164,7 @@ export default function Careers() {
               🚀 Become a Campus Ambassador
             </h1>
             <p className="text-xl text-softBrown">
-              Be the face of CU DATERS on your campus. Help us build a trusted, safe dating community for college students while gaining valuable experience, rewards, and recognition.
+              Be the face of SEEU-DATERS on your campus. Help us build a trusted, safe dating community for college students while gaining valuable experience, rewards, and recognition.
             </p>
           </div>
 
@@ -193,7 +193,7 @@ export default function Careers() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-blushPink font-bold text-xl flex-shrink-0">✓</span>
-                  <span><strong className="text-darkBrown block">Branded Merchandise</strong> CU DATERS swag & goodies</span>
+                  <span><strong className="text-darkBrown block">Branded Merchandise</strong> SEEU-DATERS swag & goodies</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-blushPink font-bold text-xl flex-shrink-0">✓</span>
@@ -213,7 +213,7 @@ export default function Careers() {
               <div className="space-y-6 text-softBrown">
                 <div>
                   <h3 className="font-bold text-darkBrown mb-2 text-lg">📱 Social Media Promotion</h3>
-                  <p className="text-sm">Promote CU DATERS across your campus via Instagram, WhatsApp, and student groups. Share real stories & success from the platform.</p>
+                  <p className="text-sm">Promote SEEU-DATERS across your campus via Instagram, WhatsApp, and student groups. Share real stories & success from the platform.</p>
                 </div>
                 <div>
                   <h3 className="font-bold text-darkBrown mb-2 text-lg">🎉 Events & Contests</h3>
@@ -225,7 +225,7 @@ export default function Careers() {
                 </div>
                 <div>
                   <h3 className="font-bold text-darkBrown mb-2 text-lg">🛡️ Safety Advocate</h3>
-                  <p className="text-sm">Act as a trusted contact for students with questions about safety, privacy, and using CU DATERS responsibly.</p>
+                  <p className="text-sm">Act as a trusted contact for students with questions about safety, privacy, and using SEEU-DATERS responsibly.</p>
                 </div>
               </div>
             </div>

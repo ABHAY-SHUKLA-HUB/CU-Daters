@@ -85,7 +85,7 @@ const RazorpayCheckout = ({ plan, onSuccess, onFailure }) => {
         amount: plan.price * 100, // Amount in paise
         currency: 'INR',
         order_id: orderId,
-        name: 'CU Daters Premium',
+        name: 'SeeU-Daters Premium',
         description: `${plan.name} - ${plan.duration || 30} days`,
         image: '/favicon.svg', // Your logo
         prefill: {

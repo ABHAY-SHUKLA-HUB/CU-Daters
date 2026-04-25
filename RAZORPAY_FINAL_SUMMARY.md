@@ -2,7 +2,7 @@
 
 ## 🎉 STATUS: COMPLETE & READY TO TEST!
 
-Your CU Daters application now has **full Razorpay payment integration** in test mode. Everything is configured and ready for immediate testing.
+Your SeeU-Daters application now has **full Razorpay payment integration** in test mode. Everything is configured and ready for immediate testing.
 
 ---
 

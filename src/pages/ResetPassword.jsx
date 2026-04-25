@@ -280,7 +280,7 @@ export default function ResetPassword() {
           <div className="text-5xl mb-4">🔐</div>
           <h1 className="text-3xl font-bold gradient-text mb-2">Reset Your Password</h1>
           <p className="text-softBrown mb-8">
-            Create a new password for your CU Daters account
+            Create a new password for your SeeU-Daters account
           </p>
 
           {error && (

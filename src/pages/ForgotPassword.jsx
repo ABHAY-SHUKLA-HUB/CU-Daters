@@ -159,7 +159,7 @@ export default function ForgotPassword() {
                 disabled={loading}
               />
               <p className="text-xs text-softBrown mt-1">
-                📧 Enter the email associated with your CU Daters account
+                📧 Enter the email associated with your SeeU-Daters account
               </p>
             </div>
 

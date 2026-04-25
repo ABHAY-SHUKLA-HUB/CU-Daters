@@ -7,7 +7,7 @@ export async function onRequest(context) {
   return new Response(
     JSON.stringify({
       status: 'ok',
-      message: 'CU Daters API is running',
+      message: 'SeeU-Daters API is running',
       environment: context.env.ENVIRONMENT || 'production',
       timestamp: new Date().toISOString(),
       platform: 'Cloudflare Pages + Functions'

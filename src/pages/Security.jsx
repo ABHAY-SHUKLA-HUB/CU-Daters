@@ -15,7 +15,7 @@ export default function Security() {
             <div className="card">
               <div className="text-4xl mb-4">🔒</div>
               <h3 className="text-xl font-bold text-darkBrown mb-3">End-to-End Encrypted Chats</h3>
-              <p className="text-softBrown">All messages are encrypted between you and your match. Not even CU Daters can read your conversations.</p>
+              <p className="text-softBrown">All messages are encrypted between you and your match. Not even SeeU-Daters can read your conversations.</p>
             </div>
 
             <div className="card">

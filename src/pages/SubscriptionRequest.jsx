@@ -173,7 +173,7 @@ const SubscriptionRequest = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">Choose Your Plan</h1>
-          <p className="text-xl text-gray-600">Subscribe to CU DATERS and unlock full potential</p>
+          <p className="text-xl text-gray-600">Subscribe to SEEU-DATERS and unlock full potential</p>
         </div>
 
         {/* Step indicator */}
@@ -296,7 +296,7 @@ const SubscriptionRequest = () => {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
                   <h4 className="font-bold text-blue-900 mb-3">Bank Transfer Details</h4>
                   <div className="space-y-2 text-sm text-blue-900">
-                    <p><span className="font-semibold">Account Holder:</span> CU DATERS Verification Pvt Ltd</p>
+                    <p><span className="font-semibold">Account Holder:</span> SEEU-DATERS Verification Pvt Ltd</p>
                     <p><span className="font-semibold">Account Number:</span> 1234567890123</p>
                     <p><span className="font-semibold">IFSC Code:</span> HDFC0005678</p>
                     <p><span className="font-semibold">Bank Name:</span> HDFC Bank Limited</p>
@@ -443,7 +443,7 @@ const SubscriptionRequest = () => {
               <div className="mb-6">
                 <p className="text-6xl mb-4">✓</p>
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Payment Received!</h2>
-                <p className="text-xl text-gray-600">Thank you for subscribing to CU DATERS</p>
+                <p className="text-xl text-gray-600">Thank you for subscribing to SEEU-DATERS</p>
               </div>
 
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-8 text-left">

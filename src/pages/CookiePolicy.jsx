@@ -16,7 +16,7 @@ export default function CookiePolicy() {
             <div className="bg-white rounded-2xl p-8 border-2 border-softPink">
               <h2 className="text-2xl font-bold text-darkBrown mb-4">1. What Are Cookies?</h2>
               <p className="text-softBrown leading-relaxed">
-                Cookies are small text files stored on your device when you visit our website or use our app. They help us remember your preferences and improve your experience on CU Daters. Cookies can be "persistent" (stored for a longer period) or "session" (deleted when you close your browser).
+                Cookies are small text files stored on your device when you visit our website or use our app. They help us remember your preferences and improve your experience on SeeU-Daters. Cookies can be "persistent" (stored for a longer period) or "session" (deleted when you close your browser).
               </p>
             </div>
 
@@ -30,7 +30,7 @@ export default function CookiePolicy() {
                 </div>
                 <div>
                   <h4 className="font-bold text-darkBrown mb-2">Performance Cookies</h4>
-                  <p>Help us understand how you use CU Daters (page views, crash reports, load times). This helps us improve performance.</p>
+                  <p>Help us understand how you use SeeU-Daters (page views, crash reports, load times). This helps us improve performance.</p>
                 </div>
                 <div>
                   <h4 className="font-bold text-darkBrown mb-2">Analytics Cookies</h4>
@@ -140,7 +140,7 @@ export default function CookiePolicy() {
             <div className="bg-white rounded-2xl p-8 border-2 border-softPink">
               <h2 className="text-2xl font-bold text-darkBrown mb-4">7. Updates to This Policy</h2>
               <p className="text-softBrown">
-                We may update this Cookie Policy periodically. We'll notify you of significant changes via email or through our app. Your continued use of CU Daters constitutes acceptance of the updated policy.
+                We may update this Cookie Policy periodically. We'll notify you of significant changes via email or through our app. Your continued use of SeeU-Daters constitutes acceptance of the updated policy.
               </p>
             </div>
 

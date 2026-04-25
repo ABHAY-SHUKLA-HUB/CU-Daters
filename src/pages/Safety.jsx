@@ -7,7 +7,7 @@ export default function Safety() {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-black text-darkBrown text-center mb-4">🛡️ Safety Guidelines</h1>
           <p className="text-lg text-softBrown text-center mb-12">
-            Your safety is our priority. Follow these guidelines to have a safe and positive experience on CU Daters.
+            Your safety is our priority. Follow these guidelines to have a safe and positive experience on SeeU-Daters.
           </p>
 
           {/* Report & Support */}
@@ -76,7 +76,7 @@ export default function Safety() {
           {/* Verification Info */}
           <div className="bg-white rounded-2xl p-8 border-2 border-softPink my-12">
             <h2 className="text-2xl font-bold text-darkBrown mb-6">🆔 Our Verification System Protects You</h2>
-            <p className="text-softBrown mb-6">Every profile on CU Daters is verified through:</p>
+            <p className="text-softBrown mb-6">Every profile on SeeU-Daters is verified through:</p>
             <div className="space-y-3 text-softBrown">
               <p className="flex items-start gap-3">
                 <span className="text-blushPink font-bold">1.</span>

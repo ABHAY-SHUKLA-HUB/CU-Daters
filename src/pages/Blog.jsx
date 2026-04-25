@@ -32,7 +32,7 @@ export default function Blog() {
     <div className="pt-20 pb-20">
       <section className="bg-gradient-to-br from-creamyWhite to-warmCream py-16 px-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-black text-darkBrown text-center mb-4">📚 CU Daters Blog</h1>
+          <h1 className="text-4xl md:text-5xl font-black text-darkBrown text-center mb-4">📚 SeeU-Daters Blog</h1>
           <p className="text-lg text-softBrown text-center mb-12">
             Stories, tips, and insights about dating, privacy, and building real connections in college.
           </p>

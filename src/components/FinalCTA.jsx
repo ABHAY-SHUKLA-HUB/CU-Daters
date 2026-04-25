@@ -11,7 +11,7 @@ export default function FinalCTA() {
             Coming Soon to Your Campus
           </h2>
           <p className="text-xl text-softBrown mb-8 leading-relaxed">
-            CU DATERS is launching exclusively for Chandigarh University (Mohali & UP). Be the first to connect with students from your campus. Join the waitlist now!
+            SEEU-DATERS is launching exclusively for Chandigarh University (Mohali & UP). Be the first to connect with students from your campus. Join the waitlist now!
           </p>
         </div>
 

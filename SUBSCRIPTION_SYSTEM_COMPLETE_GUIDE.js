@@ -3,7 +3,7 @@
  * ======================================================================================================
  * 
  * This guide explains how to integrate the complete subscription/payment system into your 
- * CU Daters application (React + Node.js + MongoDB).
+ * SeeU-Daters application (React + Node.js + MongoDB).
  * 
  * ======================================================================================================
  * TABLE OF CONTENTS

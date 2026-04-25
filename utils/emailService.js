@@ -178,7 +178,7 @@ export const sendOtpEmail = async (email, otp) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>CU Daters - Email Verification</title>
+        <title>SeeU-Daters - Email Verification</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
@@ -213,14 +213,14 @@ export const sendOtpEmail = async (email, otp) => {
           <div class="card">
             <!-- Header -->
             <div class="header">
-              <div class="logo">💖 CU DATERS 💖</div>
+              <div class="logo">💖 SeeU-Daters 💖</div>
               <h1>Email Verification</h1>
               <p>Secure your account with a one-time verification code</p>
             </div>
 
             <!-- Content -->
             <div class="content">
-              <p class="intro">Hi there! 👋 Welcome to CU Daters – your campus dating community. To complete your registration, please use the verification code below:</p>
+              <p class="intro">Hi there! 👋 Welcome to SeeU-Daters – your campus dating community. To complete your registration, please use the verification code below:</p>
 
               <!-- OTP Box -->
               <div class="otp-box">
@@ -230,7 +230,7 @@ export const sendOtpEmail = async (email, otp) => {
 
               <!-- Instructions -->
               <div class="instructions">
-                <strong>✓ How to use:</strong> Enter this code in the verification field on CU Daters to confirm your email address and activate your account.
+                <strong>✓ How to use:</strong> Enter this code in the verification field on SeeU-Daters to confirm your email address and activate your account.
               </div>
 
               <!-- Timer -->
@@ -245,14 +245,14 @@ export const sendOtpEmail = async (email, otp) => {
             <!-- Footer -->
             <div class="footer">
               <div class="security-note">
-                🔒 <strong>Never share this code</strong> with anyone. CU Daters support will never ask for your verification code.
+                🔒 <strong>Never share this code</strong> with anyone. SeeU-Daters support will never ask for your verification code.
               </div>
               
               <p style="margin-top: 15px;">Need help? <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/support" class="support-link">Contact Support</a></p>
               
               <div class="divider" style="margin: 15px 0;"></div>
               
-              <p>© 2026 CU Daters. All rights reserved.</p>
+              <p>© 2026 SeeU-Daters. All rights reserved.</p>
               <p>Your trusted campus dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
             </div>
           </div>
@@ -264,9 +264,9 @@ export const sendOtpEmail = async (email, otp) => {
     const mailOptions = {
       from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
-      subject: '💖 Your CU Daters Verification Code',
+      subject: '💖 Your SeeU-Daters Verification Code',
       html: htmlTemplate,
-      text: `CU Daters Verification Code: ${otp}\n\nThis code is valid for 5 minutes.\n\nDo not share this code with anyone.\n\nIf you didn't request this code, please ignore this email.`
+      text: `SeeU-Daters Verification Code: ${otp}\n\nThis code is valid for 5 minutes.\n\nDo not share this code with anyone.\n\nIf you didn't request this code, please ignore this email.`
     };
 
     const result = await sendMailWithFallback(mailOptions);
@@ -302,11 +302,11 @@ export const sendApprovalEmail = async (email, name) => {
     const mailOptions = {
       from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
-      subject: '✅ Your CU Daters Profile Has Been Approved!',
+      subject: '✅ Your SeeU-Daters Profile Has Been Approved!',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #d4536f;">Hi ${name},</h2>
-          <p>Great news! Your profile on CU Daters has been approved and is now live!</p>
+          <p>Great news! Your profile on SeeU-Daters has been approved and is now live!</p>
           <p>You can now start exploring profiles and connecting with other students.</p>
           <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="display: inline-block; background-color: #d4536f; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;">
             Go to Dashboard
@@ -337,11 +337,11 @@ export const sendRejectionEmail = async (email, name, reason) => {
     const mailOptions = {
       from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
-      subject: '❌ CU Daters Profile Review',
+      subject: '❌ SeeU-Daters Profile Review',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #d4536f;">Hi ${name},</h2>
-          <p>Thank you for signing up on CU Daters!</p>
+          <p>Thank you for signing up on SeeU-Daters!</p>
           <p>Unfortunately, your profile could not be approved at this time:</p>
           <p style="background-color: #f0f0f0; padding: 15px; border-left: 4px solid #d4536f;">
             ${reason || 'Your profile did not meet our verification standards.'}
@@ -393,7 +393,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>CU Daters - Reset Your Password</title>
+        <title>SeeU-Daters - Reset Your Password</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
@@ -438,7 +438,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
           <div class="card">
             <!-- Header -->
             <div class="header">
-              <div class="logo">💖 CU DATERS 💖</div>
+              <div class="logo">💖 SeeU-Daters 💖</div>
               <h1>Password Reset Request</h1>
               <p>We received a request to reset your password</p>
             </div>
@@ -475,14 +475,14 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
             <!-- Footer -->
             <div class="footer">
               <div class="security-note">
-                🔒 <strong>Never share this link</strong> with anyone. CU Daters support will never ask for your reset link.
+                🔒 <strong>Never share this link</strong> with anyone. SeeU-Daters support will never ask for your reset link.
               </div>
               
               <p style="margin-top: 15px;">Need help? <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/contact" class="support-link">Contact Support</a></p>
               
               <div class="divider" style="margin: 15px 0;"></div>
               
-              <p>© 2026 CU Daters. All rights reserved.</p>
+              <p>© 2026 SeeU-Daters. All rights reserved.</p>
               <p>Your trusted campus dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
             </div>
           </div>
@@ -494,7 +494,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
     const mailOptions = {
       from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
-      subject: '🔐 CU Daters Password Reset Request',
+      subject: '🔐 SeeU-Daters Password Reset Request',
       html: htmlTemplate,
       text: `Password Reset Request\n\nClick this link to reset your password:\n${resetUrl}\n\nThis link is valid for 1 hour.\n\nIf you didn't request this, please ignore this email.\n\nYour account is secure.`
     };
@@ -538,7 +538,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>CU Daters - Registration Pending Approval</title>
+        <title>SeeU-Daters - Registration Pending Approval</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background: #f9f9f9; }
@@ -594,7 +594,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
             <!-- Header -->
             <div class="header">
               <div class="heart">💖</div>
-              <div class="logo">CU Daters</div>
+              <div class="logo">SeeU-Daters</div>
               <h1>Registration Received!</h1>
               <p>Your application is under review</p>
             </div>
@@ -605,7 +605,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
               <div class="greeting">
                 Hey <strong>${name}</strong>! 👋
                 <br><br>
-                Thank you for joining CU Daters – your trusted campus dating platform. Your profile has been successfully submitted and is now pending approval.
+                Thank you for joining SeeU-Daters – your trusted campus dating platform. Your profile has been successfully submitted and is now pending approval.
               </div>
 
               <!-- Status Box -->
@@ -643,7 +643,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
                 
                 <div class="faq-item">
                   <div class="faq-question">How long does approval take?</div>
-                  <div class="faq-answer">Most profiles are approved within 24-48 hours. This helps us maintain a safe and genuine community on CU Daters.</div>
+                  <div class="faq-answer">Most profiles are approved within 24-48 hours. This helps us maintain a safe and genuine community on SeeU-Daters.</div>
                 </div>
 
                 <div class="faq-item">
@@ -675,7 +675,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
               </a>
               
               <div class="footer-text">
-                <p style="margin-top: 20px;">© 2026 CU Daters. All rights reserved.</p>
+                <p style="margin-top: 20px;">© 2026 SeeU-Daters. All rights reserved.</p>
                 <p style="margin-top: 10px;">Your trusted campus dating platform</p>
                 <p style="margin-top: 10px;">
                   <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #d4536f;">Privacy Policy</a> | 
@@ -692,9 +692,9 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
     const mailOptions = {
       from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
       to: email,
-      subject: '✨ Your Registration is Pending Approval – CU DATERS',
+      subject: '✨ Your Registration is Pending Approval – SeeU-Daters',
       html: htmlTemplate,
-      text: `Hi ${name}!\n\nThank you for registering on CU Daters! Your profile is under review and will be approved within 24-48 hours.\n\nRegistration Summary:\nName: ${name}\nEmail: ${email}\nCollege: ${college}\nStatus: Pending Approval\n\nYou'll receive an email once your profile is approved.\n\nFor support, contact: support@cudaters.com\n\nBest regards,\nCU Daters Team`
+      text: `Hi ${name}!\n\nThank you for registering on SeeU-Daters! Your profile is under review and will be approved within 24-48 hours.\n\nRegistration Summary:\nName: ${name}\nEmail: ${email}\nCollege: ${college}\nStatus: Pending Approval\n\nYou'll receive an email once your profile is approved.\n\nFor support, contact: support@cudaters.com\n\nBest regards,\nSeeU-Daters Team`
     };
 
     const result = await sendMailWithFallback(mailOptions);

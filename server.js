@@ -140,10 +140,10 @@ const staticAllowedOrigins = [
   process.env.FRONTEND_PUBLIC_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
   process.env.NETLIFY_URL,
-  'https://cu-daters-found.netlify.app',
-  'https://www.cu-daters-found.netlify.app',
-  'https://cu-daters.vercel.app',
-  'https://www.cu-daters.vercel.app',
+  'https://seeu-daters-found.netlify.app',
+  'https://www.seeu-daters-found.netlify.app',
+  'https://seeu-daters.vercel.app',
+  'https://www.seeu-daters.vercel.app',
 
   // Backend URL
   process.env.BACKEND_URL,
@@ -262,7 +262,7 @@ app.use('/api/profile-access', profileAccessRoutes);
 // ===== ROOT ROUTE =====
 app.get('/', (req, res) => {
   res.json({
-    message: 'CU Daters Backend API',
+    message: 'SeeU-Daters Backend API',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
@@ -313,7 +313,7 @@ httpServer.on('error', (error) => {
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`\n${'='.repeat(50)}`);
-  console.log(`🚀 CU Daters Backend Server`);
+  console.log(`🚀 SeeU-Daters Backend Server`);
   console.log(`${'='.repeat(50)}`);
   console.log(`✓ Server running on http://0.0.0.0:${PORT}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV}`);

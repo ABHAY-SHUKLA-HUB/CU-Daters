@@ -2,7 +2,7 @@
 
 ## ✅ Integration Complete!
 
-Your CU Daters application now has Razorpay payment integration in **TEST MODE** enabled. Here's everything you need to know:
+Your SeeU-Daters application now has Razorpay payment integration in **TEST MODE** enabled. Here's everything you need to know:
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## ✅ INTEGRATION SUCCESSFUL - Ready for Testing!
 
-Your CU Daters application now has **fully integrated Razorpay payment processing** in test mode. No real money is involved during testing.
+Your SeeU-Daters application now has **fully integrated Razorpay payment processing** in test mode. No real money is involved during testing.
 
 ---
 
