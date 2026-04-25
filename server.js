@@ -103,9 +103,8 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
   const isSeeUDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
-  const isCuDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
 
-  return isLocalDevHost || isNetlify || isVercel || isRender || isSeeUDatersTech || isCuDatersTech;
+  return isLocalDevHost || isNetlify || isVercel || isRender || isSeeUDatersTech;
 };
 
 // ===== CONNECT DATABASE =====
