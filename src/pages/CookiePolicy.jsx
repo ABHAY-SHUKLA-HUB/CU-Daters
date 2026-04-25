@@ -148,7 +148,7 @@ export default function CookiePolicy() {
             <div className="bg-gradient-to-r from-blushPink to-softPink rounded-2xl p-8 text-white text-center">
               <h2 className="text-2xl font-bold mb-4">Questions About Our Cookie Policy?</h2>
               <p className="mb-6">Contact us anytime</p>
-              <a href="mailto:privacy@cudaters.tech" className="inline-block px-8 py-3 bg-white text-blushPink font-bold rounded-full hover:scale-105 transition">
+              <a href="mailto:privacy@seeu-daters.tech" className="inline-block px-8 py-3 bg-white text-blushPink font-bold rounded-full hover:scale-105 transition">
                 Email Us
               </a>
             </div>

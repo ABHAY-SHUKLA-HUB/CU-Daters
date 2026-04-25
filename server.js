@@ -102,10 +102,10 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isNetlify = hostname.endsWith('.netlify.app');
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
-  const isCudatersTech = hostname === 'cudaters.tech' || hostname.endsWith('.cudaters.tech');
+  const isSeeUDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
   const isCuDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
 
-  return isLocalDevHost || isNetlify || isVercel || isRender || isCudatersTech || isCuDatersTech;
+  return isLocalDevHost || isNetlify || isVercel || isRender || isSeeUDatersTech || isCuDatersTech;
 };
 
 // ===== CONNECT DATABASE =====
@@ -144,8 +144,8 @@ const staticAllowedOrigins = [
   'https://www.seeu-daters-found.netlify.app',
   'https://seeu-daters.vercel.app',
   'https://www.seeu-daters.vercel.app',
-  'https://cudaters.tech',
-  'https://www.cudaters.tech',
+  'https://seeu-daters.tech',
+  'https://www.seeu-daters.tech',
   'https://seeu-daters.tech',
   'https://www.seeu-daters.tech',
 

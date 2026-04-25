@@ -21,7 +21,7 @@ const DEFAULT_PAGES = {
   'pricing': { title: 'Pricing', description: '', plans: [] },
   'about': { title: 'About', description: '', team: [] },
   'careers': { title: 'Careers', description: '' },
-  'contact': { title: 'Contact', email: 'contact@cudaters.tech', phone: '' },
+  'contact': { title: 'Contact', email: 'contact@seeu-daters.tech', phone: '' },
   'privacy': { title: 'Privacy Policy', content: '' },
   'terms': { title: 'Terms & Conditions', content: '' }
 };

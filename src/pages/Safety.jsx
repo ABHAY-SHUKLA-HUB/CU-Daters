@@ -17,7 +17,7 @@ export default function Safety() {
             <div className="space-y-3">
               <p className="text-darkBrown"><strong>1. Report:</strong> Use the in-app report feature on any profile or conversation</p>
               <p className="text-darkBrown"><strong>2. Block:</strong> Immediately block the user to prevent further contact</p>
-              <p className="text-darkBrown"><strong>3. Contact Us:</strong> Email safety@cudaters.tech with details</p>
+              <p className="text-darkBrown"><strong>3. Contact Us:</strong> Email safety@seeu-daters.tech with details</p>
               <p className="text-darkBrown"><strong>4. Law Enforcement:</strong> For serious crimes, contact local authorities immediately</p>
             </div>
           </div>
@@ -136,7 +136,7 @@ export default function Safety() {
           <div className="text-center mt-16">
             <h3 className="text-2xl font-bold text-darkBrown mb-4">Need Help or Have Questions?</h3>
             <p className="text-softBrown mb-6">Contact our safety team anytime</p>
-            <a href="mailto:safety@cudaters.tech" className="inline-block px-8 py-3 bg-gradient-to-r from-blushPink to-softPink text-white font-bold rounded-full hover:shadow-lg transition">
+            <a href="mailto:safety@seeu-daters.tech" className="inline-block px-8 py-3 bg-gradient-to-r from-blushPink to-softPink text-white font-bold rounded-full hover:shadow-lg transition">
               Contact Safety Team
             </a>
           </div>
