@@ -49,9 +49,13 @@ export default function Footer() {
             <h4 className="font-bold mb-6 text-white">Company</h4>
             <ul className="space-y-3 text-sm text-gray-300">
               <li><Link to="/about" className="hover:text-blushPink transition">About Us</Link></li>
+<<<<<<< HEAD
               <li><a href={helpCenterHref} target={helpCenterHref === '#' ? undefined : '_blank'} rel={helpCenterHref === '#' ? undefined : 'noreferrer'} className="hover:text-blushPink transition">Help Center</a></li>
+=======
+              <li><Link to="/blog" className="hover:text-blushPink transition">Blog</Link></li>
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
               <li><Link to="/contact" className="hover:text-blushPink transition">Contact</Link></li>
-              <li><a href="#" className="hover:text-blushPink transition">Careers</a></li>
+              <li><Link to="/careers" className="hover:text-blushPink transition">Careers</Link></li>
             </ul>
           </div>
 
@@ -61,8 +65,8 @@ export default function Footer() {
             <ul className="space-y-3 text-sm text-gray-300">
               <li><Link to="/privacy" className="hover:text-blushPink transition">Privacy Policy</Link></li>
               <li><Link to="/terms" className="hover:text-blushPink transition">Terms of Service</Link></li>
-              <li><a href="#" className="hover:text-blushPink transition">Safety Guidelines</a></li>
-              <li><a href="#" className="hover:text-blushPink transition">Cookie Policy</a></li>
+              <li><Link to="/safety" className="hover:text-blushPink transition">Safety Guidelines</Link></li>
+              <li><Link to="/cookies" className="hover:text-blushPink transition">Cookie Policy</Link></li>
             </ul>
           </div>
 
@@ -70,10 +74,14 @@ export default function Footer() {
           <div>
             <h4 className="font-bold mb-6 text-white">Follow Us</h4>
             <ul className="space-y-3 text-sm text-gray-300">
+<<<<<<< HEAD
               <li><a href={instagramHref} target={instagramHref === '#' ? undefined : '_blank'} rel={instagramHref === '#' ? undefined : 'noreferrer'} className="hover:text-blushPink transition">Instagram</a></li>
               <li><a href={telegramHref} target={telegramHref === '#' ? undefined : '_blank'} rel={telegramHref === '#' ? undefined : 'noreferrer'} className="hover:text-blushPink transition">Telegram</a></li>
               <li><a href={`mailto:${supportEmail}`} className="hover:text-blushPink transition">{supportEmail}</a></li>
               <li><a href={helpCenterHref} target={helpCenterHref === '#' ? undefined : '_blank'} rel={helpCenterHref === '#' ? undefined : 'noreferrer'} className="hover:text-blushPink transition">Support Portal</a></li>
+=======
+              <li><a href="https://www.instagram.com/cudaters/?hl=en" target="_blank" rel="noopener noreferrer" className="hover:text-blushPink transition">Instagram</a></li>
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </ul>
           </div>
         </div>
@@ -82,7 +90,11 @@ export default function Footer() {
         <div className="border-t border-gray-700 pt-12 flex flex-col md:flex-row justify-between items-center">
           <div>
             <p className="text-sm text-gray-400 mb-4 md:mb-0">
+<<<<<<< HEAD
               © 2026 SeeU-Daters. All rights reserved. Made with 💕 for real people.
+=======
+              © 2026 SeeU-Daters. All rights reserved. Made with 💕 by students, for students.
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </p>
           </div>
           <div className="flex gap-6 flex-wrap justify-center md:justify-end">

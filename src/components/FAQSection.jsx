@@ -27,7 +27,11 @@ export default function FAQSection() {
     {
       question: 'How do I know other profiles are real?',
       answer:
+<<<<<<< HEAD
         'Every profile on SeeU-Daters is verified through email, identity checks, and face ID. We have AI moderation that flags suspicious patterns and duplicate accounts. Our human review team manually checks flagged profiles. If it seems too good to be true, it probably failed verification.',
+=======
+        'Every profile on SeeU-Daters is verified through college email, student ID, and face ID. We have AI moderation that flags suspicious patterns and duplicate accounts. Our human review team manually checks flagged profiles. If it seems too good to be true, it probably failed verification.',
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
     },
     {
       question: 'Who is SeeU-Daters for?',

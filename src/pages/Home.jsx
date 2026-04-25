@@ -3,6 +3,16 @@ import { Link } from 'react-router-dom';
 import ScrollReveal from '../components/ScrollReveal';
 import LazySection from '../components/LazySection';
 import PremiumHero from '../components/PremiumHero';
+<<<<<<< HEAD
+=======
+import PremiumFeatureCard from '../components/PremiumFeatureCard';
+import HowItWorks from '../components/HowItWorks';
+import ChatShowcase from '../components/ChatShowcase';
+import SafetySection from '../components/SafetySection';
+import Testimonials from '../components/Testimonials';
+import FAQSection from '../components/FAQSection';
+import FinalCTA from '../components/FinalCTA';
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
 import SocialProof from '../components/SocialProof';
 
 const HowItWorks = React.lazy(() => import('../components/HowItWorks'));
@@ -68,6 +78,7 @@ export default function Home() {
 
       <section className="py-24 px-4 bg-[radial-gradient(circle_at_8%_15%,rgba(244,114,182,0.1),transparent_34%),radial-gradient(circle_at_92%_20%,rgba(251,191,36,0.1),transparent_30%),linear-gradient(180deg,#fff_0%,#fff7fb_52%,#fff_100%)]">
         <div className="max-w-7xl mx-auto">
+<<<<<<< HEAD
           <ScrollReveal className="max-w-3xl" delayMs={40}>
             <p className="text-xs uppercase tracking-[0.2em] text-rose-500 font-bold">Product Narrative</p>
             <h2 className="mt-3 text-4xl md:text-5xl font-black text-darkBrown leading-tight">
@@ -76,6 +87,13 @@ export default function Home() {
             </h2>
             <p className="mt-4 text-base md:text-lg text-softBrown leading-relaxed">
               SeeU-Daters is designed as a trust-first social product: clearer intent, safer conversations, and a stronger network loop that grows with every verified member.
+=======
+          {/* Section Header */}
+          <div className="text-center mb-16 animate-fade-in-up">
+            <h2 className="section-title text-4xl mb-4">Why SeeU-Daters Stands Out</h2>
+            <p className="section-subtitle max-w-3xl mx-auto text-lg">
+              Built by students, for students. Six powerful features that make SeeU-Daters the safest, most private college dating platform.
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </p>
           </ScrollReveal>
 
@@ -162,6 +180,7 @@ export default function Home() {
         </React.Suspense>
       </LazySection>
 
+<<<<<<< HEAD
       <section className="py-24 px-4 bg-[linear-gradient(180deg,#fff_0%,#fff5f9_48%,#fff_100%)]">
         <ScrollReveal className="max-w-7xl mx-auto rounded-[2rem] border border-rose-200/70 bg-white shadow-[0_28px_80px_rgba(190,24,93,0.1)] p-8 md:p-10" delayMs={60}>
           <div className="grid lg:grid-cols-[1.1fr_1fr] gap-8 items-center">
@@ -198,6 +217,10 @@ export default function Home() {
           </div>
         </ScrollReveal>
       </section>
+=======
+      {/* TESTIMONIALS SECTION */}
+      <Testimonials />
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
 
       <LazySection fallback={sectionFallback}>
         <React.Suspense fallback={sectionFallback}>

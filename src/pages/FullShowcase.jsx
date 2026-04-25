@@ -72,7 +72,7 @@ const FullShowcase = () => {
       {/* Header */}
       <div className="bg-gradient-to-r from-pink-600 to-pink-500 text-white py-12 px-4">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-3">🌍 Datee - पूरी Website</h1>
+          <h1 className="text-5xl font-bold mb-3">🌍 SEEU-DATERS - पूरी Website</h1>
           <p className="text-xl text-pink-100">एक जगह पर सभी pages और features देखें</p>
         </div>
       </div>
@@ -235,7 +235,7 @@ const FullShowcase = () => {
 
         {/* Footer */}
         <div className="text-center mt-12 text-gray-600">
-          <p className="mb-2">✨ आपकी Datee Website पूरी तरह तैयार है!</p>
+          <p className="mb-2">✨ आपकी SEEU-DATERS Website पूरी तरह तैयार है!</p>
           <p className="text-sm">सभी features उपलब्ध हैं - client को दिखाने के लिए तैयार</p>
         </div>
       </div>

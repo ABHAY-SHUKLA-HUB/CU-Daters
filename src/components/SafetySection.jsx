@@ -8,7 +8,11 @@ export default function SafetySection() {
         <div className="text-center mb-16 animate-fade-in-up">
           <h2 className="section-title mb-4">The Safest Verified Dating Platform</h2>
           <p className="section-subtitle max-w-3xl mx-auto">
+<<<<<<< HEAD
             SeeU-Daters uses advanced verification and safety measures to ensure you're always connecting with real, verified people.
+=======
+            SeeU-Daters uses advanced verification and safety measures to ensure you're always connecting with real, verified college students.
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
           </p>
         </div>
 

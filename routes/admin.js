@@ -13,6 +13,7 @@ import College from '../models/College.js';
 import SupportTicket from '../models/SupportTicket.js';
 import AppSetting from '../models/AppSetting.js';
 import Like from '../models/Like.js';
+<<<<<<< HEAD
 import AdminSession from '../models/AdminSession.js';
 import ImmutableAuditLog from '../models/ImmutableAuditLog.js';
 import ModerationCase from '../models/ModerationCase.js';
@@ -21,6 +22,10 @@ import PrivacyEvent from '../models/PrivacyEvent.js';
 import DataDeletionRequest from '../models/DataDeletionRequest.js';
 import ScreenshotLog from '../models/ScreenshotLog.js';
 import { verifyAdmin, verifyAdminRole, logActivity, getClientInfo, ADMIN_ROLES } from '../utils/auth.js';
+=======
+import CareerApplication from '../models/CareerApplication.js';
+import { verifyAdmin, verifyAdminRole, logActivity, generateToken, getClientInfo, ADMIN_ROLES } from '../utils/auth.js';
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
 import { sanitizeUser, errorResponse, successResponse } from '../utils/validation.js';
 import { sendApprovalEmail, sendRejectionEmail } from '../utils/emailService.js';
 import { requirePermission } from '../middleware/authorization.js';
@@ -3341,6 +3346,159 @@ router.post('/cleanup/delete-user', requirePermission('admin.users.moderate'), a
   } catch (error) {
     console.error('❌ Cleanup Delete User Error:', error);
     res.status(500).json(errorResponse('Failed to cleanup user: ' + error.message));
+  }
+});
+
+// ===== CAREER APPLICATIONS =====
+
+// SUBMIT CAREER APPLICATION (Public)
+router.post('/career-applications/submit', async (req, res) => {
+  try {
+    const { fullName, email, phone, campus, whyYou, instagram, linkedin, experience } = req.body;
+
+    // Validate required fields
+    if (!fullName || !email || !phone || !campus || !whyYou || !instagram || !linkedin || !experience) {
+      return res.status(400).json(errorResponse('All fields are required'));
+    }
+
+    // Validate campus
+    if (!['CU Mohali', 'CU UP'].includes(campus)) {
+      return res.status(400).json(errorResponse('Invalid campus selected'));
+    }
+
+    // Validate whyYou length
+    if (whyYou.length < 50 || whyYou.length > 2000) {
+      return res.status(400).json(errorResponse('Your reason must be between 50 and 2000 characters'));
+    }
+
+    // Validate experience length
+    if (experience.length < 20 || experience.length > 1000) {
+      return res.status(400).json(errorResponse('Experience must be between 20 and 1000 characters'));
+    }
+
+    // Validate LinkedIn URL
+    if (!/^https?:\/\/.+/i.test(linkedin)) {
+      return res.status(400).json(errorResponse('LinkedIn profile must be a valid URL'));
+    }
+
+    // Check if already applied from this email
+    const existingApp = await CareerApplication.findOne({ email: email.toLowerCase() });
+    if (existingApp) {
+      return res.status(400).json(errorResponse('You have already submitted an application'));
+    }
+
+    // Create new application
+    const application = new CareerApplication({
+      fullName: fullName.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
+      campus,
+      whyYou,
+      instagram: instagram.trim(),
+      linkedin: linkedin.trim(),
+      experience: experience.trim()
+    });
+
+    await application.save();
+
+    console.log(`✅ Career application submitted: ${email} for ${campus}`);
+
+    res.json(successResponse('Application submitted successfully! We\'ll review and reach out soon.', {
+      applicationId: application._id,
+      email: application.email
+    }));
+  } catch (error) {
+    console.error('❌ Career Application Submit Error:', error);
+    res.status(500).json(errorResponse('Failed to submit application: ' + error.message));
+  }
+});
+
+// GET ALL CAREER APPLICATIONS (Admin only)
+router.get('/career-applications', verifyAdmin, async (req, res) => {
+  try {
+    const { status, campus, search } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    let filter = {};
+    if (status) filter.status = status;
+    if (campus) filter.campus = campus;
+
+    if (search) {
+      const searchTerm = search.trim();
+      filter.$or = [
+        { fullName: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } },
+        { phone: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+
+    const total = await CareerApplication.countDocuments(filter);
+    const applications = await CareerApplication.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json(successResponse('Career applications retrieved', {
+      data: applications,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }));
+  } catch (error) {
+    console.error('❌ Get Career Applications Error:', error);
+    res.status(500).json(errorResponse('Failed to fetch applications: ' + error.message));
+  }
+});
+
+// UPDATE CAREER APPLICATION STATUS (Admin only)
+router.patch('/career-applications/:id', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, adminNotes } = req.body;
+
+    // Validate status
+    if (!['pending', 'contacted', 'rejected', 'approved'].includes(status)) {
+      return res.status(400).json(errorResponse('Invalid status'));
+    }
+
+    const application = await CareerApplication.findByIdAndUpdate(
+      id,
+      { status, adminNotes: adminNotes || null, updatedAt: Date.now() },
+      { new: true }
+    );
+
+    if (!application) {
+      return res.status(404).json(errorResponse('Application not found'));
+    }
+
+    console.log(`✅ Career application updated: ${application.email} - Status: ${status}`);
+
+    res.json(successResponse('Application updated successfully', { data: application }));
+  } catch (error) {
+    console.error('❌ Update Career Application Error:', error);
+    res.status(500).json(errorResponse('Failed to update application: ' + error.message));
+  }
+});
+
+// GET SINGLE CAREER APPLICATION (Admin only)
+router.get('/career-applications/:id', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const application = await CareerApplication.findById(id);
+
+    if (!application) {
+      return res.status(404).json(errorResponse('Application not found'));
+    }
+
+    res.json(successResponse('Application retrieved', { data: application }));
+  } catch (error) {
+    console.error('❌ Get Career Application Error:', error);
+    res.status(500).json(errorResponse('Failed to fetch application: ' + error.message));
   }
 });
 

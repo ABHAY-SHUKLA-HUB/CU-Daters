@@ -120,14 +120,21 @@ export default function PremiumHero() {
 
               {/* ===== LOW-FRICTION MICROCOPY ===== */}
               <div className="space-y-2 text-sm text-softBrown font-semibold animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+<<<<<<< HEAD
                 <p>✓ Verify in 2 minutes • No credit card needed</p>
                 <p>✓ Easy to delete • Your data is yours</p>
                 <p>✓ 50K+ people already matching</p>
+=======
+                <p>✓ Exclusive to CU Mohali & CU UP</p>
+                <p>✓ Coming Soon – Join the waitlist</p>
+                <p>✓ Built by students, for your campus</p>
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
               </div>
 
               {/* ===== STATS AT BOTTOM ===== */}
               <div className="grid grid-cols-3 gap-4 sm:gap-6 pt-10 border-t border-rose-200/60 animate-fade-in-up" style={{ animationDelay: '0.7s' }}>
                 <div className="group cursor-pointer">
+<<<<<<< HEAD
                   <p className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">50K+</p>
                   <p className="text-[11px] sm:text-xs text-softBrown mt-1.5 font-semibold">Verified Members</p>
                 </div>
@@ -138,6 +145,18 @@ export default function PremiumHero() {
                 <div className="group cursor-pointer">
                   <p className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-rose-500 to-orange-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">4.9★</p>
                   <p className="text-[11px] sm:text-xs text-softBrown mt-1.5 font-semibold">App Rating</p>
+=======
+                  <p className="text-4xl font-black bg-gradient-to-r from-blushPink to-purple-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">2</p>
+                  <p className="text-xs text-softBrown mt-2 font-semibold">Campuses Launching</p>
+                </div>
+                <div className="group cursor-pointer">
+                  <p className="text-4xl font-black bg-gradient-to-r from-blushPink to-purple-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">🚀</p>
+                  <p className="text-xs text-softBrown mt-2 font-semibold">Coming Soon</p>
+                </div>
+                <div className="group cursor-pointer">
+                  <p className="text-4xl font-black bg-gradient-to-r from-blushPink to-purple-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">✓</p>
+                  <p className="text-xs text-softBrown mt-2 font-semibold">Real Students</p>
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
                 </div>
               </div>
             </div>

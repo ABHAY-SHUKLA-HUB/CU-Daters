@@ -93,7 +93,11 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+<<<<<<< HEAD
                 placeholder="your@email.com"
+=======
+                placeholder="your@culkomail.in or personal@email.com"
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
                 className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold"
               />
               <p className="text-xs text-softBrown mt-1">📧 Use your registered email</p>

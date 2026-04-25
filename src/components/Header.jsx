@@ -97,8 +97,13 @@ export default function Header() {
         <div className="hidden lg:grid grid-cols-[auto_1fr_auto] items-center gap-8 h-16">
           <div className="justify-self-start">
             <Link to="/" className="flex items-center gap-2.5 text-xl lg:text-2xl font-extrabold tracking-tight" style={{ color: 'var(--header-text)' }}>
+<<<<<<< HEAD
               <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-base ${isDashboardSurface ? 'bg-rose-500/20 text-rose-200 border border-rose-300/25' : 'bg-blushPink/15 border border-blushPink/30'}`}>👫</span>
               <span>SeeU-Daters</span>
+=======
+              <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-base ${isDashboardSurface ? 'bg-rose-500/20 text-rose-200 border border-rose-300/25' : 'bg-blushPink/15 border border-blushPink/30'}`}>🔗</span>
+              <span>SEEU-DATERS</span>
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </Link>
           </div>
 
@@ -171,8 +176,13 @@ export default function Header() {
 
         <div className="lg:hidden flex justify-between items-center h-16">
           <Link to="/" className="flex items-center gap-2.5 text-xl font-extrabold gradient-text tracking-tight">
+<<<<<<< HEAD
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-base bg-rose-100 border border-rose-200 text-rose-600">👫</span>
           <span>SeeU-Daters</span>
+=======
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-base bg-rose-100 border border-rose-200 text-rose-600">🔗</span>
+          <span>SEEU-DATERS</span>
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
         </Link>
           <button 
             className="p-2 rounded-lg text-rose-800 hover:bg-rose-50"

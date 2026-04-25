@@ -91,7 +91,7 @@ const AdminSubscriptionsPanel = () => {
   const handleApprove = async (subId) => {
     try {
       setActionLoading(true);
-      const token = localStorage.getItem('authToken') || 'test-token-123';
+      const token = localStorage.getItem('auth_token');
 
       const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/api/admin/approve/${subId}`, {

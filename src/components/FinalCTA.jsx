@@ -8,10 +8,14 @@ export default function FinalCTA() {
         {/* Main Message */}
         <div className="animate-fade-in-up mb-12">
           <h2 className="text-4xl md:text-5xl font-black text-darkBrown mb-6 leading-tight">
-            Ready to Find Your People?
+            Coming Soon to Your Campus
           </h2>
           <p className="text-xl text-softBrown mb-8 leading-relaxed">
+<<<<<<< HEAD
             Join 50K+ verified members making real connections. Start free today. No credit card needed.
+=======
+            SEEU-DATERS is launching exclusively for Chandigarh University (Mohali & UP). Be the first to connect with students from your campus. Join the waitlist now!
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
           </p>
         </div>
 
@@ -35,26 +39,22 @@ export default function FinalCTA() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 animate-fade-in-up">
           <Link to="/signup">
             <button className="btn-primary px-8 py-4 text-lg">
-              Start Free Today
-            </button>
-          </Link>
-          <Link to="/login">
-            <button className="btn-secondary px-8 py-4 text-lg">
-              Login
+              Join the Waitlist
             </button>
           </Link>
           <Link to="/features">
             <button className="hidden sm:block btn-secondary px-8 py-4 text-lg">
-              See How It Works
+              Learn More
             </button>
           </Link>
         </div>
 
         {/* Subtext */}
         <p className="text-softBrown text-sm animate-fade-in-up">
-          Takes 5 minutes to verify • No credit card required • Cancel anytime
+          Join 500+ students already on the waitlist • College email verification required
         </p>
 
+<<<<<<< HEAD
         {/* Community Stats */}
         <div className="mt-16 p-8 rounded-3xl bg-gradient-to-br from-creamyWhite to-warmCream border-2 border-softPink animate-fade-in-up">
           <p className="text-darkBrown mb-6 font-semibold text-lg">Active in Your Community</p>
@@ -62,14 +62,23 @@ export default function FinalCTA() {
             <div>
               <p className="text-3xl font-black gradient-text">50K+</p>
               <p className="text-xs text-softBrown mt-2">Verified Members</p>
+=======
+        {/* Launch Info */}
+        <div className="mt-16 p-8 rounded-3xl bg-gradient-to-br from-rose-50 to-pink-50 border-2 border-rose-200 animate-fade-in-up">
+          <p className="text-darkBrown mb-6 font-semibold text-lg">🚀 Launching Exclusively For:</p>
+          <div className="grid grid-cols-3 gap-6">
+            <div>
+              <p className="text-3xl font-black gradient-text">📍</p>
+              <p className="text-xs text-softBrown mt-2">CU Mohali</p>
+>>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </div>
             <div>
-              <p className="text-3xl font-black gradient-text">200K+</p>
-              <p className="text-xs text-softBrown mt-2">Matches Made</p>
+              <p className="text-3xl font-black gradient-text">📍</p>
+              <p className="text-xs text-softBrown mt-2">CU UP</p>
             </div>
             <div>
-              <p className="text-3xl font-black gradient-text">4.9★</p>
-              <p className="text-xs text-softBrown mt-2">App Rating</p>
+              <p className="text-3xl font-black text-rose-600">Soon!</p>
+              <p className="text-xs text-softBrown mt-2">More coming next</p>
             </div>
           </div>
         </div>
