@@ -15,12 +15,41 @@ try {
 // Detect if running in production
 const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('netlify'));
 
-const sanitizedEmailUser = String(process.env.EMAIL_USER || '').trim();
+const sanitizedEmailUser = String(
+  process.env.EMAIL_USER ||
+  process.env.SMTP_USER ||
+  process.env.MAIL_USER ||
+  ''
+).trim();
 // Gmail app passwords are often copied with spaces between groups. Remove all spaces.
-const sanitizedEmailPassword = String(process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '');
+const sanitizedEmailPassword = String(
+  process.env.EMAIL_PASSWORD ||
+  process.env.SMTP_PASSWORD ||
+  process.env.EMAIL_PASS ||
+  process.env.MAIL_PASSWORD ||
+  ''
+).replace(/\s+/g, '');
 const smtpHost = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpSecure = String(process.env.SMTP_SECURE || String(smtpPort === 465)).toLowerCase() === 'true';
+const maxSmtpRetries = Math.max(1, Number(process.env.SMTP_RETRIES || 3));
+const defaultFromAddress = String(
+  process.env.EMAIL_FROM ||
+  process.env.SMTP_FROM ||
+  sanitizedEmailUser ||
+  'cudaters.verify@gmail.com'
+).trim();
+
+const smtpHealth = {
+  totalAttempts: 0,
+  totalSuccesses: 0,
+  totalFailures: 0,
+  consecutiveFailures: 0,
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  lastErrorCode: null,
+  lastErrorMessage: null
+};
 
 // Create transporter based on environment
 let transporter;
@@ -67,35 +96,104 @@ const shouldTryFallback = (error) => {
   ].includes(code) || msg.includes('timed out') || msg.includes('connection closed');
 };
 
+const wait = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
+
+const recordSmtpSuccess = () => {
+  smtpHealth.totalAttempts += 1;
+  smtpHealth.totalSuccesses += 1;
+  smtpHealth.consecutiveFailures = 0;
+  smtpHealth.lastSuccessAt = new Date().toISOString();
+  smtpHealth.lastErrorCode = null;
+  smtpHealth.lastErrorMessage = null;
+};
+
+const recordSmtpFailure = (error) => {
+  smtpHealth.totalAttempts += 1;
+  smtpHealth.totalFailures += 1;
+  smtpHealth.consecutiveFailures += 1;
+  smtpHealth.lastFailureAt = new Date().toISOString();
+  smtpHealth.lastErrorCode = String(error?.code || 'UNKNOWN');
+  smtpHealth.lastErrorMessage = String(error?.message || 'SMTP send failed');
+};
+
+export const getEmailServiceHealth = () => {
+  const configured = Boolean(sanitizedEmailUser && sanitizedEmailPassword);
+  const degraded = configured && smtpHealth.consecutiveFailures >= 3;
+
+  return {
+    configured,
+    mode: configured ? 'smtp' : 'console-dev',
+    smtp: {
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      retries: maxSmtpRetries
+    },
+    counters: {
+      totalAttempts: smtpHealth.totalAttempts,
+      totalSuccesses: smtpHealth.totalSuccesses,
+      totalFailures: smtpHealth.totalFailures,
+      consecutiveFailures: smtpHealth.consecutiveFailures
+    },
+    lastSuccessAt: smtpHealth.lastSuccessAt,
+    lastFailureAt: smtpHealth.lastFailureAt,
+    lastErrorCode: smtpHealth.lastErrorCode,
+    lastErrorMessage: smtpHealth.lastErrorMessage,
+    degraded
+  };
+};
+
 const sendMailWithFallback = async (mailOptions) => {
   const candidates = [transporter, ...fallbackTransporters].filter(Boolean);
   let lastError = null;
 
-  for (let i = 0; i < candidates.length; i += 1) {
-    try {
-      const info = await sendMailAsync(candidates[i], mailOptions);
-      if (i > 0) {
-        console.warn(`⚠️ Email sent via fallback SMTP candidate #${i + 1}`);
+  for (let attempt = 1; attempt <= maxSmtpRetries; attempt += 1) {
+    for (let i = 0; i < candidates.length; i += 1) {
+      try {
+        const info = await sendMailAsync(candidates[i], mailOptions);
+        if (i > 0) {
+          console.warn(`⚠️ Email sent via fallback SMTP candidate #${i + 1}`);
+        }
+        if (attempt > 1) {
+          console.warn(`⚠️ Email send succeeded on retry attempt #${attempt}`);
+        }
+        recordSmtpSuccess();
+        return info;
+      } catch (error) {
+        lastError = error;
+        const code = error?.code || 'UNKNOWN';
+        console.error(`❌ SMTP attempt ${attempt}/${maxSmtpRetries}, candidate #${i + 1} failed:`, code, error?.message || error);
+        if (!shouldTryFallback(error)) {
+          throw error;
+        }
       }
-      return info;
-    } catch (error) {
-      lastError = error;
-      const code = error?.code || 'UNKNOWN';
-      console.error(`❌ SMTP candidate #${i + 1} failed:`, code, error?.message || error);
-      if (!shouldTryFallback(error)) {
-        break;
-      }
+    }
+
+    if (attempt < maxSmtpRetries) {
+      const retryDelayMs = 700 * attempt;
+      console.warn(`⚠️ Retrying email send in ${retryDelayMs}ms...`);
+      await wait(retryDelayMs);
     }
   }
 
+  recordSmtpFailure(lastError);
   throw lastError || new Error('All SMTP transport attempts failed');
 };
 
-console.log('\n📧 [STARTUP] Email Service Initialize');
+console.log('\n' + '='.repeat(80));
+console.log('📧 [STARTUP] Email Service Initialize');
+console.log('='.repeat(80));
 console.log(`   - Node Env: ${process.env.NODE_ENV}`);
-console.log(`   - Email User: ${sanitizedEmailUser || 'NOT SET'}`);
-console.log(`   - Email Password: ${sanitizedEmailPassword ? '✓ SET' : '✗ NOT SET'}`);
+console.log(`   - Email User: ${sanitizedEmailUser || '✗ NOT SET'}`);
+console.log(`   - Email Password: ${sanitizedEmailPassword ? '✓ SET (' + sanitizedEmailPassword.length + ' chars)' : '✗ NOT SET'}`);
+console.log(`   - SMTP Host: ${smtpHost}`);
+console.log(`   - SMTP Port: ${smtpPort}`);
+console.log(`   - SMTP Secure: ${smtpSecure}`);
 console.log(`   - Production Mode: ${isProduction}`);
+console.log(`   - Retries: ${maxSmtpRetries}`);
+console.log('='.repeat(80));
 
 if (!sanitizedEmailPassword) {
   // Development mode: Show OTP in console
@@ -136,18 +234,46 @@ if (isProduction && sanitizedEmailPassword) {
   transporter.verify()
     .then((success) => {
       console.log('✅ Gmail SMTP Connection Verified!');
+      console.log('   OTP emails will be sent via Gmail SMTP\n');
     })
     .catch((error) => {
+      console.error('\n' + '='.repeat(80));
       console.error('❌ CRITICAL: Gmail SMTP Connection Failed!');
+      console.error('='.repeat(80));
       console.error('Error:', error.message);
-      console.error('\n📋 TROUBLESHOOTING:');
-      console.error('1. Check EMAIL_USER in .env (should be Gmail address)');
-      console.error('2. Generate NEW app password from Gmail account:');
-      console.error('   - Go to myaccount.google.com');
-      console.error('   - Security → App passwords');
-      console.error('   - Copy generated password to EMAIL_PASSWORD in .env');
-      console.error('3. Make sure 2FA is enabled on Gmail');
-      console.error('4. Restart backend after updating .env\n');
+      console.error('\n📋 TROUBLESHOOTING STEPS:');
+      console.error('┌─ 1. Verify Environment Variables');
+      console.error('│  · Check EMAIL_USER = ' + (sanitizedEmailUser || 'NOT SET'));
+      console.error('│  · Check EMAIL_PASSWORD is set (show as ✓ above)');
+      console.error('│  · If not set, .env file not found or missing these variables');
+      console.error('└─ Location: d:\\New folder\\datee-main\\.env');
+      console.error('\n┌─ 2. Generate New Gmail App Password');
+      console.error('│  · Go to myaccount.google.com');
+      console.error('│  · Click "Security" in left menu');
+      console.error('│  · Find "App passwords"');
+      console.error('│  · Select "Mail" and your device type');
+      console.error('│  · Click "Generate"');
+      console.error('│  · Copy the 16-character password (no spaces)');
+      console.error('│  · Update EMAIL_PASSWORD in .env');
+      console.error('└─ Important: Must use app password, NOT your regular Gmail password');
+      console.error('\n┌─ 3. Enable 2-Factor Authentication (Required)');
+      console.error('│  · Go to myaccount.google.com/security');
+      console.error('│  · Find "2-Step Verification"');
+      console.error('│  · If disabled, click to enable it');
+      console.error('└─ 2FA must be enabled before you can use app passwords');
+      console.error('\n┌─ 4. Check Network Connection');
+      console.error('│  · Run: Test-NetConnection -ComputerName smtp.gmail.com -Port 587');
+      console.error('│  · Result should show: TcpTestSucceeded : True');
+      console.error('│  · If False, check firewall/network settings');
+      console.error('└─ Gmail SMTP requires outbound access on port 587 or 465');
+      console.error('\n┌─ 5. Restart Backend After Changes');
+      console.error('│  · Stop current process (Ctrl+C)');
+      console.error('│  · Update .env file');
+      console.error('│  · Restart: npm run dev (or your start command)');
+      console.error('└─ Changes to .env require backend restart');
+      console.error('\n' + '='.repeat(80));
+      console.error(`Error Type: ${error.code || error.name || 'UNKNOWN'}`);
+      console.error(`Full Message: ${error.message}\n`);
     });
 }
 
@@ -213,7 +339,7 @@ export const sendOtpEmail = async (email, otp) => {
           <div class="card">
             <!-- Header -->
             <div class="header">
-              <div class="logo">💖 SeeU-Daters 💖</div>
+              <div class="logo">💖 SEEU-DATERS 💖</div>
               <h1>Email Verification</h1>
               <p>Secure your account with a one-time verification code</p>
             </div>
@@ -262,7 +388,7 @@ export const sendOtpEmail = async (email, otp) => {
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '💖 Your SeeU-Daters Verification Code',
       html: htmlTemplate,
@@ -274,19 +400,50 @@ export const sendOtpEmail = async (email, otp) => {
     console.log('✅ OTP email sent successfully:', result.messageId);
     return { success: true, messageId: result.messageId };
   } catch (error) {
-    console.error('❌ Error sending OTP email:', error.message);
+    console.error('\n' + '='.repeat(80));
+    console.error('❌ Error sending OTP email');
+    console.error('='.repeat(80));
     console.error('📧 Debugging Info:');
-    console.error('  - Email User:', sanitizedEmailUser || 'NOT SET');
-    console.error('  - Email Pass Set:', !!sanitizedEmailPassword);
+    console.error('  - Email User:', sanitizedEmailUser || '✗ NOT SET');
+    console.error('  - Email Pass Set:', sanitizedEmailPassword ? '✓ YES' : '✗ NOT SET');
     console.error('  - Recipient:', email);
-    console.error('  - Error Type:', error.code || error.name);
-    console.error('  - Full Error:', error);
+    console.error('  - Error Type:', error.code || error.name || 'UNKNOWN');
+    console.error('  - Error Message:', error.message);
+    console.error('  - SMTP Health:');
+    console.error('    · Total Attempts:', smtpHealth.totalAttempts);
+    console.error('    · Consecutive Failures:', smtpHealth.consecutiveFailures);
+    console.error('    · Last Error Code:', smtpHealth.lastErrorCode);
+    console.error('  - Timestamp:', new Date().toISOString());
+    console.error('\n📋 RECOVERY STEPS:');
     
-    // Check for common Gmail auth issues
-    if (error.message.includes('Invalid login') || error.message.includes('535')) {
-      throw new Error(`Gmail Authentication Failed - Check EMAIL_USER and EMAIL_PASSWORD in .env`);
+    // Specific error handling
+    if (error.message.includes('Invalid login') || error.message.includes('535') || error.code === 'EAUTH') {
+      console.error('  ⚠️  Authentication Issue Detected (Error 535)');
+      console.error('  1. Go to myaccount.google.com/apppasswords');
+      console.error('  2. Generate a NEW 16-character app password');
+      console.error('  3. Update EMAIL_PASSWORD in .env (copy without spaces)');
+      console.error('  4. Restart backend');
+      throw new Error(`❌ Gmail Authentication Failed - Check EMAIL_USER and EMAIL_PASSWORD in .env`);
     }
     
+    if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT') || error.code === 'ETIMEDOUT') {
+      console.error('  ⚠️  Connection Timeout Issue Detected');
+      console.error('  1. Check network connection: Test-NetConnection -ComputerName smtp.gmail.com -Port 587');
+      console.error('  2. Check firewall allows port 587 outbound');
+      console.error('  3. Verify SMTP_HOST and SMTP_PORT in .env');
+      console.error('  4. Try using port 465 (SMTP_PORT=465, SMTP_SECURE=true)');
+      throw new Error(`⏱️  SMTP Connection Timeout - Check network and firewall settings`);
+    }
+    
+    if (error.message.includes('Connection refused') || error.code === 'ECONNREFUSED') {
+      console.error('  ⚠️  Connection Refused - Server may be down or port blocked');
+      console.error('  1. Verify Gmail SMTP is reachable: Test-NetConnection -ComputerName smtp.gmail.com -Port 587');
+      console.error('  2. Check SMTP_HOST=smtp.gmail.com in .env');
+      console.error('  3. Try port 465 if 587 is blocked');
+      throw new Error(`🚫 SMTP Server refused connection - Check SMTP settings`);
+    }
+    
+    console.error('\n' + '='.repeat(80));
     throw new Error(`Failed to send OTP email: ${error.message}`);
   }
 };
@@ -300,7 +457,7 @@ export const sendOtpEmail = async (email, otp) => {
 export const sendApprovalEmail = async (email, name) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '✅ Your SeeU-Daters Profile Has Been Approved!',
       html: `
@@ -335,7 +492,7 @@ export const sendApprovalEmail = async (email, name) => {
 export const sendRejectionEmail = async (email, name, reason) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '❌ SeeU-Daters Profile Review',
       html: `
@@ -438,7 +595,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
           <div class="card">
             <!-- Header -->
             <div class="header">
-              <div class="logo">💖 SeeU-Daters 💖</div>
+              <div class="logo">💖 SEEU-DATERS 💖</div>
               <h1>Password Reset Request</h1>
               <p>We received a request to reset your password</p>
             </div>
@@ -492,7 +649,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
       subject: '🔐 SeeU-Daters Password Reset Request',
       html: htmlTemplate,
@@ -690,9 +847,9 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || sanitizedEmailUser || 'cudaters.verify@gmail.com',
+      from: defaultFromAddress,
       to: email,
-      subject: '✨ Your Registration is Pending Approval – SeeU-Daters',
+      subject: '✨ Your Registration is Pending Approval – SEEU-DATERS',
       html: htmlTemplate,
       text: `Hi ${name}!\n\nThank you for registering on SeeU-Daters! Your profile is under review and will be approved within 24-48 hours.\n\nRegistration Summary:\nName: ${name}\nEmail: ${email}\nCollege: ${college}\nStatus: Pending Approval\n\nYou'll receive an email once your profile is approved.\n\nFor support, contact: support@cudaters.com\n\nBest regards,\nSeeU-Daters Team`
     };
@@ -708,6 +865,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
 };
 
 export default {
+  getEmailServiceHealth,
   sendOtpEmail,
   sendApprovalEmail,
   sendRejectionEmail,

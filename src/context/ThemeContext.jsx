@@ -31,6 +31,51 @@ export const THEMES = [
     preview: 'linear-gradient(135deg,#faf8fc 0%,#f3eef8 50%,#ede5f5 100%)'
   },
   {
+    id: 'admin-pro-dark',
+    name: 'Admin Pro Dark',
+    tone: 'Enterprise',
+    portal: 'admin',
+    vip: false,
+    description: 'Deep navy operations console optimized for dense admin workflows.',
+    preview: 'linear-gradient(145deg,#070f1f 0%,#0d1c35 46%,#13284b 100%)'
+  },
+  {
+    id: 'midnight-neon',
+    name: 'Midnight Neon',
+    tone: 'Dark',
+    portal: 'both',
+    vip: true,
+    description: 'Midnight foundation with electric cyan accents and crisp contrast.',
+    preview: 'radial-gradient(circle at 20% 12%, rgba(0,236,255,.24) 0%, transparent 34%), linear-gradient(145deg,#040812 0%,#07172d 44%,#10294a 100%)'
+  },
+  {
+    id: 'graphite-blue',
+    name: 'Graphite Blue',
+    tone: 'Dark',
+    portal: 'both',
+    vip: false,
+    description: 'Graphite surfaces with steel-blue highlights for premium readability.',
+    preview: 'linear-gradient(145deg,#0d1219 0%,#151d2a 45%,#1f2d44 100%)'
+  },
+  {
+    id: 'luxury-black',
+    name: 'Luxury Black',
+    tone: 'Dark',
+    portal: 'both',
+    vip: true,
+    description: 'Ultra-dark luxury palette with restrained gold-cyan emphasis.',
+    preview: 'radial-gradient(circle at 80% 18%, rgba(201,168,94,.2) 0%, transparent 30%), linear-gradient(145deg,#040404 0%,#111111 48%,#1b1e24 100%)'
+  },
+  {
+    id: 'soft-dark-glass',
+    name: 'Soft Dark Glass',
+    tone: 'Dark',
+    portal: 'both',
+    vip: true,
+    description: 'Soft charcoal with subtle glass depth and calm cyan status accents.',
+    preview: 'linear-gradient(145deg,#0b1018 0%,#121b2a 46%,#1d2a3f 100%)'
+  },
+  {
     id: 'warm-night',
     name: 'Warm Night',
     tone: 'Dark',
@@ -38,15 +83,6 @@ export const THEMES = [
     vip: true,
     description: 'Soft dark mode - warm charcoal with rose accents, premium without harsh glow.',
     preview: 'linear-gradient(135deg,#3d3a3f 0%,#4a424e 50%,#5d525d 100%)'
-  },
-  {
-    id: 'admin-pro',
-    name: 'Professional Admin Pro',
-    tone: 'Enterprise',
-    portal: 'admin',
-    vip: false,
-    description: 'Operational SaaS theme with high readability for dense data.',
-    preview: 'linear-gradient(135deg,#0e1726 0%,#1d2738 48%,#243446 100%)'
   },
   {
     id: 'gold-luxury',
@@ -65,24 +101,6 @@ export const THEMES = [
     vip: true,
     description: 'Deep blue radial gradient dark mode - modern and sophisticated.',
     preview: 'radial-gradient(circle at 18% 12%, #1a3f62 0%, transparent 36%), linear-gradient(145deg, #040a13 0%, #172f53 100%)'
-  },
-  {
-    id: 'romantic-gradient',
-    name: 'Romantic Gradient',
-    tone: 'Dark',
-    portal: 'both',
-    vip: true,
-    description: 'Red to magenta gradient dark - bold and romantic.',
-    preview: 'linear-gradient(135deg, #1a0a15 0%, #3d1a2e 50%, #2d0f20 100%)'
-  },
-  {
-    id: 'vibrant-genz',
-    name: 'Vibrant Gen-Z',
-    tone: 'Dark',
-    portal: 'both',
-    vip: true,
-    description: 'Blue and purple neon dark - energetic and trendy.',
-    preview: 'linear-gradient(135deg, #0f0a1a 0%, #1a0f3f 50%, #2a0a4f 100%)'
   }
 ];
 
@@ -92,8 +110,8 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_THEME = {
-  user: 'lavender-blush',
-  admin: 'admin-pro'
+  user: 'graphite-blue',
+  admin: 'admin-pro-dark'
 };
 
 const LIGHT_THEME_IDS = new Set(['soft-rose', 'cream-dream', 'lavender-blush', 'gold-luxury']);
@@ -117,7 +135,15 @@ const normalizeThemeId = (themeId, scope) => {
   }
 
   if (themeId === 'new') {
-    return 'dark-premium';
+    return 'midnight-neon';
+  }
+
+  if (themeId === 'admin-pro') {
+    return 'admin-pro-dark';
+  }
+
+  if (themeId === 'dark-premium' || themeId === 'vip-luxury' || themeId === 'romantic-gradient' || themeId === 'vibrant-genz') {
+    return 'midnight-neon';
   }
 
   const theme = THEME_MAP[themeId];

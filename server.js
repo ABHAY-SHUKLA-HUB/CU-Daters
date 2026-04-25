@@ -19,9 +19,7 @@ import { getDbReconnectState, markDbReconnectStart, markDbReconnectEnd } from '.
 import authRoutes from './routes/auth.js';
 import configRoutes from './routes/config.js';
 import subscriptionRoutes from './routes/subscriptions.js';
-import razorpayRoutes from './routes/razorpay.js';
 import adminRoutes from './routes/admin.js';
-import cmsRoutes from './routes/cms.js';
 import chatRoutes from './routes/chat.js';
 import likesRoutes from './routes/likes.js';
 import connectionRoutes from './routes/connections.js';
@@ -104,8 +102,10 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isNetlify = hostname.endsWith('.netlify.app');
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
+  const isCudatersTech = hostname === 'cudaters.tech' || hostname.endsWith('.cudaters.tech');
+  const isCuDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
 
-  return isLocalDevHost || isNetlify || isVercel || isRender;
+  return isLocalDevHost || isNetlify || isVercel || isRender || isCudatersTech || isCuDatersTech;
 };
 
 // ===== CONNECT DATABASE =====
@@ -144,6 +144,10 @@ const staticAllowedOrigins = [
   'https://www.seeu-daters-found.netlify.app',
   'https://seeu-daters.vercel.app',
   'https://www.seeu-daters.vercel.app',
+  'https://cudaters.tech',
+  'https://www.cudaters.tech',
+  'https://seeu-daters.tech',
+  'https://www.seeu-daters.tech',
 
   // Backend URL
   process.env.BACKEND_URL,
@@ -249,9 +253,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/razorpay', razorpayRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/cms', cmsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/likes', likesRoutes);
 app.use('/api/connections', connectionRoutes);

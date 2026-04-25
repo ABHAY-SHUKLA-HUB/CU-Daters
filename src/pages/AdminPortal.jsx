@@ -5,8 +5,7 @@ import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ThemeSettingsPanel from '../components/ThemeSettingsPanel';
-import CareerApplicationsPanel from '../components/CareerApplicationsPanel';
-import ContentEditorPanel from '../components/ContentEditorPanel';
+import { PremiumSurface, StatCard, StatusChip } from '../components/ui/PremiumPrimitives';
 import '../styles/adminPortal.css';
 
 const SECTION_CONFIG = [
@@ -20,8 +19,6 @@ const SECTION_CONFIG = [
   { id: 'moderation', label: 'Content Moderation', icon: '🔍', group: 'Moderation' },
   { id: 'payments', label: 'Payment Reviews', icon: '💳', group: 'Finance' },
   { id: 'support', label: 'Support Desk', icon: '🎧', group: 'Support' },
-  { id: 'career_applications', label: 'Career Applications', icon: '🚀', group: 'Support' },
-  { id: 'content_management', label: 'Content Management', icon: '📝', group: 'Settings' },
   { id: 'analytics', label: 'Analytics', icon: '📈', group: 'Insights' },
   { id: 'activity', label: 'Audit Logs', icon: '📋', group: 'Insights' },
   { id: 'colleges', label: 'Colleges', icon: '🏫', group: 'Settings' },
@@ -42,8 +39,6 @@ const SECTION_ROLE_ACCESS = {
   moderation: ['admin', 'super_admin', 'moderator'],
   colleges: ['admin', 'super_admin'],
   support: ['admin', 'super_admin', 'moderator'],
-  career_applications: ['admin', 'super_admin'],
-  content_management: ['admin', 'super_admin'],
   analytics: ['admin', 'super_admin', 'finance_admin', 'moderator'],
   settings: ['admin', 'super_admin'],
   activity: ['admin', 'super_admin', 'moderator', 'finance_admin']
@@ -98,6 +93,7 @@ export default function AdminPortal() {
   const [statusFilter, setStatusFilter] = React.useState('');
   const [moderationFilter, setModerationFilter] = React.useState('all');
   const [dateRange, setDateRange] = React.useState('7d');
+  const [customDateRange, setCustomDateRange] = React.useState({ from: '', to: '' });
   const isRefreshInFlightRef = React.useRef(false);
   const autoRefresh = React.useMemo(
     () => manualRefreshEnabled && !NON_REFRESHABLE_SECTIONS.has(section),
@@ -105,10 +101,12 @@ export default function AdminPortal() {
   );
   const currentThemeName = React.useMemo(() => {
     if (activeTheme === 'classic-light') return 'Classic Light';
-    if (activeTheme === 'dark-premium') return 'Dark Premium';
+    if (activeTheme === 'admin-pro-dark' || activeTheme === 'admin-pro') return 'Admin Pro Dark';
+    if (activeTheme === 'midnight-neon') return 'Midnight Neon';
+    if (activeTheme === 'graphite-blue') return 'Graphite Blue';
+    if (activeTheme === 'luxury-black' || activeTheme === 'vip-luxury') return 'Luxury Black';
+    if (activeTheme === 'soft-dark-glass') return 'Soft Dark Glass';
     if (activeTheme === 'midnight-glass') return 'Midnight Glass';
-    if (activeTheme === 'vip-luxury') return 'VIP Luxury';
-    if (activeTheme === 'admin-pro') return 'Admin Pro';
     return activeTheme;
   }, [activeTheme]);
 
@@ -169,13 +167,27 @@ export default function AdminPortal() {
     if (!ts) {
       return false;
     }
-    const now = Date.now();
+    const nowDate = new Date();
+    const now = nowDate.getTime();
     const day = 24 * 60 * 60 * 1000;
-    if (dateRange === '24h') return now - ts <= day;
+    if (dateRange === '24h' || dateRange === 'today') return now - ts <= day;
     if (dateRange === '7d') return now - ts <= 7 * day;
     if (dateRange === '30d') return now - ts <= 30 * day;
+    if (dateRange === '90d') return now - ts <= 90 * day;
+    if (dateRange === 'this_month') {
+      const monthStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1).getTime();
+      return ts >= monthStart && ts <= now;
+    }
+    if (dateRange === 'custom') {
+      const fromTs = customDateRange.from ? new Date(`${customDateRange.from}T00:00:00`).getTime() : 0;
+      const toTs = customDateRange.to ? new Date(`${customDateRange.to}T23:59:59`).getTime() : 0;
+      if (!fromTs || !toTs) {
+        return true;
+      }
+      return ts >= fromTs && ts <= toTs;
+    }
     return true;
-  }, [dateRange, toEpoch]);
+  }, [dateRange, toEpoch, customDateRange]);
 
   const filteredUsers = React.useMemo(
     () => users.filter((item) => includesSearch(item) && (!statusFilter || item.status === statusFilter) && isWithinRange(item.updatedAt || item.createdAt || item.created_at)),
@@ -566,8 +578,19 @@ export default function AdminPortal() {
   };
 
   const handleModerationAction = async (userId, action) => {
+    const requiresReason = ['ban', 'suspend', 'delete', 'freeze_chat'].includes(action);
+    let reason = '';
+
+    if (requiresReason) {
+      reason = window.prompt(`Enter reason for ${action.replace('_', ' ')} action:`, '') || '';
+      if (reason.trim().length < 5) {
+        notify('Reason must be at least 5 characters for this action.', 'error');
+        return;
+      }
+    }
+
     await requiresPinAction(async () => {
-      await adminApi.updateUserModeration(userId, { action }, adminPin);
+      await adminApi.updateUserModeration(userId, { action, reason }, adminPin);
     });
   };
 
@@ -628,7 +651,7 @@ export default function AdminPortal() {
     }
   };
 
-  const handleRegistrationApproval = async (userId, action) => {
+  const handleRegistrationApproval = async (userId, action, options = {}) => {
     const token = localStorage.getItem('auth_token') || localStorage.getItem('authToken');
     if (!token) {
       console.error('❌ No auth token found');
@@ -642,12 +665,12 @@ export default function AdminPortal() {
       ? `${API_ROOT}/api/admin/registrations/${userId}/approve`
       : `${API_ROOT}/api/admin/registrations/${userId}/reject`;
 
-    let reason = '';
-    if (action === 'reject') {
+    let reason = String(options?.reason || '').trim();
+    if (action === 'reject' && !reason) {
       reason = window.prompt('Enter rejection reason:', 'Profile does not meet requirements') || '';
       if (!reason.trim()) {
         console.log('ℹ️ Rejection cancelled by admin');
-        return;
+        return false;
       }
     }
 
@@ -686,17 +709,29 @@ export default function AdminPortal() {
         const errorMsg = data.message || `HTTP ${response.status}: ${response.statusText}`;
         console.error('❌ API error:', response.status, errorMsg);
         notify(`Failed to ${action} user: ${errorMsg}`, 'error');
-        return;
+        return false;
       }
 
       console.log(`✅ User ${action}ed successfully!`);
       
       // Remove from pending list immediately
-      const updated = registrationApprovals.filter(u => u._id !== userId);
-      console.log(`📊 Updated pending approvals count: ${updated.length}`);
-      setRegistrationApprovals(updated);
+      const removeRow = () => {
+        setRegistrationApprovals((prev) => {
+          const updated = prev.filter((u) => u._id !== userId);
+          console.log(`📊 Updated pending approvals count: ${updated.length}`);
+          return updated;
+        });
+      };
+
+      const deferMs = Number(options?.deferRemovalMs || 0);
+      if (deferMs > 0) {
+        window.setTimeout(removeRow, deferMs);
+      } else {
+        removeRow();
+      }
       
       notify(`User ${action}ed successfully.`);
+      return true;
       
     } catch (err) {
       console.error('❌ Error during approval:', err);
@@ -704,6 +739,7 @@ export default function AdminPortal() {
       console.error('❌ Error message:', err.message);
       console.error('❌ Full error:', err);
       notify(`Network error while processing approval: ${err.message}`, 'error');
+      return false;
     }
   };
 
@@ -869,6 +905,14 @@ export default function AdminPortal() {
                 <p className="text-sm text-slate-200/85 mt-1">Operational controls, moderation safety workflows, and platform governance.</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <StatusChip tone="info">Live</StatusChip>
+                <button
+                  type="button"
+                  className="w-10 h-10 rounded-xl border border-cyan-100/20 bg-white/10 hover:bg-white/15 transition"
+                  title="Notifications"
+                >
+                  🔔
+                </button>
                 <button
                   onClick={() => setThemePanelOpen(true)}
                   className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sm font-semibold transition border border-cyan-100/20"
@@ -881,6 +925,13 @@ export default function AdminPortal() {
                 <button onClick={() => exportCurrentSection()} className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold hover:opacity-95 transition shadow-lg shadow-cyan-900/40">
                   Export
                 </button>
+                <button
+                  type="button"
+                  className="px-3 py-2 rounded-xl border border-cyan-100/20 bg-white/10 hover:bg-white/15 text-sm font-medium"
+                  title="Admin profile"
+                >
+                  {user?.name ? user.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() : 'AD'}
+                </button>
               </div>
             </div>
           </div>
@@ -889,7 +940,7 @@ export default function AdminPortal() {
           <div className="admin-surface flex-1 overflow-auto px-6 xl:px-8 py-6">
             {/* Search + Filters */}
             <div className="mb-6 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-4 backdrop-blur-2xl shadow-[0_18px_48px_rgba(2,8,25,0.45)]">
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_160px_170px_190px] gap-3 items-center">
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_160px_170px_220px] gap-3 items-center">
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-cyan-200/20 bg-white/10">
                   <span className="text-cyan-100/80">🔍</span>
                   <input
@@ -936,12 +987,40 @@ export default function AdminPortal() {
                   onChange={(event) => setDateRange(event.target.value)}
                   className="px-3 py-2.5 bg-white/10 border border-cyan-200/20 text-slate-100 rounded-xl text-sm focus:outline-none focus:border-cyan-300"
                 >
-                  <option value="24h">Last 24h</option>
+                  <option value="today">Today</option>
                   <option value="7d">Last 7 days</option>
                   <option value="30d">Last 30 days</option>
+                  <option value="90d">Last 90 days</option>
+                  <option value="this_month">This month</option>
+                  <option value="custom">Custom range</option>
                   <option value="all">All Time</option>
                 </select>
               </div>
+
+              {dateRange === 'custom' ? (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/10">
+                    <span className="text-xs uppercase tracking-wide text-cyan-100/80">From</span>
+                    <input
+                      type="date"
+                      value={customDateRange.from}
+                      max={customDateRange.to || undefined}
+                      onChange={(event) => setCustomDateRange((prev) => ({ ...prev, from: event.target.value }))}
+                      className="ml-auto bg-transparent text-sm text-slate-100 focus:outline-none"
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-cyan-200/20 bg-white/10">
+                    <span className="text-xs uppercase tracking-wide text-cyan-100/80">To</span>
+                    <input
+                      type="date"
+                      value={customDateRange.to}
+                      min={customDateRange.from || undefined}
+                      onChange={(event) => setCustomDateRange((prev) => ({ ...prev, to: event.target.value }))}
+                      className="ml-auto bg-transparent text-sm text-slate-100 focus:outline-none"
+                    />
+                  </label>
+                </div>
+              ) : null}
 
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                 <span className="px-2.5 py-1 rounded-full border border-cyan-300/30 bg-cyan-500/10 text-cyan-200">{chatVisibilityMode === 'full' ? 'Test mode: full conversation visibility ON' : 'Privacy-first moderation enabled'}</span>
@@ -978,8 +1057,32 @@ export default function AdminPortal() {
             ) : (
               <>
                 {/* Content Panels */}
-                {!loading && section === 'overview' ? <OverviewPanel overview={overview} users={filteredUsers} reports={filteredReports} chats={filteredChats} payments={filteredPayments} approvals={filteredRegistrationApprovals} /> : null}
-                {!loading && section === 'registration_approvals' ? <RegistrationApprovalsPanel registrations={filteredRegistrationApprovals} onApprove={handleRegistrationApproval} onOpenDetail={openDetailDrawer} /> : null}
+                {!loading && section === 'overview' ? (
+                  <OverviewPanel
+                    overview={overview}
+                    users={users}
+                    reports={reports}
+                    chats={chats}
+                    payments={payments}
+                    approvals={registrationApprovals}
+                    profileApprovals={approvals}
+                    activityLogs={activity}
+                    dateRange={dateRange}
+                    customDateRange={customDateRange}
+                    onSectionChange={setSection}
+                  />
+                ) : null}
+                {!loading && section === 'registration_approvals' ? (
+                  <RegistrationApprovalsPanel
+                    registrations={filteredRegistrationApprovals}
+                    onApprove={handleRegistrationApproval}
+                    onOpenDetail={openDetailDrawer}
+                    onNotify={notify}
+                    pinEnabled={pinEnabled}
+                    pinVerified={pinVerified}
+                    adminPin={adminPin}
+                  />
+                ) : null}
                 {!loading && section === 'users' ? <UsersPanel users={filteredUsers} onModerate={handleModerationAction} onDelete={handleDeleteUser} onOpenDetail={openDetailDrawer} onViewActivity={handleViewUserActivity} onNotify={notify} /> : null}
                 {!loading && section === 'approvals' ? <ApprovalsPanel approvals={filteredApprovals} onApprove={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
                 {!loading && section === 'matches' ? <MatchesPanel matches={filteredMatches} onOpenDetail={openDetailDrawer} /> : null}
@@ -989,8 +1092,6 @@ export default function AdminPortal() {
                 {!loading && section === 'moderation' ? <ModerationPanel photos={moderationPhotos} /> : null}
                 {!loading && section === 'colleges' ? <CollegesPanel colleges={colleges} /> : null}
                 {!loading && section === 'support' ? <SupportPanel tickets={filteredSupportTickets} /> : null}
-                {!loading && section === 'career_applications' ? <CareerApplicationsPanel /> : null}
-                {!loading && section === 'content_management' ? <ContentEditorPanel /> : null}
                 {!loading && section === 'analytics' ? <AnalyticsPanel analytics={analytics} /> : null}
                 {!loading && section === 'settings' ? <SettingsPanel settings={settings} onUpdate={handleUpdateSetting} /> : null}
                 {!loading && section === 'activity' ? <ActivityPanel logs={filteredActivity} /> : null}
@@ -1090,77 +1191,924 @@ export default function AdminPortal() {
   );
 }
 
-function OverviewPanel({ overview, users = [], reports = [], chats = [], payments = [], approvals = [] }) {
-  const flaggedChats = chats.filter((chat) => Number(chat.riskScore || 0) >= 65 || Number(chat.reportCount || 0) > 0).length;
-  const suspiciousUsers = users.filter((user) => Number(user.warnings_count || 0) > 1 || user.status === 'banned').length;
-  const blockedAccounts = users.filter((user) => ['banned', 'suspended'].includes(user.status)).length;
-  const pendingPaymentReviews = payments.filter((payment) => payment.status === 'pending').length;
-  const activeReports = reports.filter((report) => report.status !== 'resolved').length;
+function OverviewPanel({
+  overview,
+  users = [],
+  reports = [],
+  chats = [],
+  payments = [],
+  approvals = [],
+  profileApprovals = [],
+  activityLogs = [],
+  dateRange = '7d',
+  customDateRange = { from: '', to: '' },
+  onSectionChange
+}) {
+  const [growthRange, setGrowthRange] = React.useState('30d');
 
-  const cards = [
-    { label: 'Active Reports', value: activeReports, icon: '🚩', tone: 'from-rose-500/25 to-rose-600/10' },
-    { label: 'Flagged Chats', value: flaggedChats, icon: '🛡️', tone: 'from-amber-500/25 to-amber-600/10' },
-    { label: 'Pending Approvals', value: approvals.length, icon: '✅', tone: 'from-cyan-500/25 to-cyan-600/10' },
-    { label: 'Suspicious Users', value: suspiciousUsers, icon: '🕵️', tone: 'from-orange-500/25 to-orange-600/10' },
-    { label: 'Blocked Accounts', value: blockedAccounts, icon: '⛔', tone: 'from-fuchsia-500/25 to-fuchsia-600/10' },
-    { label: 'Payment Reviews', value: pendingPaymentReviews, icon: '💳', tone: 'from-emerald-500/25 to-emerald-600/10' }
+  const toEpoch = React.useCallback((value) => {
+    if (!value) return 0;
+    const ts = new Date(value).getTime();
+    return Number.isFinite(ts) ? ts : 0;
+  }, []);
+
+  const formatCompact = React.useCallback((value) => Number(value || 0).toLocaleString('en-IN'), []);
+  const formatCurrency = React.useCallback((value) => `INR ${Number(value || 0).toLocaleString('en-IN')}`, []);
+
+  const normalizeRange = React.useCallback((value) => {
+    if (value === '24h') return 'today';
+    if (value === 'all') return '12m';
+    return value;
+  }, []);
+
+  React.useEffect(() => {
+    const mapped = normalizeRange(dateRange);
+    const next = ['7d', '30d', '90d', '12m'].includes(mapped) ? mapped : '30d';
+    setGrowthRange(next);
+  }, [dateRange, normalizeRange]);
+
+  const getWindow = React.useCallback((rangeKey, custom = customDateRange) => {
+    const now = new Date();
+    const end = now.getTime();
+    const day = 24 * 60 * 60 * 1000;
+
+    if (rangeKey === 'today') return { start: end - day, end, label: 'today' };
+    if (rangeKey === '7d') return { start: end - 7 * day, end, label: 'last 7 days' };
+    if (rangeKey === '30d') return { start: end - 30 * day, end, label: 'last 30 days' };
+    if (rangeKey === '90d') return { start: end - 90 * day, end, label: 'last 90 days' };
+    if (rangeKey === '12m') return { start: new Date(now.getFullYear(), now.getMonth() - 11, 1).getTime(), end, label: 'last 12 months' };
+    if (rangeKey === 'this_month') return { start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(), end, label: 'this month' };
+    if (rangeKey === 'custom') {
+      const from = custom?.from ? new Date(`${custom.from}T00:00:00`).getTime() : end - 7 * day;
+      const to = custom?.to ? new Date(`${custom.to}T23:59:59`).getTime() : end;
+      return { start: Math.min(from, to), end: Math.max(from, to), label: 'custom range' };
+    }
+    return { start: end - 30 * day, end, label: 'last 30 days' };
+  }, [customDateRange]);
+
+  const buildBuckets = React.useCallback((rangeKey, custom = customDateRange) => {
+    const window = getWindow(rangeKey, custom);
+    const buckets = [];
+    const day = 24 * 60 * 60 * 1000;
+
+    if (rangeKey === '12m') {
+      const now = new Date(window.end);
+      for (let i = 11; i >= 0; i -= 1) {
+        const startDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const endDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+        buckets.push({
+          start: startDate.getTime(),
+          end: endDate.getTime(),
+          label: startDate.toLocaleDateString('en-US', { month: 'short' })
+        });
+      }
+      return { buckets, label: window.label };
+    }
+
+    if (rangeKey === 'today') {
+      const endDate = new Date(window.end);
+      for (let i = 23; i >= 0; i -= 1) {
+        const startDate = new Date(endDate.getTime() - i * 60 * 60 * 1000);
+        const bucketStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), startDate.getHours(), 0, 0, 0).getTime();
+        const bucketEnd = bucketStart + 60 * 60 * 1000;
+        buckets.push({
+          start: bucketStart,
+          end: bucketEnd,
+          label: new Date(bucketStart).toLocaleTimeString('en-US', { hour: 'numeric' })
+        });
+      }
+      return { buckets, label: window.label };
+    }
+
+    if (rangeKey === '90d') {
+      for (let i = 12; i >= 0; i -= 1) {
+        const bucketStart = window.end - (i + 1) * 7 * day;
+        const bucketEnd = window.end - i * 7 * day;
+        buckets.push({
+          start: bucketStart,
+          end: bucketEnd,
+          label: `W${13 - i}`
+        });
+      }
+      return { buckets, label: window.label };
+    }
+
+    const span = Math.max(1, Math.ceil((window.end - window.start) / day));
+    const limit = Math.min(span, 31);
+    for (let i = limit - 1; i >= 0; i -= 1) {
+      const bucketStart = window.end - (i + 1) * day;
+      const bucketEnd = window.end - i * day;
+      buckets.push({
+        start: bucketStart,
+        end: bucketEnd,
+        label: new Date(bucketStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      });
+    }
+    return { buckets, label: window.label };
+  }, [customDateRange, getWindow]);
+
+  const aggregateSeries = React.useCallback((items, buckets, pickTs, predicate = () => true, mapValue = () => 1) => {
+    const values = Array.from({ length: buckets.length }, () => 0);
+    for (const item of items || []) {
+      if (!predicate(item)) continue;
+      const ts = toEpoch(pickTs(item));
+      if (!ts) continue;
+      const bucketIndex = buckets.findIndex((bucket) => ts >= bucket.start && ts < bucket.end);
+      if (bucketIndex >= 0) {
+        values[bucketIndex] += Number(mapValue(item) || 0);
+      }
+    }
+    return values;
+  }, [toEpoch]);
+
+  const countInWindow = React.useCallback((items, pickTs, window, predicate = () => true) => {
+    let count = 0;
+    for (const item of items || []) {
+      if (!predicate(item)) continue;
+      const ts = toEpoch(pickTs(item));
+      if (ts >= window.start && ts < window.end) count += 1;
+    }
+    return count;
+  }, [toEpoch]);
+
+  const sumInWindow = React.useCallback((items, pickTs, window, predicate = () => true, mapValue = () => 0) => {
+    let total = 0;
+    for (const item of items || []) {
+      if (!predicate(item)) continue;
+      const ts = toEpoch(pickTs(item));
+      if (ts >= window.start && ts < window.end) total += Number(mapValue(item) || 0);
+    }
+    return total;
+  }, [toEpoch]);
+
+  const pctDelta = React.useCallback((current, previous) => {
+    if (previous <= 0) {
+      return current > 0 ? 100 : 0;
+    }
+    return ((current - previous) / previous) * 100;
+  }, []);
+
+  const deltaLabel = React.useCallback((current, previous) => {
+    const delta = pctDelta(current, previous);
+    const sign = delta >= 0 ? '+' : '';
+    return `${sign}${delta.toFixed(1)}%`;
+  }, [pctDelta]);
+
+  const normalizedRange = normalizeRange(dateRange);
+  const globalRange = ['today', '7d', '30d', '90d', 'this_month', 'custom', '12m'].includes(normalizedRange) ? normalizedRange : '30d';
+  const globalWindow = getWindow(globalRange);
+  const previousWindow = { start: globalWindow.start - (globalWindow.end - globalWindow.start), end: globalWindow.start };
+
+  const userTimestamp = (user) => user?.createdAt || user?.created_at || user?.updatedAt;
+  const userActivityTimestamp = (user) => user?.lastSeenAt || user?.last_active_at || user?.updatedAt || user?.createdAt;
+  const registrationTimestamp = (item) => item?.createdAt || item?.created_at || item?.updatedAt;
+  const profileTimestamp = (item) => item?.updated_at || item?.updatedAt || item?.created_at || item?.createdAt;
+  const reportTimestamp = (report) => report?.createdAt || report?.created_at || report?.updatedAt;
+  const chatTimestamp = (chat) => chat?.lastMessageAt || chat?.updatedAt || chat?.createdAt;
+  const paymentTimestamp = (payment) => payment?.createdAt || payment?.created_at || payment?.updatedAt;
+  const activityTimestamp = (entry) => entry?.timestamp || entry?.updatedAt || entry?.createdAt;
+  const normalizeStatus = (value) => String(value || '').toLowerCase();
+
+  const totalUsers = Number(overview?.totalUsers || users.length || 0);
+  const activeToday = Number(overview?.activeToday || overview?.activeUsers || countInWindow(users, userActivityTimestamp, getWindow('today')) || 0);
+  const newRegistrations = Number(overview?.newRegistrations || countInWindow(users, userTimestamp, globalWindow) || 0);
+  const pendingRegistrationApprovals = Number(overview?.pendingRegistrationApprovals || approvals.filter((item) => normalizeStatus(item?.status || item?.registration_status || item?.profile_approval_status) === 'pending').length || 0);
+  const pendingProfileApprovals = Number(overview?.pendingProfileApprovals || overview?.pendingApprovals || profileApprovals.filter((item) => normalizeStatus(item?.profile_approval_status || item?.status) === 'pending').length || 0);
+  const activeReports = Number(overview?.activeReports || reports.filter((report) => normalizeStatus(report.status) !== 'resolved').length || 0);
+  const flaggedChats = Number(overview?.flaggedChats || chats.filter((chat) => Number(chat.riskScore || 0) >= 65 || Number(chat.reportCount || 0) > 0).length || 0);
+  const suspiciousUsers = Number(overview?.suspiciousUsers || users.filter((user) => Number(user.warnings_count || 0) > 1 || normalizeStatus(user.status) === 'banned').length || 0);
+  const blockedAccounts = Number(overview?.blockedAccounts || users.filter((user) => ['banned', 'suspended'].includes(normalizeStatus(user.status))).length || 0);
+  const premiumUsers = Number(overview?.premiumUsers || overview?.activeSubscriptions || users.filter((user) => ['premium', 'active', 'paid'].includes(normalizeStatus(user.subscription_status || user.membership_status))).length || 0);
+  const monthlyRevenue = Number(overview?.monthlyRevenue || overview?.totalRevenue || sumInWindow(payments, paymentTimestamp, getWindow('this_month'), (payment) => normalizeStatus(payment.status) === 'approved', (payment) => payment.amount || payment.price || payment.total || 0));
+  const pendingPaymentReviews = Number(overview?.pendingPaymentReviews || payments.filter((payment) => normalizeStatus(payment.status) === 'pending').length || 0);
+
+  const systemHealth = overview?.systemHealth || {};
+  const recentActivity = overview?.recentActivity || [];
+  const notices = overview?.platformAlerts || [];
+  const liveQueue = [
+    { label: 'Registration Queue', value: pendingRegistrationApprovals, section: 'registration_approvals' },
+    { label: 'Profile Queue', value: pendingProfileApprovals, section: 'approvals' },
+    { label: 'Payment Queue', value: pendingPaymentReviews, section: 'payments' },
+    { label: 'Reports Queue', value: activeReports, section: 'reports' }
   ];
 
-  const trendSnapshot = [
-    { label: 'Total users', value: overview?.totalUsers ?? users.length ?? 0 },
-    { label: 'Active today', value: overview?.activeUsers ?? 0 },
-    { label: 'Premium users', value: overview?.activeSubscriptions ?? 0 },
-    { label: 'Monthly revenue', value: overview?.totalRevenue ? `₹${overview.totalRevenue}` : '₹0' }
+  const growthBucketSet = buildBuckets(growthRange);
+  const growthBuckets = growthBucketSet.buckets;
+  const growthLabels = growthBuckets.map((bucket) => bucket.label);
+
+  const newUsersSeries = aggregateSeries(users, growthBuckets, userTimestamp);
+  const activeUsersSeries = aggregateSeries(users, growthBuckets, userActivityTimestamp);
+  const approvedUsersSeries = aggregateSeries(
+    users,
+    growthBuckets,
+    (user) => user?.approvedAt || user?.updatedAt || user?.createdAt,
+    (user) => ['approved', 'active'].includes(normalizeStatus(user.profile_approval_status || user.status))
+  );
+
+  const globalBucketSet = buildBuckets(globalRange);
+  const globalBuckets = globalBucketSet.buckets;
+  const globalLabels = globalBuckets.map((bucket) => bucket.label);
+
+  const registrationTotalSeries = aggregateSeries(approvals, globalBuckets, registrationTimestamp);
+  const registrationApprovedSeries = aggregateSeries(
+    approvals,
+    globalBuckets,
+    registrationTimestamp,
+    (item) => ['approved', 'active'].includes(normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status))
+  );
+  const registrationRejectedSeries = aggregateSeries(
+    approvals,
+    globalBuckets,
+    registrationTimestamp,
+    (item) => ['rejected', 'declined'].includes(normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status))
+  );
+  const registrationPendingSeries = aggregateSeries(
+    approvals,
+    globalBuckets,
+    registrationTimestamp,
+    (item) => normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status) === 'pending'
+  );
+
+  const profileSubmittedSeries = aggregateSeries(profileApprovals, globalBuckets, profileTimestamp);
+  const profileApprovedSeries = aggregateSeries(
+    profileApprovals,
+    globalBuckets,
+    profileTimestamp,
+    (item) => normalizeStatus(item?.profile_approval_status || item?.status) === 'approved'
+  );
+  const profileRejectedSeries = aggregateSeries(
+    profileApprovals,
+    globalBuckets,
+    profileTimestamp,
+    (item) => ['rejected', 'declined'].includes(normalizeStatus(item?.profile_approval_status || item?.status))
+  );
+
+  const reportTrendSeries = aggregateSeries(
+    reports,
+    globalBuckets,
+    reportTimestamp,
+    (item) => normalizeStatus(item?.status) !== 'resolved'
+  );
+  const flaggedTrendSeries = aggregateSeries(
+    chats,
+    globalBuckets,
+    chatTimestamp,
+    (chat) => Number(chat.riskScore || 0) >= 65 || Number(chat.reportCount || 0) > 0
+  );
+  const suspiciousTrendSeries = aggregateSeries(
+    users,
+    globalBuckets,
+    userActivityTimestamp,
+    (user) => Number(user.warnings_count || 0) > 1 || normalizeStatus(user.status) === 'banned'
+  );
+  const blockedTrendSeries = aggregateSeries(
+    users,
+    globalBuckets,
+    userActivityTimestamp,
+    (user) => ['banned', 'suspended'].includes(normalizeStatus(user.status))
+  );
+
+  const premiumPurchasesSeries = aggregateSeries(
+    payments,
+    globalBuckets,
+    paymentTimestamp,
+    (payment) => normalizeStatus(payment.status) === 'approved'
+  );
+  const revenueSeries = aggregateSeries(
+    payments,
+    globalBuckets,
+    paymentTimestamp,
+    (payment) => normalizeStatus(payment.status) === 'approved',
+    (payment) => payment.amount || payment.price || payment.total || 0
+  );
+  const churnSeries = aggregateSeries(
+    payments,
+    globalBuckets,
+    paymentTimestamp,
+    (payment) => ['expired', 'cancelled', 'failed', 'rejected'].includes(normalizeStatus(payment.status))
+  );
+
+  const baselinePremium = Math.max(0, premiumUsers - premiumPurchasesSeries.reduce((acc, value) => acc + value, 0) + churnSeries.reduce((acc, value) => acc + value, 0));
+  const activePremiumSeries = premiumPurchasesSeries.reduce((acc, value, idx) => {
+    const previous = idx === 0 ? baselinePremium : acc[idx - 1];
+    acc.push(Math.max(0, previous + value - (churnSeries[idx] || 0)));
+    return acc;
+  }, []);
+
+  const now = Date.now();
+  const dailyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 24 * 60 * 60 * 1000).length;
+  const weeklyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 7 * 24 * 60 * 60 * 1000).length;
+  const monthlyActiveUsers = users.filter((user) => now - toEpoch(userActivityTimestamp(user)) <= 30 * 24 * 60 * 60 * 1000).length;
+
+  const approvedRegistrationsCount = approvals.filter((item) => ['approved', 'active'].includes(normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status))).length;
+  const rejectedRegistrationsCount = approvals.filter((item) => ['rejected', 'declined'].includes(normalizeStatus(item?.status || item?.profile_approval_status || item?.registration_status))).length;
+  const approvalSuccessRate = approvedRegistrationsCount + rejectedRegistrationsCount > 0
+    ? Math.round((approvedRegistrationsCount / (approvedRegistrationsCount + rejectedRegistrationsCount)) * 100)
+    : 0;
+
+  const premiumConversionRate = totalUsers > 0 ? (premiumUsers / totalUsers) * 100 : 0;
+  const moderationRiskScore = Math.min(
+    100,
+    ((activeReports * 3) + (flaggedChats * 2) + (suspiciousUsers * 2) + blockedAccounts) / Math.max(totalUsers, 1) * 1000
+  );
+  const moderationRiskLevel = moderationRiskScore < 20 ? 'low' : moderationRiskScore < 45 ? 'medium' : 'high';
+
+  const expiredPremiumCount = users.filter((user) => normalizeStatus(user?.subscription_status || user?.membership_status) === 'expired').length + churnSeries.reduce((acc, value) => acc + value, 0);
+  const blockedUserRatio = totalUsers > 0 ? (blockedAccounts / totalUsers) * 100 : 0;
+
+  const averageApprovalTurnaroundHours = (() => {
+    const resolvedProfiles = profileApprovals.filter((item) => ['approved', 'rejected', 'declined'].includes(normalizeStatus(item?.profile_approval_status || item?.status)));
+    if (!resolvedProfiles.length) return 0;
+    const durations = resolvedProfiles
+      .map((item) => {
+        const created = toEpoch(item?.created_at || item?.createdAt);
+        const updated = toEpoch(item?.updated_at || item?.updatedAt);
+        return created && updated && updated > created ? (updated - created) / (1000 * 60 * 60) : 0;
+      })
+      .filter((value) => value > 0);
+    if (!durations.length) return 0;
+    return durations.reduce((acc, value) => acc + value, 0) / durations.length;
+  })();
+
+  const averageModerationResolutionHours = (() => {
+    const resolved = reports.filter((report) => normalizeStatus(report?.status) === 'resolved');
+    if (!resolved.length) return 0;
+    const durations = resolved
+      .map((report) => {
+        const created = toEpoch(report?.createdAt || report?.created_at);
+        const updated = toEpoch(report?.updatedAt || report?.updated_at);
+        return created && updated && updated > created ? (updated - created) / (1000 * 60 * 60) : 0;
+      })
+      .filter((value) => value > 0);
+    if (!durations.length) return 0;
+    return durations.reduce((acc, value) => acc + value, 0) / durations.length;
+  })();
+
+  const registrationCurrent = countInWindow(users, userTimestamp, globalWindow);
+  const registrationPrevious = countInWindow(users, userTimestamp, previousWindow);
+  const premiumCurrent = countInWindow(payments, paymentTimestamp, globalWindow, (payment) => normalizeStatus(payment.status) === 'approved');
+  const premiumPrevious = countInWindow(payments, paymentTimestamp, previousWindow, (payment) => normalizeStatus(payment.status) === 'approved');
+  const revenueCurrent = sumInWindow(payments, paymentTimestamp, globalWindow, (payment) => normalizeStatus(payment.status) === 'approved', (payment) => payment.amount || payment.price || payment.total || 0);
+  const revenuePrevious = sumInWindow(payments, paymentTimestamp, previousWindow, (payment) => normalizeStatus(payment.status) === 'approved', (payment) => payment.amount || payment.price || payment.total || 0);
+
+  const seriesIsEmpty = (seriesList) => seriesList.every((entry) => (entry.data || []).every((value) => Number(value || 0) === 0));
+
+  const Sparkline = ({ points = [], tone = 'info' }) => {
+    const colors = {
+      info: '#22d3ee',
+      success: '#34d399',
+      warning: '#f59e0b',
+      danger: '#fb7185'
+    };
+    const safePoints = points.length ? points : [0, 0, 0, 0, 0];
+    const width = 120;
+    const height = 34;
+    const max = Math.max(...safePoints, 1);
+    const min = Math.min(...safePoints, 0);
+    const span = Math.max(1, max - min);
+    const step = width / Math.max(1, safePoints.length - 1);
+    const path = safePoints
+      .map((value, index) => {
+        const x = index * step;
+        const y = height - ((value - min) / span) * (height - 4) - 2;
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-9" preserveAspectRatio="none" role="img" aria-label="Trend sparkline">
+        <polyline fill="none" stroke={colors[tone] || colors.info} strokeWidth="2.2" points={path} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  };
+
+  const KpiCard = ({ label, value, delta, helper, spark, tone = 'info' }) => {
+    const toneStyles = {
+      info: 'border-cyan-300/25 bg-cyan-500/10',
+      success: 'border-emerald-300/25 bg-emerald-500/10',
+      warning: 'border-amber-300/25 bg-amber-500/10',
+      danger: 'border-rose-300/25 bg-rose-500/10'
+    };
+    const deltaTone = delta >= 0 ? 'text-emerald-200' : 'text-rose-200';
+
+    return (
+      <article className={`rounded-2xl border p-4 ${toneStyles[tone] || toneStyles.info}`} title={helper}>
+        <p className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--portal-muted)]">{label}</p>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <p className="text-2xl font-bold text-[color:var(--text-light)] leading-none">{value}</p>
+          <span className={`text-xs font-semibold ${deltaTone}`}>{delta >= 0 ? '+' : ''}{delta.toFixed(1)}%</span>
+        </div>
+        <div className="mt-3">
+          <Sparkline points={spark} tone={tone} />
+        </div>
+        <p className="mt-2 text-xs text-[color:var(--portal-muted)]">{helper}</p>
+      </article>
+    );
+  };
+
+  const LineAnalyticsChart = ({ labels = [], series = [], emptyCopy = 'No trend data available for this period.' }) => {
+    const width = 900;
+    const height = 260;
+    const padding = 28;
+    const maxValue = Math.max(1, ...series.flatMap((item) => item.data || [0]));
+    const xStep = labels.length > 1 ? (width - padding * 2) / (labels.length - 1) : 0;
+    const allZero = seriesIsEmpty(series);
+
+    if (allZero) {
+      return (
+        <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-4 py-7 text-sm text-[color:var(--portal-muted)]">
+          {emptyCopy}
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-64 rounded-xl border border-cyan-200/15 bg-[linear-gradient(180deg,rgba(148,163,184,0.08)_0%,rgba(15,23,42,0.12)_100%)]" role="img" aria-label="Analytics line chart">
+          {[0, 1, 2, 3, 4].map((row) => {
+            const y = padding + (row * (height - padding * 2)) / 4;
+            return <line key={row} x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(148,163,184,0.15)" strokeWidth="1" />;
+          })}
+
+          {series.map((entry) => {
+            const points = (entry.data || []).map((value, index) => {
+              const x = padding + index * xStep;
+              const y = height - padding - ((Number(value || 0) / maxValue) * (height - padding * 2));
+              return { x, y, value };
+            });
+
+            const polyline = points.map((point) => `${point.x},${point.y}`).join(' ');
+
+            return (
+              <g key={entry.name}>
+                <polyline fill="none" stroke={entry.color} strokeWidth="2.6" points={polyline} strokeLinecap="round" strokeLinejoin="round" />
+                {points.map((point, index) => (
+                  <circle key={`${entry.name}-${index}`} cx={point.x} cy={point.y} r="2.7" fill={entry.color}>
+                    <title>{`${entry.name}: ${Number(point.value || 0).toLocaleString('en-IN')}`}</title>
+                  </circle>
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {series.map((entry) => (
+            <div key={entry.name} className="flex items-center gap-2 text-xs text-[color:var(--portal-muted)]">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span>{entry.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const StackedFlowChart = ({ labels = [], series = [], emptyCopy = 'Pipeline trend will appear once registrations start flowing.' }) => {
+    const allZero = seriesIsEmpty(series);
+    if (allZero) {
+      return <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-4 py-7 text-sm text-[color:var(--portal-muted)]">{emptyCopy}</div>;
+    }
+
+    const bucketCount = labels.length;
+    const stackedTotals = Array.from({ length: bucketCount }, (_, index) => series.reduce((acc, entry) => acc + Number(entry.data?.[index] || 0), 0));
+    const max = Math.max(1, ...stackedTotals);
+
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-8 md:grid-cols-10 gap-2 items-end h-52 rounded-xl border border-cyan-200/15 bg-white/5 p-3">
+          {stackedTotals.map((total, index) => (
+            <div key={index} className="h-full flex items-end">
+              <div className="w-full rounded-lg overflow-hidden border border-cyan-300/15" style={{ height: `${Math.max(8, (total / max) * 100)}%` }}>
+                {series.map((entry) => {
+                  const value = Number(entry.data?.[index] || 0);
+                  const heightPct = total > 0 ? (value / total) * 100 : 0;
+                  return <div key={`${entry.name}-${index}`} style={{ height: `${heightPct}%`, background: entry.color }} title={`${entry.name}: ${value}`} />;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {series.map((entry) => (
+            <div key={entry.name} className="flex items-center gap-2 text-xs text-[color:var(--portal-muted)]">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span>{entry.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const activityHeatmap = React.useMemo(() => {
+    const matrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+    const eventPool = [
+      ...chats.map((item) => chatTimestamp(item)),
+      ...activityLogs.map((item) => activityTimestamp(item)),
+      ...users.map((item) => userActivityTimestamp(item))
+    ];
+
+    for (const value of eventPool) {
+      const ts = toEpoch(value);
+      if (!ts || ts < globalWindow.start || ts > globalWindow.end) continue;
+      const d = new Date(ts);
+      matrix[d.getDay()][d.getHours()] += 1;
+    }
+    return matrix;
+  }, [activityLogs, chats, globalWindow.end, globalWindow.start, toEpoch, users]);
+
+  const heatmapMax = Math.max(1, ...activityHeatmap.flat());
+  const hourTotals = Array.from({ length: 24 }, (_, hour) => activityHeatmap.reduce((acc, dayRow) => acc + dayRow[hour], 0));
+  const dayTotals = activityHeatmap.map((dayRow) => dayRow.reduce((acc, value) => acc + value, 0));
+  const peakHour = hourTotals.indexOf(Math.max(...hourTotals));
+  const peakDay = dayTotals.indexOf(Math.max(...dayTotals));
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const insights = [];
+  insights.push(`${registrationCurrent} users joined in ${globalWindow.label}.`);
+  insights.push(`Registrations ${deltaLabel(registrationCurrent, registrationPrevious)} vs prior period.`);
+  insights.push(`Profile approval success rate is ${approvalSuccessRate}%.`);
+  insights.push(`Moderation risk is ${moderationRiskLevel} (${moderationRiskScore.toFixed(1)} score).`);
+  insights.push(pendingPaymentReviews === 0 ? 'No urgent payment backlog detected.' : `${pendingPaymentReviews} payments currently need review.`);
+  insights.push(`Strongest activity is around ${peakHour}:00 on ${dayLabels[peakDay]}.`);
+  insights.push(pctDelta(premiumCurrent, premiumPrevious) < 0 ? 'Premium conversion softened this period; revisit upgrade nudges.' : 'Premium conversion momentum remains healthy.');
+  insights.push(pendingProfileApprovals > 0 ? `${pendingProfileApprovals} profiles need immediate review.` : 'Profile review queue is currently clear.');
+
+  const decisionBlocks = [
+    {
+      title: 'Users needing review',
+      value: suspiciousUsers,
+      helper: suspiciousUsers > 0 ? 'Prioritize warning-heavy and risk-scored accounts.' : 'No high-risk user cluster detected.',
+      action: 'users',
+      tone: suspiciousUsers > 0 ? 'danger' : 'success'
+    },
+    {
+      title: 'Profiles needing review',
+      value: pendingProfileApprovals,
+      helper: pendingProfileApprovals > 5 ? 'Approval bottleneck detected. Assign additional reviewer.' : 'Approval pipeline remains healthy.',
+      action: 'approvals',
+      tone: pendingProfileApprovals > 5 ? 'warning' : 'success'
+    },
+    {
+      title: 'Payment backlog',
+      value: pendingPaymentReviews,
+      helper: pendingPaymentReviews > 0 ? 'Finance queue requires action to protect conversion.' : 'No urgent payment backlog.',
+      action: 'payments',
+      tone: pendingPaymentReviews > 0 ? 'warning' : 'success'
+    },
+    {
+      title: 'Risk alerts',
+      value: activeReports + flaggedChats,
+      helper: activeReports + flaggedChats > 0 ? 'Review safety signals to keep trust metrics stable.' : 'No moderation spikes detected this period.',
+      action: 'reports',
+      tone: activeReports + flaggedChats > 0 ? 'danger' : 'success'
+    }
+  ];
+
+  const kpiCards = [
+    {
+      label: 'Total Users',
+      value: formatCompact(totalUsers),
+      delta: pctDelta(registrationCurrent, registrationPrevious),
+      helper: `Joined ${globalWindow.label}`,
+      spark: newUsersSeries,
+      tone: 'info'
+    },
+    {
+      label: 'DAU / WAU / MAU',
+      value: `${formatCompact(dailyActiveUsers)} / ${formatCompact(weeklyActiveUsers)} / ${formatCompact(monthlyActiveUsers)}`,
+      delta: pctDelta(dailyActiveUsers, Math.max(1, Math.round(weeklyActiveUsers / 7))),
+      helper: 'Active audience across daily, weekly, and monthly windows.',
+      spark: activeUsersSeries,
+      tone: 'success'
+    },
+    {
+      label: 'Premium Conversion',
+      value: `${premiumConversionRate.toFixed(1)}%`,
+      delta: pctDelta(premiumCurrent, premiumPrevious),
+      helper: 'Share of users on paid access.',
+      spark: activePremiumSeries,
+      tone: pctDelta(premiumCurrent, premiumPrevious) < 0 ? 'warning' : 'success'
+    },
+    {
+      label: 'Approval Success Rate',
+      value: `${approvalSuccessRate}%`,
+      delta: pctDelta(
+        registrationApprovedSeries.reduce((acc, value) => acc + value, 0),
+        Math.max(1, registrationRejectedSeries.reduce((acc, value) => acc + value, 0))
+      ),
+      helper: 'Approved vs rejected registration decisions.',
+      spark: registrationApprovedSeries,
+      tone: approvalSuccessRate >= 75 ? 'success' : 'warning'
+    },
+    {
+      label: 'Moderation Risk',
+      value: `${moderationRiskScore.toFixed(1)} (${moderationRiskLevel})`,
+      delta: pctDelta(activeReports + flaggedChats, Math.max(1, suspiciousUsers + blockedAccounts)),
+      helper: 'Composite risk from open reports, flagged chat, suspicious users.',
+      spark: reportTrendSeries,
+      tone: moderationRiskLevel === 'high' ? 'danger' : moderationRiskLevel === 'medium' ? 'warning' : 'success'
+    },
+    {
+      label: 'Revenue This Month',
+      value: formatCurrency(monthlyRevenue),
+      delta: pctDelta(revenueCurrent, revenuePrevious),
+      helper: 'Approved premium payment volume.',
+      spark: revenueSeries,
+      tone: revenueCurrent >= revenuePrevious ? 'success' : 'warning'
+    },
+    {
+      label: 'Churn / Expired Premium',
+      value: formatCompact(expiredPremiumCount),
+      delta: pctDelta(churnSeries.reduce((acc, value) => acc + value, 0), Math.max(1, premiumPurchasesSeries.reduce((acc, value) => acc + value, 0))),
+      helper: 'Premium expiries and payment falloff signals.',
+      spark: churnSeries,
+      tone: expiredPremiumCount > premiumUsers * 0.25 ? 'danger' : 'warning'
+    },
+    {
+      label: 'Blocked User Ratio',
+      value: `${blockedUserRatio.toFixed(2)}%`,
+      delta: pctDelta(blockedAccounts, Math.max(1, suspiciousUsers)),
+      helper: 'Share of users currently banned or suspended.',
+      spark: blockedTrendSeries,
+      tone: blockedUserRatio > 2 ? 'warning' : 'info'
+    }
+  ];
+
+  const growthSeries = [
+    { name: 'New users', color: '#22d3ee', data: newUsersSeries },
+    { name: 'Active users', color: '#34d399', data: activeUsersSeries },
+    { name: 'Approved users', color: '#f59e0b', data: approvedUsersSeries }
+  ];
+
+  const registrationSeries = [
+    { name: 'Registrations', color: 'linear-gradient(180deg,#38bdf8,#0ea5e9)', data: registrationTotalSeries },
+    { name: 'Approved', color: 'linear-gradient(180deg,#34d399,#10b981)', data: registrationApprovedSeries },
+    { name: 'Rejected', color: 'linear-gradient(180deg,#fb7185,#f43f5e)', data: registrationRejectedSeries },
+    { name: 'Pending', color: 'linear-gradient(180deg,#f59e0b,#d97706)', data: registrationPendingSeries }
+  ];
+
+  const moderationSeries = [
+    { name: 'Active reports', color: '#fb7185', data: reportTrendSeries },
+    { name: 'Flagged chats', color: '#f59e0b', data: flaggedTrendSeries },
+    { name: 'Suspicious users', color: '#22d3ee', data: suspiciousTrendSeries },
+    { name: 'Blocked accounts', color: '#a78bfa', data: blockedTrendSeries }
+  ];
+
+  const revenueTrendSeries = [
+    { name: 'Premium purchases', color: '#34d399', data: premiumPurchasesSeries },
+    { name: 'Revenue', color: '#22d3ee', data: revenueSeries },
+    { name: 'Active premium users', color: '#f59e0b', data: activePremiumSeries },
+    { name: 'Expiry / churn', color: '#fb7185', data: churnSeries }
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {cards.map((card) => (
-          <div key={card.label} className={`rounded-2xl border border-cyan-200/15 bg-gradient-to-br ${card.tone} p-4 shadow-[0_16px_44px_rgba(4,10,26,0.42)] backdrop-blur-xl`}>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-cyan-100/80">{card.label}</p>
-                <p className="text-3xl font-bold text-white mt-2">{card.value ?? 0}</p>
-              </div>
-              <span className="text-2xl">{card.icon}</span>
-            </div>
-          </div>
+    <div className="space-y-5">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {kpiCards.map((kpi) => (
+          <KpiCard
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            delta={kpi.delta}
+            helper={kpi.helper}
+            spark={kpi.spark}
+            tone={kpi.tone}
+          />
         ))}
       </div>
 
-      <div className="grid xl:grid-cols-[1.3fr_1fr] gap-4">
-        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/55 p-5 backdrop-blur-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-semibold text-white">Operational Trend Summary</p>
-            <span className="text-xs px-2.5 py-1 rounded-full border border-cyan-300/35 bg-cyan-500/10 text-cyan-200">Live snapshot</span>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {trendSnapshot.map((item) => (
-              <div key={item.label} className="rounded-xl border border-cyan-200/15 bg-white/8 px-4 py-3">
-                <p className="text-xs text-cyan-100/70 uppercase tracking-wider">{item.label}</p>
-                <p className="text-lg font-semibold text-white mt-1">{item.value}</p>
+      <div className="grid xl:grid-cols-[1.45fr_1fr] gap-4">
+        <PremiumSurface
+          title="User Growth Analytics"
+          subtitle="New, active, and approved user trends"
+          rightSlot={(
+            <div className="flex items-center gap-2">
+              {[
+                { id: '7d', label: '7d' },
+                { id: '30d', label: '30d' },
+                { id: '90d', label: '90d' },
+                { id: '12m', label: '12m' }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setGrowthRange(item.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs border transition ${growthRange === item.id ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100' : 'border-cyan-200/20 bg-white/5 text-slate-300 hover:bg-white/10'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        >
+          <LineAnalyticsChart
+            labels={growthLabels}
+            series={growthSeries}
+            emptyCopy="User growth trend will become visible as registrations accumulate."
+          />
+        </PremiumSurface>
+
+        <PremiumSurface title="Live Platform Insights" subtitle="Real-time operations intelligence" rightSlot={<StatusChip tone="info">Platform Pulse</StatusChip>}>
+          <div className="space-y-2.5">
+            {insights.map((item, index) => (
+              <div key={`${item}-${index}`} className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5 text-sm text-[color:var(--text-light)]">
+                {item}
               </div>
             ))}
           </div>
-        </div>
+        </PremiumSurface>
+      </div>
 
-        <div className="rounded-2xl border border-cyan-200/15 bg-[#0a1a36]/55 p-5 backdrop-blur-2xl">
-          <p className="font-semibold text-white mb-3">Safety and Moderation Notices</p>
-          {(overview?.platformAlerts || []).length ? (
-            <div className="space-y-2">
-              {overview.platformAlerts.map((alert, idx) => (
-                <div key={idx} className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-                  ⚠️ {alert}
+      <div className="grid xl:grid-cols-2 gap-4">
+        <PremiumSurface title="Registration + Approval Flow" subtitle={`Onboarding pipeline across ${globalBucketSet.label}`}>
+          <StackedFlowChart
+            labels={globalLabels}
+            series={registrationSeries}
+            emptyCopy="No registration flow yet. New onboarding events will populate this panel."
+          />
+        </PremiumSurface>
+
+        <PremiumSurface title="Moderation / Safety Trend" subtitle="Reports, flags, suspicious behavior and blocked users over time">
+          <LineAnalyticsChart
+            labels={globalLabels}
+            series={moderationSeries}
+            emptyCopy="No moderation spikes detected this period."
+          />
+        </PremiumSurface>
+      </div>
+
+      <div className="grid xl:grid-cols-2 gap-4">
+        <PremiumSurface title="Revenue / Premium Trend" subtitle="Purchases, revenue, active premium users, and churn">
+          <LineAnalyticsChart
+            labels={globalLabels}
+            series={revenueTrendSeries}
+            emptyCopy="Premium revenue will appear here once subscriptions begin."
+          />
+        </PremiumSurface>
+
+        <PremiumSurface title="Activity Pattern Heatmap" subtitle="Most active hours and days for engagement and admin load">
+          <div className="space-y-4">
+            <div className="grid grid-cols-[auto_repeat(24,minmax(0,1fr))] gap-1.5 overflow-x-auto">
+              <div />
+              {Array.from({ length: 24 }, (_, hour) => (
+                <div key={`hour-${hour}`} className="text-[10px] text-[color:var(--portal-muted)] text-center">{hour}</div>
+              ))}
+
+              {dayLabels.map((day, dayIndex) => (
+                <React.Fragment key={day}>
+                  <div className="text-[10px] text-[color:var(--portal-muted)] pr-1 self-center">{day}</div>
+                  {activityHeatmap[dayIndex].map((value, hourIndex) => {
+                    const intensity = value / heatmapMax;
+                    const background = `rgba(34,211,238,${0.08 + intensity * 0.75})`;
+                    return (
+                      <div
+                        key={`${day}-${hourIndex}`}
+                        className="h-4 rounded-[4px] border border-cyan-200/10"
+                        style={{ backgroundColor: background }}
+                        title={`${day} ${hourIndex}:00 - ${value} events`}
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-3 text-sm text-[color:var(--text-light)]">
+                Most active hour: <span className="font-semibold">{peakHour}:00</span>
+              </div>
+              <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-3 text-sm text-[color:var(--text-light)]">
+                Most active day: <span className="font-semibold">{dayLabels[peakDay]}</span>
+              </div>
+            </div>
+          </div>
+        </PremiumSurface>
+      </div>
+
+      <div className="grid xl:grid-cols-[1.2fr_1fr_1fr] gap-4">
+        <PremiumSurface title="Profile Approval Trend" subtitle="Submitted vs approved vs rejected profiles">
+          <LineAnalyticsChart
+            labels={globalLabels}
+            series={[
+              { name: 'Submitted', color: '#22d3ee', data: profileSubmittedSeries },
+              { name: 'Approved', color: '#34d399', data: profileApprovedSeries },
+              { name: 'Rejected', color: '#fb7185', data: profileRejectedSeries }
+            ]}
+            emptyCopy="Profile review trend will appear after moderation actions begin."
+          />
+        </PremiumSurface>
+
+        <PremiumSurface title="System Health" subtitle="Core platform services + response readiness">
+          <div className="space-y-2">
+            {[
+              { label: 'API', value: systemHealth.api || 'healthy' },
+              { label: 'Database', value: systemHealth.database || 'healthy' },
+              { label: 'Payments', value: systemHealth.payments || 'degraded' },
+              { label: 'Storage', value: systemHealth.storage || 'healthy' },
+              { label: 'Safety', value: systemHealth.safety || (moderationRiskLevel === 'high' ? 'degraded' : 'healthy') }
+            ].map((item) => {
+              const tone = item.value === 'healthy' ? 'success' : item.value === 'degraded' ? 'warning' : 'danger';
+              return (
+                <div key={item.label} className="flex items-center justify-between rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2">
+                  <span className="text-sm text-[color:var(--text-light)]">{item.label}</span>
+                  <StatusChip tone={tone}>{item.value}</StatusChip>
+                </div>
+              );
+            })}
+
+            <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5 mt-3 text-xs text-[color:var(--portal-muted)]">
+              Avg approval turnaround: {averageApprovalTurnaroundHours > 0 ? `${averageApprovalTurnaroundHours.toFixed(1)}h` : 'N/A'}
+            </div>
+            <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5 text-xs text-[color:var(--portal-muted)]">
+              Avg moderation resolution: {averageModerationResolutionHours > 0 ? `${averageModerationResolutionHours.toFixed(1)}h` : 'N/A'}
+            </div>
+          </div>
+        </PremiumSurface>
+
+        <PremiumSurface title="Smart Decision Support" subtitle="What to act on next">
+          <div className="space-y-2.5">
+            {decisionBlocks.map((block) => (
+              <button
+                key={block.title}
+                type="button"
+                onClick={() => onSectionChange?.(block.action)}
+                className="w-full text-left rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-3 py-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">{block.title}</p>
+                  <StatusChip tone={block.tone}>{formatCompact(block.value)}</StatusChip>
+                </div>
+                <p className="text-sm text-[color:var(--text-light)] mt-1.5">{block.helper}</p>
+              </button>
+            ))}
+          </div>
+        </PremiumSurface>
+      </div>
+
+      <div className="grid xl:grid-cols-[1.1fr_1fr_1fr] gap-4">
+        <PremiumSurface title="Recent Admin Activity" subtitle="Latest governance actions">
+          {(recentActivity.length || activityLogs.length) ? (
+            <div className="space-y-2.5">
+              {(recentActivity.length ? recentActivity : activityLogs).slice(0, 8).map((entry, idx) => (
+                <div key={entry._id || idx} className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-2.5">
+                  <p className="text-sm text-[color:var(--text-light)]">{entry.description || entry.action || 'Activity update'}</p>
+                  <p className="text-xs text-[color:var(--portal-muted)] mt-1">{new Date(entry.timestamp || entry.createdAt || Date.now()).toLocaleString()}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-200">
-              All systems operational. No unresolved critical incidents.
+            <div className="rounded-xl border border-cyan-200/15 bg-white/5 px-3 py-4 text-sm text-[color:var(--portal-muted)]">
+              No recent admin actions. Activity will appear as the team starts reviewing queues.
             </div>
           )}
-        </div>
+        </PremiumSurface>
+
+        <PremiumSurface title="Safety & Moderation Notices" subtitle="Priority alerts for trust operations">
+          {notices.length ? (
+            <div className="space-y-2">
+              {notices.map((alert, idx) => (
+                <div key={`${alert}-${idx}`} className="rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">{alert}</div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-200">No moderation spikes detected this period.</div>
+          )}
+        </PremiumSurface>
+
+        <PremiumSurface title="Live Queue Panel" subtitle="Operational backlog and throughput">
+          <div className="space-y-2.5">
+            {liveQueue.map((queue) => (
+              <button
+                key={queue.label}
+                onClick={() => onSectionChange?.(queue.section)}
+                className="w-full text-left rounded-xl border border-cyan-200/20 bg-white/5 hover:bg-white/10 px-4 py-3"
+              >
+                <p className="text-xs uppercase tracking-wide text-[color:var(--portal-muted)]">{queue.label}</p>
+                <p className="text-2xl font-semibold text-[color:var(--text-light)] mt-1">{queue.value}</p>
+                <p className="text-xs text-cyan-200 mt-1">Open queue</p>
+              </button>
+            ))}
+          </div>
+        </PremiumSurface>
+      </div>
+
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {[
+          { label: 'Active Today', value: activeToday, icon: '🟢', hint: 'Engaged in last 24h', tone: 'success' },
+          { label: 'New Registrations', value: newRegistrations, icon: '🆕', hint: 'Joined in selected period', tone: 'info' },
+          { label: 'Pending Profile Approvals', value: pendingProfileApprovals, icon: '✅', hint: 'Verification queue', tone: 'warning' },
+          { label: 'Pending Payment Reviews', value: pendingPaymentReviews, icon: '💳', hint: 'Needs finance action', tone: 'warning' }
+        ].map((card) => (
+          <StatCard
+            key={card.label}
+            icon={card.icon}
+            label={card.label}
+            value={card.value}
+            hint={card.hint}
+            tone={card.tone}
+          />
+        ))}
       </div>
     </div>
   );
@@ -1255,73 +2203,531 @@ function UsersPanel({ users, onModerate, onDelete, onOpenDetail, onViewActivity,
   );
 }
 
-function RegistrationApprovalsPanel({ registrations, onApprove, onOpenDetail }) {
-  if (!registrations || registrations.length === 0) {
+function RegistrationApprovalsPanel({
+  registrations,
+  onApprove,
+  onOpenDetail,
+  onNotify,
+  pinEnabled = false,
+  pinVerified = false,
+  adminPin = ''
+}) {
+  const [query, setQuery] = React.useState('');
+  const [riskFilter, setRiskFilter] = React.useState('all');
+  const [statusFilter, setStatusFilter] = React.useState('pending');
+  const [selectedIds, setSelectedIds] = React.useState([]);
+  const [loadingIds, setLoadingIds] = React.useState([]);
+  const [fadingIds, setFadingIds] = React.useState([]);
+  const [shakingIds, setShakingIds] = React.useState([]);
+  const [lastUpdatedAt, setLastUpdatedAt] = React.useState(Date.now());
+  const [clockTick, setClockTick] = React.useState(Date.now());
+  const [rejectModal, setRejectModal] = React.useState({ open: false, user: null, reason: 'Profile does not meet requirements' });
+  const [bulkRejectModal, setBulkRejectModal] = React.useState({ open: false, reason: 'Bulk rejection by admin review' });
+  const [auditTrail, setAuditTrail] = React.useState([]);
+  const [page, setPage] = React.useState(1);
+  const pageSize = 8;
+
+  React.useEffect(() => {
+    setLastUpdatedAt(Date.now());
+    setSelectedIds((prev) => prev.filter((id) => (registrations || []).some((item) => item._id === id)));
+  }, [registrations]);
+
+  React.useEffect(() => {
+    const interval = window.setInterval(() => setClockTick(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const relativeTime = React.useCallback((value) => {
+    const ts = new Date(value || 0).getTime();
+    if (!Number.isFinite(ts) || ts <= 0) return 'unknown';
+    const diffMs = Math.max(0, Date.now() - ts);
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return `${min} min ago`;
+    const hrs = Math.floor(min / 60);
+    if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  }, []);
+
+  const getAvatar = React.useCallback((user) => {
+    const name = String(user?.name || 'U').trim();
+    const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+    return initials || 'U';
+  }, []);
+
+  const deriveRiskFlags = React.useCallback((user, allUsers) => {
+    const flags = [];
+    const email = String(user?.email || user?.collegeEmail || user?.personalEmail || '').toLowerCase();
+    const phone = String(user?.phone || '');
+    const duplicateEmail = allUsers.filter((item) => String(item?.email || item?.collegeEmail || item?.personalEmail || '').toLowerCase() === email).length > 1;
+    const duplicatePhone = phone && allUsers.filter((item) => String(item?.phone || '') === phone).length > 1;
+
+    if (/@(mailinator|10minutemail|tempmail|guerrillamail)\./i.test(email)) {
+      flags.push('Suspicious email');
+    }
+    if (duplicateEmail || duplicatePhone) {
+      flags.push('Duplicate account');
+    }
+    if ((user?.bio && String(user.bio).length < 8) || /test|asdf|spam/i.test(String(user?.name || ''))) {
+      flags.push('Spam risk');
+    }
+
+    return flags;
+  }, []);
+
+  const enrichedRows = React.useMemo(() => {
+    return (registrations || []).map((user) => {
+      const riskFlags = deriveRiskFlags(user, registrations || []);
+      const riskLevel = riskFlags.length >= 2 ? 'high' : riskFlags.length === 1 ? 'medium' : 'low';
+      const createdAt = user.created_at || user.createdAt;
+      const status = String(user.profile_approval_status || user.status || 'pending').toLowerCase();
+      return {
+        ...user,
+        displayEmail: user.email || user.collegeEmail || user.personalEmail || '-',
+        createdAt,
+        relativeSubmitted: relativeTime(createdAt),
+        riskFlags,
+        riskLevel,
+        status
+      };
+    });
+  }, [deriveRiskFlags, registrations, relativeTime]);
+
+  const filteredRows = React.useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return enrichedRows.filter((row) => {
+      const matchesSearch = !normalized || `${row.name || ''} ${row.displayEmail || ''} ${row.phone || ''} ${row.course || ''}`.toLowerCase().includes(normalized);
+      const matchesStatus = statusFilter === 'all' || row.status === statusFilter;
+      const matchesRisk = riskFilter === 'all' || row.riskLevel === riskFilter;
+      return matchesSearch && matchesStatus && matchesRisk;
+    });
+  }, [enrichedRows, query, riskFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+
+  React.useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const pageRows = React.useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, page]);
+
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const approvedToday = auditTrail.filter((item) => item.action === 'approve' && item.timestamp >= startOfToday).length;
+  const rejectedToday = auditTrail.filter((item) => item.action === 'reject' && item.timestamp >= startOfToday).length;
+
+  const activeFilters = [
+    query ? `Search: ${query}` : '',
+    statusFilter !== 'all' ? `Status: ${statusFilter}` : '',
+    riskFilter !== 'all' ? `Risk: ${riskFilter}` : ''
+  ].filter(Boolean);
+
+  const lastUpdatedLabel = React.useMemo(() => {
+    const sec = Math.max(0, Math.floor((clockTick - lastUpdatedAt) / 1000));
+    if (sec < 2) return 'just now';
+    if (sec < 60) return `${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    return `${min}m ago`;
+  }, [clockTick, lastUpdatedAt]);
+
+  const canRunSensitiveAction = !pinEnabled || pinVerified || Boolean(adminPin);
+
+  const pushAudit = React.useCallback((entry) => {
+    setAuditTrail((prev) => [{ ...entry, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, timestamp: Date.now() }, ...prev].slice(0, 20));
+  }, []);
+
+  const runApprove = React.useCallback(async (userId, userName) => {
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before approval actions.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, userId])]);
+    const ok = await onApprove?.(userId, 'approve', { deferRemovalMs: 260 });
+    setLoadingIds((prev) => prev.filter((id) => id !== userId));
+
+    if (ok) {
+      setFadingIds((prev) => [...new Set([...prev, userId])]);
+      window.setTimeout(() => {
+        setFadingIds((prev) => prev.filter((id) => id !== userId));
+      }, 450);
+      setSelectedIds((prev) => prev.filter((id) => id !== userId));
+      pushAudit({ action: 'approve', userId, userName, note: 'Approved from registration queue' });
+      onNotify?.('User approved successfully', 'success');
+    }
+  }, [canRunSensitiveAction, onApprove, onNotify, pushAudit]);
+
+  const confirmReject = React.useCallback(async () => {
+    const user = rejectModal.user;
+    if (!user) return;
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before rejection actions.', 'error');
+      return;
+    }
+    const reason = String(rejectModal.reason || '').trim();
+    if (reason.length < 4) {
+      onNotify?.('Please provide a stronger rejection reason.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, user._id])]);
+    const ok = await onApprove?.(user._id, 'reject', { reason, deferRemovalMs: 280 });
+    setLoadingIds((prev) => prev.filter((id) => id !== user._id));
+
+    if (ok) {
+      setShakingIds((prev) => [...new Set([...prev, user._id])]);
+      window.setTimeout(() => setShakingIds((prev) => prev.filter((id) => id !== user._id)), 380);
+      setFadingIds((prev) => [...new Set([...prev, user._id])]);
+      window.setTimeout(() => {
+        setFadingIds((prev) => prev.filter((id) => id !== user._id));
+      }, 500);
+      setSelectedIds((prev) => prev.filter((id) => id !== user._id));
+      pushAudit({ action: 'reject', userId: user._id, userName: user.name, note: reason });
+      onNotify?.('Registration rejected with confirmation', 'success');
+      setRejectModal({ open: false, user: null, reason: 'Profile does not meet requirements' });
+    }
+  }, [canRunSensitiveAction, onApprove, onNotify, pushAudit, rejectModal]);
+
+  const handleBulkApprove = React.useCallback(async () => {
+    if (!selectedIds.length) return;
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before bulk actions.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, ...selectedIds])]);
+    for (const id of selectedIds) {
+      const row = enrichedRows.find((item) => item._id === id);
+      const ok = await onApprove?.(id, 'approve', { deferRemovalMs: 220 });
+      if (ok) {
+        pushAudit({ action: 'approve', userId: id, userName: row?.name || 'User', note: 'Bulk approve' });
+      }
+    }
+    setLoadingIds((prev) => prev.filter((id) => !selectedIds.includes(id)));
+    setSelectedIds([]);
+    onNotify?.('Bulk approve completed', 'success');
+  }, [canRunSensitiveAction, enrichedRows, onApprove, onNotify, pushAudit, selectedIds]);
+
+  const handleBulkReject = React.useCallback(async () => {
+    if (!selectedIds.length) return;
+    if (!canRunSensitiveAction) {
+      onNotify?.('Verify admin PIN before bulk actions.', 'error');
+      return;
+    }
+    const reason = String(bulkRejectModal.reason || '').trim();
+    if (reason.length < 4) {
+      onNotify?.('Bulk reject reason is required.', 'error');
+      return;
+    }
+
+    setLoadingIds((prev) => [...new Set([...prev, ...selectedIds])]);
+    for (const id of selectedIds) {
+      const row = enrichedRows.find((item) => item._id === id);
+      const ok = await onApprove?.(id, 'reject', { reason, deferRemovalMs: 220 });
+      if (ok) {
+        pushAudit({ action: 'reject', userId: id, userName: row?.name || 'User', note: `Bulk reject: ${reason}` });
+      }
+    }
+    setLoadingIds((prev) => prev.filter((id) => !selectedIds.includes(id)));
+    setSelectedIds([]);
+    setBulkRejectModal({ open: false, reason: 'Bulk rejection by admin review' });
+    onNotify?.('Bulk reject completed', 'success');
+  }, [bulkRejectModal.reason, canRunSensitiveAction, enrichedRows, onApprove, onNotify, pushAudit, selectedIds]);
+
+  const allVisibleSelected = pageRows.length > 0 && pageRows.every((row) => selectedIds.includes(row._id));
+
+  const toggleSelectAllVisible = () => {
+    if (allVisibleSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pageRows.some((row) => row._id === id)));
+      return;
+    }
+    setSelectedIds((prev) => [...new Set([...prev, ...pageRows.map((row) => row._id)])]);
+  };
+
+  if (!registrations) {
     return (
-      <div className="card bg-green-50 border-2 border-green-300 text-center p-8">
-        <div className="text-4xl mb-3">✅</div>
-        <h2 className="text-2xl font-bold text-green-900 mb-2">All Clear!</h2>
-        <p className="text-green-700">No pending registrations to approve.</p>
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <SkeletonBlock key={index} className="h-20" />
+        ))}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-yellow-900 mb-4 flex items-center gap-2">
-          ⏳ Pending Registrations ({registrations.length})
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-yellow-200">
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Name</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Email</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Phone</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Course</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Submitted</th>
-                <th className="text-left py-3 px-4 font-bold text-yellow-900">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrations.map((user) => (
-                <tr key={user._id} className="border-b border-yellow-100 hover:bg-yellow-100/50">
-                  <td className="py-3 px-4 font-semibold">{user.name}</td>
-                  <td className="py-3 px-4 text-sm text-gray-700">{user.email || user.collegeEmail || user.personalEmail}</td>
-                  <td className="py-3 px-4 text-sm">{user.phone}</td>
-                  <td className="py-3 px-4 text-sm">{user.course}</td>
-                  <td className="py-3 px-4 text-xs text-gray-600">
-                    {new Date(user.created_at || user.createdAt).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => onOpenDetail('Registration Detail', user)}
-                        className="text-xs px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      >
-                        Detail
-                      </button>
-                      <button
-                        onClick={() => onApprove(user._id, 'approve')}
-                        className="text-xs px-3 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 font-semibold"
-                      >
-                        ✅ Approve
-                      </button>
-                      <button
-                        onClick={() => onApprove(user._id, 'reject')}
-                        className="text-xs px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
-                      >
-                        ❌ Reject
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <PremiumSurface
+        title="Pending Registrations"
+        subtitle="Decision queue for onboarding approvals"
+        rightSlot={<StatusChip tone="info">Last updated {lastUpdatedLabel}</StatusChip>}
+      >
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-[color:var(--portal-muted)]">Total Pending</p>
+            <p className="text-2xl font-bold text-[color:var(--text-light)] mt-1">{registrations.length}</p>
+          </div>
+          <div className="rounded-xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-emerald-200">Approved Today</p>
+            <p className="text-2xl font-bold text-emerald-100 mt-1">{approvedToday}</p>
+          </div>
+          <div className="rounded-xl border border-rose-300/20 bg-rose-500/10 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-rose-200">Rejected Today</p>
+            <p className="text-2xl font-bold text-rose-100 mt-1">{rejectedToday}</p>
+          </div>
         </div>
-      </div>
+      </PremiumSurface>
+
+      <PremiumSurface title="Search & Filters" subtitle="Refine queue quickly with active filter chips">
+        <div className="space-y-3">
+          <div className="grid md:grid-cols-[1.2fr_auto_auto] gap-3 items-center">
+            <label className="flex items-center gap-2 rounded-xl border border-cyan-200/20 bg-white/8 px-3 py-2.5">
+              <span className="text-cyan-200">🔎</span>
+              <input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search name, email, phone, course"
+                className="flex-1 bg-transparent text-sm text-[color:var(--text-light)] placeholder-slate-400 focus:outline-none"
+              />
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-2.5 rounded-full border border-cyan-200/20 bg-white/8 text-sm text-[color:var(--text-light)]"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select
+              value={riskFilter}
+              onChange={(event) => {
+                setRiskFilter(event.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-2.5 rounded-full border border-cyan-200/20 bg-white/8 text-sm text-[color:var(--text-light)]"
+            >
+              <option value="all">All Risk</option>
+              <option value="high">High Risk</option>
+              <option value="medium">Medium Risk</option>
+              <option value="low">Low Risk</option>
+            </select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[color:var(--portal-muted)] uppercase tracking-wider">Active filters:</span>
+            {activeFilters.length ? activeFilters.map((label) => (
+              <span key={label} className="px-2.5 py-1 rounded-full border border-cyan-200/25 bg-cyan-500/10 text-cyan-100 text-xs">{label}</span>
+            )) : <span className="text-xs text-[color:var(--portal-muted)]">None</span>}
+          </div>
+        </div>
+      </PremiumSurface>
+
+      <PremiumSurface title="Registration Queue" subtitle="Select and process users with fast action controls">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="inline-flex items-center gap-2 text-xs text-[color:var(--portal-muted)]">
+              <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} className="accent-cyan-400" />
+              Select page ({pageRows.length})
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={!selectedIds.length || loadingIds.length > 0}
+                onClick={handleBulkApprove}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-green-500 disabled:opacity-40"
+              >
+                ✅ Bulk Approve ({selectedIds.length})
+              </button>
+              <button
+                type="button"
+                disabled={!selectedIds.length || loadingIds.length > 0}
+                onClick={() => setBulkRejectModal({ open: true, reason: bulkRejectModal.reason })}
+                className="px-3 py-2 rounded-xl text-xs font-semibold border border-rose-300/40 text-rose-200 hover:bg-rose-500/10 disabled:opacity-40"
+              >
+                ⛔ Bulk Reject ({selectedIds.length})
+              </button>
+            </div>
+          </div>
+
+          {!filteredRows.length ? (
+            <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 px-6 py-10 text-center">
+              <div className="text-4xl">🎉</div>
+              <h3 className="mt-2 text-xl font-bold text-emerald-100">No pending approvals</h3>
+              <p className="text-sm text-emerald-200/80 mt-1">All registrations are processed. New submissions will appear here automatically.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {pageRows.map((user) => {
+                const isLoadingRow = loadingIds.includes(user._id);
+                const isFading = fadingIds.includes(user._id);
+                const isShaking = shakingIds.includes(user._id);
+                const selected = selectedIds.includes(user._id);
+                const statusTone = user.status === 'approved' ? 'success' : user.status === 'rejected' ? 'danger' : 'warning';
+
+                return (
+                  <article
+                    key={user._id}
+                    onClick={() => onOpenDetail?.('Registration Detail', user)}
+                    className={`rounded-2xl border border-cyan-200/20 bg-white/5 p-3.5 transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:bg-white/10 hover:shadow-[0_20px_44px_rgba(2,8,25,0.42)] ${isFading ? 'opacity-0 scale-[0.98]' : 'opacity-100'} ${isShaking ? 'animate-[shake_0.35s_ease-in-out]' : ''}`}
+                  >
+                    <div className="grid md:grid-cols-[auto_1fr_auto] gap-3 items-start">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => setSelectedIds((prev) => selected ? prev.filter((id) => id !== user._id) : [...prev, user._id])}
+                          className="accent-cyan-400"
+                        />
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-400/35 to-blue-500/30 border border-cyan-200/30 text-cyan-100 font-bold flex items-center justify-center">
+                          {getAvatar(user)}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-[color:var(--text-light)] truncate">{user.name || 'Unnamed User'}</p>
+                          <StatusChip tone={statusTone}>{user.status || 'pending'}</StatusChip>
+                          {user.riskFlags.map((flag) => (
+                            <StatusChip key={flag} tone={flag === 'Spam risk' ? 'danger' : 'warning'}>{flag}</StatusChip>
+                          ))}
+                        </div>
+                        <p className="text-sm text-[color:var(--portal-muted)] truncate mt-1">{user.displayEmail}</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--portal-muted)] mt-1.5">
+                          <span>📞 {user.phone || 'N/A'}</span>
+                          <span>🎓 {user.course || 'N/A'}</span>
+                          <span>🕒 {user.relativeSubmitted}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2" onClick={(event) => event.stopPropagation()}>
+                        <button
+                          type="button"
+                          disabled={isLoadingRow}
+                          onClick={() => onOpenDetail?.('Registration Detail', user)}
+                          className="px-3 py-2 rounded-xl text-xs border border-cyan-200/25 bg-white/5 hover:bg-white/12 text-[color:var(--text-light)] disabled:opacity-40"
+                        >
+                          Detail
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isLoadingRow}
+                          onClick={() => runApprove(user._id, user.name)}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-green-500 hover:opacity-95 disabled:opacity-40"
+                        >
+                          {isLoadingRow ? 'Processing...' : '✅ Approve'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isLoadingRow}
+                          onClick={() => setRejectModal({ open: true, user, reason: 'Profile does not meet requirements' })}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold border border-rose-300/35 text-rose-200 hover:bg-rose-500/12 disabled:opacity-40"
+                        >
+                          ❌ Reject
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-[color:var(--portal-muted)]">Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredRows.length)} of {filteredRows.length}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-cyan-200/25 bg-white/5 text-xs disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="text-xs text-[color:var(--portal-muted)]">Page {page} / {totalPages}</span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-cyan-200/25 bg-white/5 text-xs disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      </PremiumSurface>
+
+      <PremiumSurface title="Audit Trail" subtitle="Latest approval decisions from this session">
+        {auditTrail.length ? (
+          <div className="space-y-2">
+            {auditTrail.slice(0, 8).map((item) => (
+              <div key={item.id} className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-[color:var(--text-light)]">
+                    <span className="font-semibold">{item.userName}</span> was {item.action}d
+                  </p>
+                  <StatusChip tone={item.action === 'approve' ? 'success' : 'danger'}>{item.action}</StatusChip>
+                </div>
+                <p className="text-xs text-[color:var(--portal-muted)] mt-1">{new Date(item.timestamp).toLocaleString()} • {item.note}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-cyan-200/20 bg-white/5 px-3 py-4 text-sm text-[color:var(--portal-muted)]">No actions yet in this session. Approvals and rejections will be logged here.</div>
+        )}
+      </PremiumSurface>
+
+      {rejectModal.open && rejectModal.user ? (
+        <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setRejectModal({ open: false, user: null, reason: 'Profile does not meet requirements' })}>
+          <div className="w-full max-w-lg rounded-2xl border border-rose-300/35 bg-slate-950/95 p-5" onClick={(event) => event.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white">Confirm Rejection</h3>
+            <p className="text-sm text-slate-300 mt-1">You are rejecting <span className="font-semibold text-rose-200">{rejectModal.user.name}</span>. Add a clear reason for audit compliance.</p>
+            <textarea
+              value={rejectModal.reason}
+              onChange={(event) => setRejectModal((prev) => ({ ...prev, reason: event.target.value }))}
+              rows={4}
+              className="mt-3 w-full px-3 py-2 rounded-xl border border-cyan-200/25 bg-white/8 text-sm text-white placeholder-slate-400"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setRejectModal({ open: false, user: null, reason: 'Profile does not meet requirements' })} className="px-3 py-2 rounded-xl border border-cyan-200/25 bg-white/5 text-slate-100 text-sm">Cancel</button>
+              <button onClick={confirmReject} className="px-3 py-2 rounded-xl text-sm font-semibold border border-rose-300/45 text-rose-100 hover:bg-rose-500/15">Confirm Reject</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {bulkRejectModal.open ? (
+        <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setBulkRejectModal({ open: false, reason: 'Bulk rejection by admin review' })}>
+          <div className="w-full max-w-lg rounded-2xl border border-rose-300/35 bg-slate-950/95 p-5" onClick={(event) => event.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white">Bulk Reject Confirmation</h3>
+            <p className="text-sm text-slate-300 mt-1">Rejecting <span className="font-semibold text-rose-200">{selectedIds.length}</span> selected registrations. Provide reason for audit logs.</p>
+            <textarea
+              value={bulkRejectModal.reason}
+              onChange={(event) => setBulkRejectModal((prev) => ({ ...prev, reason: event.target.value }))}
+              rows={4}
+              className="mt-3 w-full px-3 py-2 rounded-xl border border-cyan-200/25 bg-white/8 text-sm text-white placeholder-slate-400"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setBulkRejectModal({ open: false, reason: 'Bulk rejection by admin review' })} className="px-3 py-2 rounded-xl border border-cyan-200/25 bg-white/5 text-slate-100 text-sm">Cancel</button>
+              <button onClick={handleBulkReject} className="px-3 py-2 rounded-xl text-sm font-semibold border border-rose-300/45 text-rose-100 hover:bg-rose-500/15">Confirm Bulk Reject</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

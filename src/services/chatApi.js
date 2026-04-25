@@ -57,7 +57,7 @@ export const chatApi = {
 
   getUnreadSummary: async () => {
     try {
-      const response = await api.get('/api/chat/conversations/unread-summary');
+      const response = await api.get('/api/chat/conversations/unread-summary', { timeout: 25000 });
       return {
         ...response.data,
         unreadTotal: safeGet(response.data, 'data.unreadTotal', 0)
@@ -65,22 +65,34 @@ export const chatApi = {
     } catch (error) {
       const status = error?.status;
       const message = String(error?.message || '').toLowerCase();
+      const isTransientTimeout = message.includes('timeout') || message.includes('network') || status === 503;
       const isRouteMissing = status === 404 || (message.includes('route') && message.includes('not found'));
 
-      if (!isRouteMissing) {
+      if (!isRouteMissing && !isTransientTimeout) {
         throw error;
       }
 
-      const fallbackResponse = await api.get('/api/chat/conversations');
-      const fallbackUnreadTotal = safeGet(fallbackResponse.data, 'data.unreadTotal', 0);
-      return {
-        ...fallbackResponse.data,
-        unreadTotal: fallbackUnreadTotal,
-        data: {
-          ...(fallbackResponse.data?.data || {}),
-          unreadTotal: fallbackUnreadTotal
-        }
-      };
+      try {
+        const fallbackResponse = await api.get('/api/chat/conversations', { timeout: 25000 });
+        const fallbackUnreadTotal = safeGet(fallbackResponse.data, 'data.unreadTotal', 0);
+        return {
+          ...fallbackResponse.data,
+          unreadTotal: fallbackUnreadTotal,
+          data: {
+            ...(fallbackResponse.data?.data || {}),
+            unreadTotal: fallbackUnreadTotal
+          }
+        };
+      } catch {
+        // Do not hard-fail header badges during backend warm-up.
+        return {
+          success: false,
+          unreadTotal: 0,
+          data: {
+            unreadTotal: 0
+          }
+        };
+      }
     }
   },
 

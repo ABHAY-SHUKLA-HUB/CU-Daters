@@ -1,12 +1,28 @@
 // src/hooks/useNotificationSocket.js
-import { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { getStoredToken } from '../utils/authStorage';
 
-const API_URL = getApiBaseUrl();
-
 export function useNotificationSocket(onNewLike, onNewMatch, onRequestUpdate, onRequestReceived, onError) {
+  const handlersRef = React.useRef({
+    onNewLike,
+    onNewMatch,
+    onRequestUpdate,
+    onRequestReceived,
+    onError
+  });
+
+  React.useEffect(() => {
+    handlersRef.current = {
+      onNewLike,
+      onNewMatch,
+      onRequestUpdate,
+      onRequestReceived,
+      onError
+    };
+  }, [onNewLike, onNewMatch, onRequestUpdate, onRequestReceived, onError]);
+
   useEffect(() => {
     let socket = null;
 
@@ -17,13 +33,22 @@ export function useNotificationSocket(onNewLike, onNewMatch, onRequestUpdate, on
         return;
       }
 
+      const apiBase = String(getApiBaseUrl() || '').trim();
+      const socketBase = (!apiBase || apiBase === '/api')
+        ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000')
+        : apiBase.replace(/\/+$/, '').replace(/\/api$/i, '');
+
       // Connect to notification namespace
-      socket = io(`${API_URL}/notifications`, {
+      socket = io(`${socketBase}/notifications`, {
+        path: '/socket.io',
+        transports: ['polling', 'websocket'],
+        timeout: 25000,
         auth: { token },
         reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: 5
+        reconnectionDelay: 1200,
+        reconnectionDelayMax: 10000,
+        reconnectionAttempts: 20,
+        upgrade: true
       });
 
       // Connection events
@@ -31,54 +56,50 @@ export function useNotificationSocket(onNewLike, onNewMatch, onRequestUpdate, on
         console.log('✓ Connected to notification socket');
       });
 
-      socket.on('disconnect', () => {
-        console.log('✗ Disconnected from notification socket');
+      socket.on('disconnect', (reason) => {
+        if (reason !== 'io client disconnect') {
+          console.log(`✗ Disconnected from notification socket (${reason})`);
+        }
+      });
+
+      socket.on('connect_error', (error) => {
+        const message = String(error?.message || 'notification socket connect failed');
+        console.warn('Notification socket connect_error:', message);
+        handlersRef.current.onError?.(error);
       });
 
       // Listen for new likes
       socket.on('new_like', (data) => {
         console.log('💌 New like received:', data);
-        if (onNewLike) {
-          onNewLike(data);
-        }
+        handlersRef.current.onNewLike?.(data);
       });
 
       // Listen for new matches
       socket.on('new_match', (data) => {
         console.log('❤️ New match received:', data);
-        if (onNewMatch) {
-          onNewMatch(data);
-        }
+        handlersRef.current.onNewMatch?.(data);
       });
 
       // Listen for request status updates (accept/decline/cancel)
       socket.on('chat_request_updated', (data) => {
         console.log('📨 Request update received:', data);
-        if (onRequestUpdate) {
-          onRequestUpdate(data);
-        }
+        handlersRef.current.onRequestUpdate?.(data);
       });
 
       socket.on('chat_request_received', (data) => {
         console.log('💬 New request received:', data);
-        if (onRequestReceived) {
-          onRequestReceived(data);
-        }
+        handlersRef.current.onRequestReceived?.(data);
       });
 
       // Error handling
       socket.on('error', (error) => {
         console.error('Notification socket error:', error);
-        if (onError) {
-          onError(error);
-        }
+        handlersRef.current.onError?.(error);
       });
 
     } catch (error) {
       console.error('Failed to connect to notification socket:', error);
-      if (onError) {
-        onError(error);
-      }
+      handlersRef.current.onError?.(error);
     }
 
     // Cleanup on unmount
@@ -87,5 +108,5 @@ export function useNotificationSocket(onNewLike, onNewMatch, onRequestUpdate, on
         socket.disconnect();
       }
     };
-  }, [onNewLike, onNewMatch, onRequestUpdate, onRequestReceived, onError]);
+  }, []);
 }

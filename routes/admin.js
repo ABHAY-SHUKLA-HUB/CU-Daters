@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import ActivityLog from '../models/ActivityLog.js';
@@ -38,6 +39,21 @@ const verifyAdminPin = (req, res, next) => {
   }
 
   next();
+};
+
+const requireSensitiveReason = (res, { reason, action, label = 'Reason' }) => {
+  const needsReason = ['ban', 'suspend', 'delete', 'freeze_chat', 'revoke', 'escalated', 'rejected'].includes(String(action || '').toLowerCase());
+  if (!needsReason) {
+    return true;
+  }
+
+  const normalized = String(reason || '').trim();
+  if (normalized.length < 5) {
+    res.status(400).json(errorResponse(`${label} is required for this action (min 5 characters)`));
+    return false;
+  }
+
+  return true;
 };
 
 // ===== ADMIN LOGIN =====
@@ -123,14 +139,27 @@ router.post('/verify-pin', verifyAdmin, async (req, res) => {
 // ===== OVERVIEW STATS =====
 router.get('/stats/overview', verifyAdmin, async (req, res) => {
   try {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const [
       totalUsers,
       activeUsers,
+      activeToday,
+      newRegistrations,
       verifiedUsers,
-      pendingApprovals,
+      pendingProfileApprovals,
+      pendingRegistrationApprovals,
       totalMatches,
       totalChats,
-      reportsCount,
+      activeReports,
+      flaggedChats,
+      suspiciousUsers,
+      blockedAccounts,
+      premiumUsers,
+      pendingPaymentReviews,
+      monthlyRevenueAgg,
       totalRevenueAgg,
       activeSubscriptions,
       recentActivity,
@@ -138,34 +167,77 @@ router.get('/stats/overview', verifyAdmin, async (req, res) => {
     ] = await Promise.all([
       User.countDocuments({ role: 'user' }),
       User.countDocuments({ role: 'user', status: 'active' }),
+      User.countDocuments({ role: 'user', $or: [{ last_active_at: { $gte: startOfToday } }, { last_login: { $gte: startOfToday } }, { updated_at: { $gte: startOfToday } }] }),
+      User.countDocuments({ role: 'user', created_at: { $gte: startOfToday } }),
       User.countDocuments({ role: 'user', is_verified: true }),
       User.countDocuments({ role: 'user', profile_approval_status: { $in: ['pending', 'needs_correction'] } }),
+      User.countDocuments({ role: 'user', status: 'pending' }),
       Match.countDocuments({ status: 'matched' }),
       Conversation.countDocuments({}),
       Report.countDocuments({ status: { $in: ['open', 'investigating'] } }),
+      Report.countDocuments({ target_type: { $in: ['chat', 'conversation'] }, status: { $in: ['open', 'investigating'] } }),
+      User.countDocuments({ role: 'user', $or: [{ warnings_count: { $gte: 2 } }, { status: { $in: ['banned', 'suspended'] } }] }),
+      User.countDocuments({ role: 'user', status: { $in: ['banned', 'suspended'] } }),
+      User.countDocuments({ role: 'user', subscription_status: { $in: ['active', 'approved'] } }),
+      Subscription.countDocuments({ status: 'pending' }),
+      Subscription.aggregate([
+        { $match: { status: { $in: ['approved', 'active'] }, created_at: { $gte: startOfMonth } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
       Subscription.aggregate([
         { $match: { status: { $in: ['approved', 'active'] } } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       Subscription.countDocuments({ status: { $in: ['approved', 'active'] } }),
-      ActivityLog.find({}).sort({ timestamp: -1 }).limit(8).lean(),
+      ActivityLog.find({}).sort({ timestamp: -1 }).limit(12).lean(),
       SupportTicket.countDocuments({ status: { $in: ['open', 'in_progress'] } })
     ]);
+
+    const dbConnected = mongoose.connection.readyState === 1;
+    const paymentsHealth = pendingPaymentReviews > 25 ? 'degraded' : 'healthy';
+    const safetyHealth = activeReports > 20 ? 'degraded' : 'healthy';
 
     return res.json(successResponse('Overview statistics fetched', {
       totalUsers,
       activeUsers,
+      activeToday,
+      newRegistrations,
       verifiedUsers,
-      pendingApprovals,
+      pendingApprovals: pendingProfileApprovals,
+      pendingProfileApprovals,
+      pendingRegistrationApprovals,
       totalMatches,
       totalChats,
-      reportsCount,
+      reportsCount: activeReports,
+      activeReports,
+      flaggedChats,
+      suspiciousUsers,
+      blockedAccounts,
+      premiumUsers,
+      pendingPaymentReviews,
+      monthlyRevenue: monthlyRevenueAgg[0]?.total || 0,
       totalRevenue: totalRevenueAgg[0]?.total || 0,
       activeSubscriptions,
       openTickets,
+      liveQueue: {
+        registration: pendingRegistrationApprovals,
+        profiles: pendingProfileApprovals,
+        payments: pendingPaymentReviews,
+        reports: activeReports,
+        support: openTickets
+      },
+      systemHealth: {
+        api: 'healthy',
+        database: dbConnected ? 'healthy' : 'outage',
+        payments: paymentsHealth,
+        storage: 'healthy',
+        safety: safetyHealth
+      },
       platformAlerts: [
-        ...(reportsCount > 0 ? [`${reportsCount} unresolved safety reports`] : []),
-        ...(pendingApprovals > 0 ? [`${pendingApprovals} profile approvals pending`] : []),
+        ...(activeReports > 0 ? [`${activeReports} unresolved safety reports`] : []),
+        ...(pendingProfileApprovals > 0 ? [`${pendingProfileApprovals} profile approvals pending`] : []),
+        ...(pendingRegistrationApprovals > 0 ? [`${pendingRegistrationApprovals} registration approvals pending`] : []),
+        ...(pendingPaymentReviews > 0 ? [`${pendingPaymentReviews} payments awaiting review`] : []),
         ...(openTickets > 0 ? [`${openTickets} support tickets open`] : [])
       ],
       recentActivity
@@ -375,6 +447,10 @@ router.put('/users/:userId/moderation', verifyAdmin, verifyAdminPin, async (req,
       return res.status(400).json(errorResponse('Invalid moderation action'));
     }
 
+    if (!requireSensitiveReason(res, { reason, action })) {
+      return;
+    }
+
     const user = await User.findById(req.params.userId);
     if (!user) {
       return res.status(404).json(errorResponse('User not found'));
@@ -571,6 +647,10 @@ router.post('/payments/membership-action', verifyAdmin, verifyAdminRole(FINANCE_
       return res.status(400).json(errorResponse('Invalid membership action'));
     }
 
+    if (!requireSensitiveReason(res, { reason: note, action, label: 'Admin note' })) {
+      return;
+    }
+
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json(errorResponse('User not found'));
@@ -680,6 +760,10 @@ router.get('/reports', verifyAdmin, verifyAdminRole(MODERATION_ROLES), async (re
 router.post('/reports/:reportId/resolve', verifyAdmin, verifyAdminRole(MODERATION_ROLES), verifyAdminPin, async (req, res) => {
   try {
     const { status = 'resolved', moderationNotes = '' } = req.body;
+    if (!requireSensitiveReason(res, { reason: moderationNotes, action: status, label: 'Moderation note' })) {
+      return;
+    }
+
     const report = await Report.findById(req.params.reportId);
 
     if (!report) {
