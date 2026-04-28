@@ -23,7 +23,7 @@ const ADMIN_CREDENTIALS = {
   password: 'AdminPassword123!',
   name: 'Admin User',
   collegeEmail: 'admin@cumail.in',
-  phone: '9999999999',
+  phone: '9000000001', // Changed to unique phone number
   role: 'super_admin'
 };
 
@@ -38,25 +38,29 @@ async function createAdminUser() {
     // Check if admin already exists
     const existingAdmin = await User.findOne({ email: ADMIN_CREDENTIALS.email });
     if (existingAdmin) {
+      // Update password instead of creating new
       console.log('⚠️  Admin user already exists!');
       console.log(`Email: ${existingAdmin.email}`);
       console.log(`Role: ${existingAdmin.role}`);
+      console.log('\n🔄 Updating admin password...');
+      
+      existingAdmin.password = ADMIN_CREDENTIALS.password; // Let pre-save hook hash it
+      await existingAdmin.save();
+      
+      console.log('✅ Admin password updated!');
       await mongoose.connection.close();
       return;
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(ADMIN_CREDENTIALS.password, salt);
-
-    // Create admin user
+    // Create admin user - DON'T pre-hash, let the pre-save hook handle it
     const adminUser = new User({
       name: ADMIN_CREDENTIALS.name,
       email: ADMIN_CREDENTIALS.email,
       collegeEmail: ADMIN_CREDENTIALS.collegeEmail,
-      password: hashedPassword,
+      password: ADMIN_CREDENTIALS.password, // ✅ Plain password - pre-save hook will hash it
       phone: ADMIN_CREDENTIALS.phone,
       role: ADMIN_CREDENTIALS.role,
+      status: 'active', // ✅ Set status to active for admin
       isVerified: true,
       isApproved: true,
       verificationComplete: true,

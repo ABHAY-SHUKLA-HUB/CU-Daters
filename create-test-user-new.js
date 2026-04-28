@@ -39,20 +39,22 @@ async function createTestUser() {
     if (existingUser) {
       console.log('⚠️  Test user already exists!');
       console.log(`Email: ${existingUser.email}`);
+      console.log('\n🔄 Updating test user password...');
+      
+      existingUser.password = TEST_USER.password; // Let pre-save hook hash it
+      await existingUser.save();
+      
+      console.log('✅ Test user password updated!');
       await mongoose.connection.close();
       return;
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(TEST_USER.password, salt);
-
-    // Create test user
+    // Create test user - DON'T pre-hash, let the pre-save hook handle it
     const testUser = new User({
       name: TEST_USER.name,
       email: TEST_USER.email,
       collegeEmail: TEST_USER.collegeEmail,
-      password: hashedPassword,
+      password: TEST_USER.password, // ✅ Plain password - pre-save hook will hash it
       phone: TEST_USER.phone,
       role: 'user',
       isVerified: true,
