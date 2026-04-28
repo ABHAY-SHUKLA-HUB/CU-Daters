@@ -119,7 +119,6 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   const isNetlify = hostname.endsWith('.netlify.app');
   const isVercel = hostname.endsWith('.vercel.app');
   const isRender = hostname.endsWith('.onrender.com');
-<<<<<<< HEAD
   
   // Explicit domain checks with www support
   const isCuDatersTech = hostname === 'cudaters.tech' || hostname === 'www.cudaters.tech' || hostname.endsWith('.cudaters.tech');
@@ -137,11 +136,6 @@ const isAllowedOrigin = (origin, allowedOriginSet) => {
   });
 
   return isLocalDevHost || isNetlify || isVercel || isRender || isCuDatersTech || isCuDashedDatersTech || isSeeuDatersTech || isSeeuDashedDatersTech || isConfiguredFrontendHost;
-=======
-  const isSeeUDatersTech = hostname === 'seeu-daters.tech' || hostname.endsWith('.seeu-daters.tech');
-
-  return isLocalDevHost || isNetlify || isVercel || isRender || isSeeUDatersTech;
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
 };
 
 // ===== CONNECT DATABASE =====
@@ -171,14 +165,12 @@ const staticAllowedOrigins = [
   'http://127.0.0.1:5179',
   'http://127.0.0.1:5180',
 
-<<<<<<< HEAD
   // Production - CU-Daters
   'https://cudaters.tech',
   'https://www.cudaters.tech',
   'https://cu-daters.tech',
   'https://www.cu-daters.tech',
-=======
-  // Production
+  // Production - SeeU-Daters
   process.env.FRONTEND_URL,
   process.env.FRONTEND_PUBLIC_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
@@ -187,21 +179,10 @@ const staticAllowedOrigins = [
   'https://www.seeu-daters-found.netlify.app',
   'https://seeu-daters.vercel.app',
   'https://www.seeu-daters.vercel.app',
-  'https://seeu-daters.tech',
-  'https://www.seeu-daters.tech',
-  'https://seeu-daters.tech',
-  'https://www.seeu-daters.tech',
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
-
-  // Production - SeeU-Daters
   'https://seeudaters.tech',
   'https://www.seeudaters.tech',
   'https://seeu-daters.tech',
   'https://www.seeu-daters.tech',
-  'https://seeu-daters-found.netlify.app',
-  'https://www.seeu-daters-found.netlify.app',
-  'https://seeu-daters.vercel.app',
-  'https://www.seeu-daters.vercel.app',
 
   // Render backends - all subdomains allowed
   process.env.BACKEND_URL,

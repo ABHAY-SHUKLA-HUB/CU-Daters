@@ -73,11 +73,7 @@ export default function About() {
               The product combines verified identities, profile intent signals, and private chat into one clean flow: discover, match, and talk with confidence.
             </p>
             <p className="text-softBrown leading-relaxed">
-<<<<<<< HEAD
-              Instead of maximizing endless swipes, we focus on better interactions, safer messaging, and clearer control over visibility and profile access.
-=======
-              We believe everyone deserves to explore connections with genuine people. SEEU-DATERS makes that possible through strict verification and innovative anonymous chat features.
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+              Instead of maximizing endless swipes, we focus on better interactions, safer messaging, clearer control over visibility, profile access, and genuine people. We believe everyone deserves to explore connections with verified members through innovative anonymous chat features.
             </p>
           </div>
           <div>

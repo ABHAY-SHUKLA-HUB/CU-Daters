@@ -40,11 +40,7 @@ export default function HowItWorks() {
         <div className="text-center mb-16 animate-fade-in-up">
           <h2 className="section-title mb-4">How It Works</h2>
           <p className="section-subtitle max-w-3xl mx-auto">
-<<<<<<< HEAD
             Join thousands of people who found their people on SeeU-Daters. The process is simple, safe, and completely anonymous until you're ready.
-=======
-            Join thousands of students who found their people on SeeU-Daters. The process is simple, safe, and completely anonymous until you're ready.
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
           </p>
         </div>
 

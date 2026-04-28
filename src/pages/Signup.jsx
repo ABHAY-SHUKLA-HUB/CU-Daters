@@ -17,13 +17,8 @@ export default function Signup() {
     phone: '',
     password: '',
     confirmPassword: '',
-<<<<<<< HEAD
-    college: '', // NEW - Community/organization selection
-    otp: '', // NEW - For OTP verification
-=======
-    college: '', // College selection
+    college: '', // College selection for community/organization
     otp: '', // For OTP verification
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
     gender: '',
     fieldOfWork: '',
     experienceYears: '',

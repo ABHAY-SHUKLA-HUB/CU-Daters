@@ -11,11 +11,7 @@ export default function FinalCTA() {
             Coming Soon to Your Campus
           </h2>
           <p className="text-xl text-softBrown mb-8 leading-relaxed">
-<<<<<<< HEAD
-            Join 50K+ verified members making real connections. Start free today. No credit card needed.
-=======
-            SEEU-DATERS is launching exclusively for Chandigarh University (Mohali & UP). Be the first to connect with students from your campus. Join the waitlist now!
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+            Join verified members making real connections. Launching exclusively for Chandigarh University (Mohali & UP). Be the first to connect with students from your campus. Start free today. No credit card needed.
           </p>
         </div>
 
@@ -54,31 +50,21 @@ export default function FinalCTA() {
           Join 500+ students already on the waitlist • College email verification required
         </p>
 
-<<<<<<< HEAD
-        {/* Community Stats */}
+        {/* Community Stats & Launch Info */}
         <div className="mt-16 p-8 rounded-3xl bg-gradient-to-br from-creamyWhite to-warmCream border-2 border-softPink animate-fade-in-up">
-          <p className="text-darkBrown mb-6 font-semibold text-lg">Active in Your Community</p>
-          <div className="grid grid-cols-3 gap-6">
-            <div>
-              <p className="text-3xl font-black gradient-text">50K+</p>
-              <p className="text-xs text-softBrown mt-2">Verified Members</p>
-=======
-        {/* Launch Info */}
-        <div className="mt-16 p-8 rounded-3xl bg-gradient-to-br from-rose-50 to-pink-50 border-2 border-rose-200 animate-fade-in-up">
-          <p className="text-darkBrown mb-6 font-semibold text-lg">🚀 Launching Exclusively For:</p>
+          <p className="text-darkBrown mb-6 font-semibold text-lg">🚀 Launching Exclusively For & Active Community</p>
           <div className="grid grid-cols-3 gap-6">
             <div>
               <p className="text-3xl font-black gradient-text">📍</p>
               <p className="text-xs text-softBrown mt-2">CU Mohali</p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </div>
             <div>
               <p className="text-3xl font-black gradient-text">📍</p>
               <p className="text-xs text-softBrown mt-2">CU UP</p>
             </div>
             <div>
-              <p className="text-3xl font-black text-rose-600">Soon!</p>
-              <p className="text-xs text-softBrown mt-2">More coming next</p>
+              <p className="text-3xl font-black text-rose-600">50K+</p>
+              <p className="text-xs text-softBrown mt-2">Verified Members</p>
             </div>
           </div>
         </div>

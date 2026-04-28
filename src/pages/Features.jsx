@@ -12,15 +12,9 @@ export default function Features() {
 
   const features = [
     {
-<<<<<<< HEAD
       icon: '✅',
       title: 'Verified Real Profiles',
       desc: 'Email verification, live face detection, government ID checks, and admin review protect authenticity.'
-=======
-      icon: '🎓',
-      title: 'Verified CU Students',
-      desc: 'Only emails from @culkomail.in & @cumail.in are accepted. Live face detection, Student ID verification, and admin approval required.'
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
     },
     {
       icon: '🤫',
@@ -96,7 +90,6 @@ export default function Features() {
               <p className="text-center text-softBrown mt-3">Strict verification standards create a trusted network from day one.</p>
             </ScrollReveal>
 
-<<<<<<< HEAD
             <div className="grid md:grid-cols-5 gap-4 mt-12">
               {[
                 { step: 1, title: 'Email Signup', desc: 'Any valid email' },
@@ -112,106 +105,7 @@ export default function Features() {
                   <h4 className="font-bold text-darkBrown">{item.title}</h4>
                   <p className="text-sm text-softBrown">{item.desc}</p>
                 </ScrollReveal>
-              ))}
-=======
-          <div className="grid md:grid-cols-5 gap-4 mt-12">
-            {[
-              { step: 1, title: 'Email Signup', desc: 'CU email only' },
-              { step: 2, title: 'OTP Verify', desc: 'Mobile verification' },
-              { step: 3, title: 'Face Detect', desc: 'Selfie + anti-spoofing' },
-              { step: 4, title: 'ID Upload', desc: 'Student ID card' },
-              { step: 5, title: 'Approved!', desc: 'Admin verification' },
-            ].map((item, idx) => (
-              <div key={idx} className="text-center">
-                <div className="bg-blushPink text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 font-bold text-xl">
-                  {item.step}
-                </div>
-                <h4 className="font-bold text-darkBrown">{item.title}</h4>
-                <p className="text-sm text-softBrown">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Chat Reveal System */}
-      <section className="py-16 px-4 bg-warmCream">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="section-title text-center">How Anonymous Reveals Work</h2>
-          
-          <div className="max-w-3xl mx-auto mt-12 space-y-4">
-            {[
-              { msgs: '1-10', reveal: 'First letter of name', emoji: '🔒' },
-              { msgs: '11-20', reveal: 'First name + Age', emoji: '📛' },
-              { msgs: '21-30', reveal: 'Course + Year', emoji: '🎓' },
-              { msgs: '31-40', reveal: 'Photo (50% unblur)', emoji: '📸' },
-              { msgs: '41-50', reveal: 'Full photo + Full name', emoji: '👤' },
-              { msgs: '50+', reveal: 'Complete profile visible', emoji: '✨' },
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center gap-4 p-4 bg-white rounded-lg shadow">
-                <div className="text-3xl min-w-fit">{item.emoji}</div>
-                <div className="flex-1">
-                  <strong className="text-darkBrown">Messages {item.msgs}</strong>
-                  <p className="text-softBrown">{item.reveal}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Privacy Guarantee */}
-      <section className="py-16 px-4 bg-softPink">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-darkBrown mb-8">🔐 Privacy is Sacred</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
-              <h4 className="text-lg font-bold text-darkBrown mb-4 flex items-center justify-center gap-2">
-                <span className="text-2xl">✅</span> Your Controls
-              </h4>
-              <ul className="text-left text-softBrown space-y-3">
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 font-bold mt-0.5">•</span>
-                  <span>Full control over who sees your profile</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 font-bold mt-0.5">•</span>
-                  <span>Instant block and report for any user</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 font-bold mt-0.5">•</span>
-                  <span>All conversations encrypted and private</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 font-bold mt-0.5">•</span>
-                  <span>Delete your account anytime with one click</span>
-                </li>
-              </ul>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
-              <h4 className="text-lg font-bold text-darkBrown mb-4 flex items-center justify-center gap-2">
-                <span className="text-2xl">❌</span> Platform Does Not
-              </h4>
-              <ul className="text-left text-softBrown space-y-3">
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 font-bold mt-0.5">•</span>
-                  <span>Have access to your private messages</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 font-bold mt-0.5">•</span>
-                  <span>Have ability to view your private photos</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 font-bold mt-0.5">•</span>
-                  <span>Monitor your chats</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 font-bold mt-0.5">•</span>
-                  <span>Share your data with third parties</span>
-                </li>
-              </ul>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
-            </div>
+              ))}            </div>
           </div>
         </section>
       </LazySection>

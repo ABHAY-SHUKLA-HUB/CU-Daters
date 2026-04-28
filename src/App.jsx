@@ -8,28 +8,7 @@ import GlobalAnnouncementBanner from './components/GlobalAnnouncementBanner';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
-<<<<<<< HEAD
-const Home = React.lazy(() => import('./pages/Home'));
-const Login = React.lazy(() => import('./pages/Login'));
-const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
-const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
-const Signup = React.lazy(() => import('./pages/Signup'));
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const Profile = React.lazy(() => import('./pages/Profile'));
-const ChatPage = React.lazy(() => import('./pages/ChatPage'));
-const RequestsPage = React.lazy(() => import('./pages/RequestsPage'));
-const ConnectionsPage = React.lazy(() => import('./pages/ConnectionsPage'));
-const AdminLogin = React.lazy(() => import('./pages/AdminLogin'));
-const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
-const AdminPortal = React.lazy(() => import('./pages/AdminPortal'));
-const Features = React.lazy(() => import('./pages/Features'));
-const Pricing = React.lazy(() => import('./pages/Pricing'));
-const About = React.lazy(() => import('./pages/About'));
-const Contact = React.lazy(() => import('./pages/Contact'));
-const PaymentCheckoutFinal = React.lazy(() => import('./pages/PaymentCheckoutFinal'));
-const PendingApproval = React.lazy(() => import('./pages/PendingApproval'));
-=======
-// Import core pages only
+// Core pages imported directly for faster initial load
 import Home from './pages/Home';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
@@ -47,16 +26,17 @@ import Features from './pages/Features';
 import Pricing from './pages/Pricing';
 import About from './pages/About';
 import Contact from './pages/Contact';
-import Security from './pages/Security';
-import Careers from './pages/Careers';
-import Blog from './pages/Blog';
-import Safety from './pages/Safety';
-import CookiePolicy from './pages/CookiePolicy';
 import PaymentCheckoutFinal from './pages/PaymentCheckoutFinal';
-import RazorpayCheckoutPage from './pages/RazorpayCheckoutPage';
-import PremiumPage from './pages/PremiumPage';
 import PendingApproval from './pages/PendingApproval';
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+
+// Additional pages (lazy loaded)
+const Security = React.lazy(() => import('./pages/Security'));
+const Careers = React.lazy(() => import('./pages/Careers'));
+const Blog = React.lazy(() => import('./pages/Blog'));
+const Safety = React.lazy(() => import('./pages/Safety'));
+const CookiePolicy = React.lazy(() => import('./pages/CookiePolicy'));
+const RazorpayCheckoutPage = React.lazy(() => import('./pages/RazorpayCheckoutPage'));
+const PremiumPage = React.lazy(() => import('./pages/PremiumPage'));
 import AdminRouteGuard from './components/admin/AdminRouteGuard';
 import UserStatusGuard from './components/UserStatusGuard';
 import './index.css';

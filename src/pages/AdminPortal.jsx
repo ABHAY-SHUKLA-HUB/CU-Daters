@@ -1263,17 +1263,12 @@ export default function AdminPortal() {
         <aside className={`admin-sidebar-shell admin-surface ${sidebarCollapsed ? 'w-[94px]' : 'w-[310px]'} shrink-0 border border-cyan-300/20 backdrop-blur-2xl flex flex-col overflow-hidden rounded-[20px] shadow-[0_26px_70px_rgba(3,12,30,0.5)] transition-all duration-300`}>
           <div className="p-4 border-b border-cyan-300/15 bg-gradient-to-r from-cyan-500/18 via-blue-500/14 to-transparent">
             <div className="flex items-center gap-3">
-<<<<<<< HEAD
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-500 flex items-center justify-center text-white shadow-[0_14px_35px_rgba(56,189,248,0.45)]">
                 <Sparkles size={18} />
-=======
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 to-sky-500 flex items-center justify-center text-white text-xl shadow-[0_14px_35px_rgba(14,165,233,0.4)]">
-                🛡️
               </div>
               <div>
-                <h1 className="text-base font-bold tracking-wide text-white">SEEU-DATERS OPS</h1>
+                <h1 className="text-base font-bold tracking-wide text-white">SeeU-DATERS Admin Console</h1>
                 <p className="text-[11px] text-cyan-100/85 uppercase tracking-[0.18em]">Admin System</p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
               </div>
               {!sidebarCollapsed ? (
                 <div className="min-w-0">
@@ -1394,15 +1389,9 @@ export default function AdminPortal() {
           <div className="border-b border-cyan-200/15 px-5 xl:px-7 py-4 backdrop-blur-2xl bg-white/[0.04]">
             <div className="flex items-start justify-between gap-4">
               <div>
-<<<<<<< HEAD
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">SeeU-Daters / Admin / {activeSectionLabel}</p>
                 <h2 className="text-2xl font-semibold tracking-tight text-white mt-1">{activeSectionLabel}</h2>
-                <p className="text-sm text-slate-200/85 mt-1">Powerful controls for moderation, growth operations, and platform security.</p>
-=======
-                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/65">SEEU-DATERS / Admin / {visibleSections.find((s) => s.id === section)?.label || 'Overview'}</p>
-                <h2 className="text-2xl font-bold text-white mt-1">{visibleSections.find((s) => s.id === section)?.label || 'Overview'}</h2>
-                <p className="text-sm text-slate-200/85 mt-1">Operational controls, moderation safety workflows, and platform governance.</p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+                <p className="text-sm text-slate-200/85 mt-1">Powerful controls for moderation, growth operations, and platform security and governance.</p>
               </div>
               <div className="flex items-center gap-2 shrink-0" ref={profileMenuRef}>
                 <StatusChip tone="info">Live</StatusChip>

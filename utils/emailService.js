@@ -64,11 +64,7 @@ const defaultFromAddress = String(
   process.env.RESEND_FROM ||
   process.env.SMTP_FROM ||
   sanitizedEmailUser ||
-<<<<<<< HEAD
   'seeudaters.verify@gmail.com'
-=======
-  'seeu-daters.verify@gmail.com'
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
 ).trim();
 
 const resolveFromAddress = () => {
@@ -488,11 +484,7 @@ export const sendOtpEmail = async (email, otp) => {
 
             <!-- Content -->
             <div class="content">
-<<<<<<< HEAD
-              <p class="intro">Hi there! 👋 Welcome to SeeU-Daters - your trusted dating community. To complete your registration, please use the verification code below:</p>
-=======
-              <p class="intro">Hi there! 👋 Welcome to SeeU-Daters – your campus dating community. To complete your registration, please use the verification code below:</p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+              <p class="intro">Hi there! 👋 Welcome to SeeU-Daters - your trusted campus dating community. To complete your registration, please use the verification code below:</p>
 
               <!-- OTP Box -->
               <div class="otp-box">
@@ -525,11 +517,7 @@ export const sendOtpEmail = async (email, otp) => {
               <div class="divider" style="margin: 15px 0;"></div>
               
               <p>© 2026 SeeU-Daters. All rights reserved.</p>
-<<<<<<< HEAD
-              <p>Your trusted dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
-=======
               <p>Your trusted campus dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </div>
           </div>
         </div>
@@ -614,11 +602,7 @@ export const sendApprovalEmail = async (email, name) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #d4536f;">Hi ${name},</h2>
           <p>Great news! Your profile on SeeU-Daters has been approved and is now live!</p>
-<<<<<<< HEAD
-          <p>You can now start exploring profiles and connecting with new people.</p>
-=======
-          <p>You can now start exploring profiles and connecting with other students.</p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+          <p>You can now start exploring profiles and connecting with other students and new people.</p>
           <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="display: inline-block; background-color: #d4536f; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;">
             Go to Dashboard
           </a>
@@ -798,11 +782,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
               <div class="divider" style="margin: 15px 0;"></div>
               
               <p>© 2026 SeeU-Daters. All rights reserved.</p>
-<<<<<<< HEAD
               <p>Your trusted dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
-=======
-              <p>Your trusted campus dating platform | <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #999;">Privacy Policy</a></p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </div>
           </div>
         </div>
@@ -928,11 +908,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
               <div class="greeting">
                 Hey <strong>${name}</strong>! 👋
                 <br><br>
-<<<<<<< HEAD
                 Thank you for joining SeeU-Daters - your trusted dating platform. Your profile has been successfully submitted and is now pending approval.
-=======
-                Thank you for joining SeeU-Daters – your trusted campus dating platform. Your profile has been successfully submitted and is now pending approval.
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
               </div>
 
               <!-- Status Box -->
@@ -1003,11 +979,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
               
               <div class="footer-text">
                 <p style="margin-top: 20px;">© 2026 SeeU-Daters. All rights reserved.</p>
-<<<<<<< HEAD
                 <p style="margin-top: 10px;">Your trusted dating platform</p>
-=======
-                <p style="margin-top: 10px;">Your trusted campus dating platform</p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
                 <p style="margin-top: 10px;">
                   <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/privacy" class="support-link" style="color: #d4536f;">Privacy Policy</a> | 
                   <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/terms" class="support-link" style="color: #d4536f;">Terms of Service</a>
@@ -1025,11 +997,7 @@ export const sendRegistrationConfirmationEmail = async (email, name, college) =>
       to: email,
       subject: '✨ Your Registration is Pending Approval – SEEU-DATERS',
       html: htmlTemplate,
-<<<<<<< HEAD
       text: `Hi ${name}!\n\nThank you for registering on SeeU-Daters! Your profile is under review and will be approved within 24-48 hours.\n\nRegistration Summary:\nName: ${name}\nEmail: ${email}\nCollege: ${college}\nStatus: Pending Approval\n\nYou'll receive an email once your profile is approved.\n\nFor support, contact: support@seeudaters.com\n\nBest regards,\nSeeU-Daters Team`
-=======
-      text: `Hi ${name}!\n\nThank you for registering on SeeU-Daters! Your profile is under review and will be approved within 24-48 hours.\n\nRegistration Summary:\nName: ${name}\nEmail: ${email}\nCollege: ${college}\nStatus: Pending Approval\n\nYou'll receive an email once your profile is approved.\n\nFor support, contact: support@cudaters.com\n\nBest regards,\nSeeU-Daters Team`
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
     };
 
     const result = await sendMailWithFallback(mailOptions);

@@ -17,7 +17,6 @@ services:
         value: https://seeu-daters.vercel.app
       - key: CORS_ALLOWED_ORIGINS
         value: https://seeu-daters.vercel.app,https://www.seeu-daters.vercel.app,https://seeu-daters-git-main-abhay-shukla-hubs-projects.vercel.app
-<<<<<<< HEAD
       - key: FRONTEND_ORIGINS
         value: https://seeu-daters.vercel.app,https://www.seeu-daters.vercel.app
       - key: EMAIL_USER
@@ -48,6 +47,3 @@ services:
         value: "5"
       - key: OTP_VERIFY_LOCK_MINUTES
         value: "15"
-
-=======
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae

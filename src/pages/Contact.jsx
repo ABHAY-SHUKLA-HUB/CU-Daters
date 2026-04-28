@@ -54,13 +54,8 @@ export default function Contact() {
             <p className="text-softBrown mb-4">
               For general inquiries and support
             </p>
-<<<<<<< HEAD
             <a href={`mailto:${supportEmail}`} className="text-blushPink font-bold hover:underline">
               {supportEmail}
-=======
-            <a href="mailto:support@seeu-daters.tech" className="text-blushPink font-bold hover:underline">
-              support@seeu-daters.tech
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </a>
           </div>
 
@@ -70,13 +65,8 @@ export default function Contact() {
             <p className="text-softBrown mb-4">
               Report harassment, abuse, or fake profiles
             </p>
-<<<<<<< HEAD
             <a href={`mailto:${escalationEmail}`} className="text-blushPink font-bold hover:underline">
               {escalationEmail}
-=======
-            <a href="mailto:seeu-daters.verify@gmail.com" className="text-blushPink font-bold hover:underline">
-              seeu-daters.verify@gmail.com
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </a>
           </div>
 
@@ -86,13 +76,8 @@ export default function Contact() {
             <p className="text-softBrown mb-4">
               For verification or admin queries
             </p>
-<<<<<<< HEAD
             <a href={`mailto:${adminEmail}`} className="text-blushPink font-bold hover:underline">
               {adminEmail}
-=======
-            <a href="mailto:info@seeu-daters.tech" className="text-blushPink font-bold hover:underline">
-              info@seeu-daters.tech
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
             </a>
           </div>
         </div>
@@ -186,11 +171,7 @@ export default function Contact() {
               },
               {
                 q: 'Can I request a refund?',
-<<<<<<< HEAD
-                a: `Refunds are available within 48 hours of purchase if you haven't used premium features. Contact ${supportEmail} for assistance.`
-=======
-                a: 'Refunds are available within 48 hours of purchase if you haven\'t used premium features. Contact support@seeu-daters.tech for assistance.'
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+                a: `Refunds are available within 48 hours of purchase if you haven't used premium features. Contact ${supportEmail || 'support@seeu-daters.tech'} for assistance.`
               },
               {
                 q: 'How do I delete my account?',
@@ -202,11 +183,7 @@ export default function Contact() {
               },
               {
                 q: 'How do I update my verification information?',
-<<<<<<< HEAD
-                a: `Contact ${adminEmail} with your verification details. Our admin team will review and update your profile.`
-=======
-                a: 'Contact info@seeu-daters.tech with your verification details. Our admin team will review and update your profile.'
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+                a: `Contact ${adminEmail || 'info@seeu-daters.tech'} with your verification details. Our admin team will review and update your profile.`
               },
               {
                 q: 'Is SeeU-Daters available on web?',

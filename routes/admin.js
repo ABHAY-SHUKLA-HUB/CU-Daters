@@ -13,7 +13,6 @@ import College from '../models/College.js';
 import SupportTicket from '../models/SupportTicket.js';
 import AppSetting from '../models/AppSetting.js';
 import Like from '../models/Like.js';
-<<<<<<< HEAD
 import AdminSession from '../models/AdminSession.js';
 import ImmutableAuditLog from '../models/ImmutableAuditLog.js';
 import ModerationCase from '../models/ModerationCase.js';
@@ -21,11 +20,8 @@ import AppealRequest from '../models/AppealRequest.js';
 import PrivacyEvent from '../models/PrivacyEvent.js';
 import DataDeletionRequest from '../models/DataDeletionRequest.js';
 import ScreenshotLog from '../models/ScreenshotLog.js';
-import { verifyAdmin, verifyAdminRole, logActivity, getClientInfo, ADMIN_ROLES } from '../utils/auth.js';
-=======
 import CareerApplication from '../models/CareerApplication.js';
 import { verifyAdmin, verifyAdminRole, logActivity, generateToken, getClientInfo, ADMIN_ROLES } from '../utils/auth.js';
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
 import { sanitizeUser, errorResponse, successResponse } from '../utils/validation.js';
 import { sendApprovalEmail, sendRejectionEmail } from '../utils/emailService.js';
 import { requirePermission } from '../middleware/authorization.js';

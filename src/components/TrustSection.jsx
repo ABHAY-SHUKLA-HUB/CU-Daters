@@ -22,13 +22,8 @@ export default function TrustSection() {
                             text-2xl font-bold">
               1
             </div>
-<<<<<<< HEAD
-            <h4 className="font-bold text-darkBrown mb-2 text-sm">Verified Email</h4>
-            <p className="text-xs text-softBrown">Ownership confirmation</p>
-=======
             <h4 className="font-bold text-darkBrown mb-2 text-sm">CU Email Only</h4>
-            <p className="text-xs text-softBrown">@culkomail.in or @cumail.in</p>
->>>>>>> 8603a53246669d81d74718efbf0c3d1aa17377ae
+            <p className="text-xs text-softBrown">@culkomail.in or @cumail.in & other verified emails</p>
           </div>
           
           {/* Step 2 */}
