@@ -32,7 +32,8 @@ const api = axios.create({
   timeout: 15000, // Keep UI responsive when a backend endpoint is slow/unavailable
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true // ✅ CRITICAL: Send cookies with requests for CSRF validation
 });
 
 const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin', 'support_admin', 'analyst'];
