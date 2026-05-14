@@ -6,10 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import { validateCollegeEmailDomain } from '../../utils/validation';
 
 export default function Signup() {
-  const [step, setStep] = useState(1); // 1=Basic, 2=OTP, 3=Profile, 4=Photos
+  const [step, setStep] = useState(1); // 1=Basic, 2=Profile, 3=Photos (OTP system removed)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [errorModal, setErrorModal] = useState(null); // For OTP limit modal
+  const [errorModal, setErrorModal] = useState(null); // For error modals
   const [formData, setFormData] = useState({
     name: '',
     collegeEmail: '',
@@ -316,15 +316,16 @@ export default function Signup() {
   // Next step navigation
   const handleNext = () => {
     if (step === 1 && validateStep1()) {
-      handleSendOtp();
-    } else if (step === 3 && validateStep3()) {
-      setStep(4);
+      // OTP removed - go directly to profile info
+      setStep(2);
+    } else if (step === 2 && validateStep3()) {
+      setStep(3);
     }
   };
 
   // Complete profile and submit photos
   const handleSubmit = async () => {
-    if (step === 4) {
+    if (step === 3) {
       const newErrors = {};
       if (!formData.livePhoto) newErrors.livePhoto = 'Live photo required';
       if (!formData.idCard) newErrors.idCard = 'ID card image required';
@@ -337,7 +338,13 @@ export default function Signup() {
 
     try {
       const response = await axios.post(`${AUTH_API_BASE}/signup`, {
+        // Basic info (OTP removed - include here for direct signup)
+        name: formData.name.trim(),
         email: formData.collegeEmail.toLowerCase().trim(),
+        phone: formData.phone,
+        password: formData.password,
+        college: formData.college,
+        // Profile info
         gender: formData.gender,
         fieldOfWork: formData.fieldOfWork,
         experienceYears: Number(formData.experienceYears),
@@ -453,9 +460,9 @@ export default function Signup() {
             <p className="text-softBrown">Create Your Account</p>
           </div>
 
-          {/* Progress Bar - 4 Steps */}
+          {/* Progress Bar - 3 Steps */}
           <div className="flex gap-2 mb-8">
-            {[1, 2, 3, 4].map((s) => (
+            {[1, 2, 3].map((s) => (
               <div
                 key={s}
                 className={`flex-1 h-2 rounded-full transition ${
@@ -473,10 +480,9 @@ export default function Signup() {
 
           <div className="text-center mb-6">
             <p className="text-softBrown">
-              Step {step} of 4: {
+              Step {step} of 3: {
                 step === 1 ? 'Account Details' : 
-                step === 2 ? 'Email Verification' : 
-                step === 3 ? 'Profile Info' : 
+                step === 2 ? 'Profile Info' : 
                 'Photo Upload'
               }
             </p>
@@ -585,11 +591,11 @@ export default function Signup() {
               </div>
 
               <button
-                onClick={handleSendOtp}
+                onClick={handleNext}
                 disabled={loading}
                 className="btn-primary w-full disabled:opacity-50"
               >
-                {loading ? '⏳ Sending OTP...' : '📧 Send OTP to Email'}
+                {loading ? '⏳ Processing...' : '→ Next: Profile Info'}
               </button>
 
               <p className="text-center text-sm text-softBrown">
@@ -598,56 +604,9 @@ export default function Signup() {
             </div>
           )}
 
-          {/* Step 2: Email OTP Verification */}
+
+          {/* Step 2: Profile Info (OTP removed - direct to profile) */}
           {step === 2 && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-softBrown mb-4 text-sm text-center">
-                  📧 We sent a 6-digit code to<br />
-                  <strong>{formData.collegeEmail}</strong>
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-left text-darkBrown font-bold mb-2">Enter OTP Code *</label>
-                <input
-                  type="text"
-                  name="otp"
-                  value={formData.otp}
-                  onChange={handleInputChange}
-                  onlyNumbers
-                  placeholder="000000"
-                  maxLength="6"
-                  className="w-full px-4 py-2 border-2 border-softPink rounded-lg focus:border-blushPink focus:outline-none bg-white text-black font-semibold text-center text-2xl tracking-widest"
-                />
-                {errors.otp && <p className="text-red-600 text-sm mt-1">{errors.otp}</p>}
-                <p className="text-xs text-softBrown mt-2 text-center">Valid for 5 minutes</p>
-              </div>
-
-              <button
-                onClick={handleVerifyOtp}
-                disabled={loading}
-                className="btn-primary w-full disabled:opacity-50"
-              >
-                {loading ? '🔄 Verifying...' : '✓ Verify OTP'}
-              </button>
-
-
-
-              <button
-                onClick={() => {
-                  setStep(1);
-                  setFormData(prev => ({ ...prev, otp: '' }));
-                }}
-                className="btn-secondary w-full"
-              >
-                ← Back to Email
-              </button>
-            </div>
-          )}
-
-          {/* Step 3: Profile Info */}
-          {step === 3 && (
             <div className="space-y-4">
               <div>
                 <label className="block text-left text-darkBrown font-bold mb-2">Gender *</label>
@@ -718,11 +677,21 @@ export default function Signup() {
               >
                 Next: Upload Photos →
               </button>
+
+              <button
+                onClick={() => {
+                  setStep(1);
+                  setFormData(prev => ({ ...prev, otp: '' }));
+                }}
+                className="btn-secondary w-full"
+              >
+                ← Back to Account Details
+              </button>
             </div>
           )}
 
-          {/* Step 4: Photo Upload */}
-          {step === 4 && (
+          {/* Step 3: Photo Upload */}
+          {step === 3 && (
             <div className="space-y-4">
               <div>
                 <label className="block text-left text-darkBrown font-bold mb-2">📸 Live Photo *</label>
@@ -835,7 +804,7 @@ export default function Signup() {
               </button>
 
               <button
-                onClick={() => setStep(3)}
+                onClick={() => setStep(2)}
                 className="btn-secondary w-full"
               >
                 ← Back
