@@ -379,6 +379,248 @@ router.post('/step-up/verify', verifyAdmin, async (req, res) => {
   }
 });
 
+// ===== REGISTRATION APPROVAL ENDPOINTS (before session enforcement) =====
+// These endpoints use JWT auth only, no strict session enforcement
+
+router.get('/registration-approvals', verifyAdmin, requirePermission('admin.users.moderate'), async (req, res) => {
+  try {
+    const pendingUsers = await User.find({ status: 'pending' })
+      .select('_id name email phone college profile_approval_status verification_status created_at')
+      .sort({ created_at: -1 });
+
+    res.json(successResponse('Pending registrations fetched', pendingUsers));
+  } catch (error) {
+    console.error('❌ Registration Approvals Error:', error);
+    res.status(500).json(errorResponse('Failed to fetch pending registrations'));
+  }
+});
+
+router.put('/registrations/:userId/approve', verifyAdmin, requirePermission('admin.users.moderate'), async (req, res) => {
+  try {
+    const { adminNotes } = req.body;
+
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json(errorResponse('User not found'));
+    }
+
+    const beforeState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
+
+    if (user.status !== 'pending') {
+      return res.status(400).json(errorResponse('User registration is not pending'));
+    }
+
+    // Update user status to 'active'
+    user.status = 'active';
+    user.is_verified = true;
+    user.verification_status = 'approved';
+    user.profile_approval_status = 'approved';
+    user.updated_at = new Date();
+
+    const submission = await VerificationSubmission.findOne({ userId: user._id });
+    if (submission) {
+      submission.status = 'approved';
+      submission.reviewNotes = String(adminNotes || '').trim().slice(0, 1000);
+      submission.rejectionReason = '';
+      submission.reviewedAt = new Date();
+      submission.reviewedBy = req.user?._id;
+      submission.history.push({
+        action: 'approved',
+        byAdmin: req.user?._id,
+        note: String(adminNotes || 'Registration approved').slice(0, 1000)
+      });
+      await submission.save();
+    }
+
+    await user.save();
+
+    const afterState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
+
+    console.log(`✓ User registration approved: ${user.email}`);
+
+    // Send approval email to user
+    try {
+      await sendApprovalEmail(user.email, user.name);
+      console.log(`📧 Approval email sent to: ${user.email}`);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send approval email:', emailError.message);
+    }
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'registration_approved',
+      description: `Approved pending registration for ${user.email}`,
+      target_user_id: user._id,
+      target_type: 'user',
+      target_id: user._id,
+      before_state: beforeState,
+      after_state: afterState,
+      metadata: { adminNotes },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('User registration approved', sanitizeUser(user)));
+  } catch (error) {
+    console.error('❌ Registration Approval Error:', error);
+    return res.status(500).json(errorResponse('Failed to approve registration'));
+  }
+});
+
+router.put('/registrations/:userId/reject', verifyAdmin, requirePermission('admin.users.moderate'), async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json(errorResponse('Rejection reason required'));
+    }
+
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json(errorResponse('User not found'));
+    }
+
+    const beforeState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
+
+    if (user.status !== 'pending') {
+      return res.status(400).json(errorResponse('User registration is not pending'));
+    }
+
+    // Update user status to 'rejected'
+    user.status = 'rejected';
+    user.profile_approval_status = 'rejected';
+    user.verification_status = 'rejected';
+    user.is_verified = false;
+    user.updated_at = new Date();
+
+    const submission = await VerificationSubmission.findOne({ userId: user._id });
+    if (submission) {
+      submission.status = 'rejected';
+      submission.reviewNotes = '';
+      submission.rejectionReason = String(reason || '').trim().slice(0, 1000);
+      submission.reviewedAt = new Date();
+      submission.reviewedBy = req.user?._id;
+      submission.history.push({
+        action: 'rejected',
+        byAdmin: req.user?._id,
+        note: String(reason || 'Registration rejected').slice(0, 1000)
+      });
+      await submission.save();
+    }
+
+    await user.save();
+
+    const afterState = {
+      status: user.status,
+      suspended_until: user.suspended_until,
+      warnings_count: user.warnings_count,
+      chat_frozen: user.chat_frozen
+    };
+
+    console.log(`✓ User registration rejected: ${user.email} - Reason: ${reason}`);
+
+    // Send rejection email to user
+    try {
+      await sendRejectionEmail(user.email, user.name, reason);
+      console.log(`📧 Rejection email sent to: ${user.email}`);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send rejection email:', emailError.message);
+    }
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'registration_rejected',
+      description: `Rejected pending registration for ${user.email}. Reason: ${reason}`,
+      target_user_id: user._id,
+      target_type: 'user',
+      target_id: user._id,
+      before_state: beforeState,
+      after_state: afterState,
+      metadata: { reason },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('User registration rejected', sanitizeUser(user)));
+  } catch (error) {
+    console.error('❌ Registration Rejection Error:', error);
+    return res.status(500).json(errorResponse('Failed to reject registration'));
+  }
+});
+
+router.put('/registrations/:userId/resubmission', verifyAdmin, requirePermission('admin.users.moderate'), async (req, res) => {
+  try {
+    const reason = String(req.body?.reason || '').trim();
+    if (reason.length < 5) {
+      return res.status(400).json(errorResponse('Resubmission note is required (min 5 characters)'));
+    }
+
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json(errorResponse('User not found'));
+    }
+
+    const submission = await VerificationSubmission.findOne({ userId: user._id });
+    if (!submission) {
+      return res.status(404).json(errorResponse('Verification submission not found'));
+    }
+
+    submission.status = 'resubmission_required';
+    submission.reviewNotes = reason.slice(0, 1000);
+    submission.rejectionReason = '';
+    submission.reviewedAt = new Date();
+    submission.reviewedBy = req.user?._id;
+    submission.history.push({
+      action: 'resubmission_requested',
+      byAdmin: req.user?._id,
+      note: reason.slice(0, 1000)
+    });
+    await submission.save();
+
+    user.verification_status = 'resubmission_required';
+    user.profile_approval_status = 'needs_correction';
+    user.status = 'pending';
+    user.profile_admin_notes = reason.slice(0, 1000);
+    user.updated_at = new Date();
+    await user.save();
+
+    console.log(`✓ Resubmission requested for: ${user.email}`);
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'registration_resubmission_requested',
+      description: `Requested resubmission for ${user.email}. Reason: ${reason}`,
+      target_user_id: user._id,
+      target_type: 'user',
+      target_id: user._id,
+      metadata: { reason },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    return res.json(successResponse('Resubmission requested', sanitizeUser(user)));
+  } catch (error) {
+    console.error('❌ Resubmission Request Error:', error);
+    return res.status(500).json(errorResponse('Failed to request resubmission'));
+  }
+});
+
+// ===== GLOBAL MIDDLEWARE (session enforcement) =====
 router.use(verifyAdmin, adminCriticalLimiter, sanitizeRequestStrings, enforceAdminSessionSecurity);
 
 // ===== OVERVIEW STATS =====
@@ -562,240 +804,10 @@ router.get('/registration-approvals', requirePermission('admin.users.read'), asy
       };
     });
 
-    return res.json(successResponse('Pending registrations fetched', { 
-      data,
-      count: data.length 
-    }));
+    return res.json(successResponse('Pending registrations fetched', pendingUsers));
   } catch (error) {
     console.error('❌ Pending Registrations Error:', error);
     return res.status(500).json(errorResponse('Failed to fetch pending registrations'));
-  }
-});
-
-// ===== APPROVE PENDING USER REGISTRATION =====
-router.put('/registrations/:userId/approve', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
-  try {
-    const { adminNotes } = req.body;
-
-    const user = await User.findById(req.params.userId);
-    if (!user) {
-      return res.status(404).json(errorResponse('User not found'));
-    }
-
-    const beforeState = {
-      status: user.status,
-      suspended_until: user.suspended_until,
-      warnings_count: user.warnings_count,
-      chat_frozen: user.chat_frozen
-    };
-
-    if (user.status !== 'pending') {
-      return res.status(400).json(errorResponse('User registration is not pending'));
-    }
-
-    // Update user status to 'active'
-    user.status = 'active';
-    user.is_verified = true;
-    user.verification_status = 'approved';
-    user.profile_approval_status = 'approved';
-    user.updated_at = new Date();
-
-    const submission = await VerificationSubmission.findOne({ userId: user._id });
-    if (submission) {
-      submission.status = 'approved';
-      submission.reviewNotes = String(adminNotes || '').trim().slice(0, 1000);
-      submission.rejectionReason = '';
-      submission.reviewedAt = new Date();
-      submission.reviewedBy = req.user?._id;
-      submission.history.push({
-        action: 'approved',
-        byAdmin: req.user?._id,
-        note: String(adminNotes || 'Registration approved').slice(0, 1000)
-      });
-      await submission.save();
-    }
-
-    await user.save();
-
-    const afterState = {
-      status: user.status,
-      suspended_until: user.suspended_until,
-      warnings_count: user.warnings_count,
-      chat_frozen: user.chat_frozen
-    };
-
-    console.log(`✓ User registration approved: ${user.email}`);
-
-    // Send approval email to user
-    try {
-      await sendApprovalEmail(user.email, user.name);
-      console.log(`📧 Approval email sent to: ${user.email}`);
-    } catch (emailError) {
-      console.error('⚠️ Failed to send approval email:', emailError.message);
-      // Don't reject the approval just because email failed
-    }
-
-    await logActivity({
-      admin_id: req.user._id,
-      action: 'registration_approved',
-      description: `Approved pending registration for ${user.email}`,
-      target_user_id: user._id,
-      target_type: 'user',
-      target_id: user._id,
-      before_state: beforeState,
-      after_state: afterState,
-      metadata: { adminNotes },
-      ...getClientInfo(req),
-      status: 'success'
-    });
-
-    return res.json(successResponse('User registration approved', sanitizeUser(user)));
-  } catch (error) {
-    console.error('❌ Registration Approval Error:', error);
-    return res.status(500).json(errorResponse('Failed to approve registration'));
-  }
-});
-
-// ===== REJECT PENDING USER REGISTRATION =====
-router.put('/registrations/:userId/reject', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
-  try {
-    const { reason } = req.body;
-
-    if (!reason) {
-      return res.status(400).json(errorResponse('Rejection reason required'));
-    }
-
-    const user = await User.findById(req.params.userId);
-    if (!user) {
-      return res.status(404).json(errorResponse('User not found'));
-    }
-
-    const beforeState = {
-      status: user.status,
-      suspended_until: user.suspended_until,
-      warnings_count: user.warnings_count,
-      chat_frozen: user.chat_frozen
-    };
-
-    if (user.status !== 'pending') {
-      return res.status(400).json(errorResponse('User registration is not pending'));
-    }
-
-    // Update user status to 'rejected'
-    user.status = 'rejected';
-    user.profile_approval_status = 'rejected';
-    user.verification_status = 'rejected';
-    user.is_verified = false;
-    user.updated_at = new Date();
-
-    const submission = await VerificationSubmission.findOne({ userId: user._id });
-    if (submission) {
-      submission.status = 'rejected';
-      submission.reviewNotes = '';
-      submission.rejectionReason = String(reason || '').trim().slice(0, 1000);
-      submission.reviewedAt = new Date();
-      submission.reviewedBy = req.user?._id;
-      submission.history.push({
-        action: 'rejected',
-        byAdmin: req.user?._id,
-        note: String(reason || 'Registration rejected').slice(0, 1000)
-      });
-      await submission.save();
-    }
-
-    await user.save();
-
-    const afterState = {
-      status: user.status,
-      suspended_until: user.suspended_until,
-      warnings_count: user.warnings_count,
-      chat_frozen: user.chat_frozen
-    };
-
-    console.log(`✓ User registration rejected: ${user.email} - Reason: ${reason}`);
-
-    // Send rejection email to user
-    try {
-      await sendRejectionEmail(user.email, user.name, reason);
-      console.log(`📧 Rejection email sent to: ${user.email}`);
-    } catch (emailError) {
-      console.error('⚠️ Failed to send rejection email:', emailError.message);
-      // Don't reject the operation just because email failed
-    }
-
-    await logActivity({
-      admin_id: req.user._id,
-      action: 'registration_rejected',
-      description: `Rejected pending registration for ${user.email}. Reason: ${reason}`,
-      target_user_id: user._id,
-      target_type: 'user',
-      target_id: user._id,
-      before_state: beforeState,
-      after_state: afterState,
-      metadata: { reason },
-      ...getClientInfo(req),
-      status: 'success'
-    });
-
-    return res.json(successResponse('User registration rejected', sanitizeUser(user)));
-  } catch (error) {
-    console.error('❌ Registration Rejection Error:', error);
-    return res.status(500).json(errorResponse('Failed to reject registration'));
-  }
-});
-
-router.put('/registrations/:userId/resubmission', requirePermission('admin.users.moderate'), verifyAdminPin, async (req, res) => {
-  try {
-    const reason = String(req.body?.reason || '').trim();
-    if (reason.length < 5) {
-      return res.status(400).json(errorResponse('Resubmission note is required (min 5 characters)'));
-    }
-
-    const user = await User.findById(req.params.userId);
-    if (!user) {
-      return res.status(404).json(errorResponse('User not found'));
-    }
-
-    const submission = await VerificationSubmission.findOne({ userId: user._id });
-    if (!submission) {
-      return res.status(404).json(errorResponse('Verification submission not found'));
-    }
-
-    submission.status = 'resubmission_required';
-    submission.reviewNotes = reason.slice(0, 1000);
-    submission.rejectionReason = '';
-    submission.reviewedAt = new Date();
-    submission.reviewedBy = req.user?._id;
-    submission.history.push({
-      action: 'resubmission_requested',
-      byAdmin: req.user?._id,
-      note: reason.slice(0, 1000)
-    });
-    await submission.save();
-
-    user.verification_status = 'resubmission_required';
-    user.profile_approval_status = 'needs_correction';
-    user.status = 'pending';
-    user.profile_admin_notes = reason.slice(0, 1000);
-    user.updated_at = new Date();
-    await user.save();
-
-    await logActivity({
-      admin_id: req.user._id,
-      action: 'registration_resubmission_requested',
-      description: `Requested verification resubmission for ${user.email}`,
-      target_user_id: user._id,
-      target_type: 'user',
-      target_id: user._id,
-      metadata: { reason: reason.slice(0, 1000) },
-      ...getClientInfo(req),
-      status: 'success'
-    });
-
-    return res.json(successResponse('Resubmission requested successfully'));
-  } catch (error) {
-    console.error('❌ Registration Resubmission Error:', error);
-    return res.status(500).json(errorResponse('Failed to request resubmission'));
   }
 });
 
