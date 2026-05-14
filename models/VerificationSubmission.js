@@ -51,9 +51,8 @@ const VerificationSubmissionSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-VerificationSubmissionSchema.pre('save', function onSave(next) {
+VerificationSubmissionSchema.pre('save', async function () {
   this.updatedAt = new Date();
-  next();
 });
 
 VerificationSubmissionSchema.index({ status: 1, updatedAt: -1 });
