@@ -19,23 +19,41 @@ const SupportWidget = () => {
   const [socket, setSocket] = useState(null);
   const [authError, setAuthError] = useState('');
 
-  // Fetch categories on mount
+  // Fetch categories on mount (public endpoint, no auth needed)
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchCategories();
-    }
-  }, [isAuthenticated]);
+    fetchCategories();
+  }, []);
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/support/categories');
+      setIsLoading(true);
+      setAuthError('');
+      
+      const response = await fetch('http://localhost:5000/api/support/categories', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
-      if (data.success) {
-        setCategories(data.data.categories || []);
+      
+      if (data.success && data.data.categories) {
+        setCategories(data.data.categories);
+        console.log('✅ Categories loaded:', data.data.categories.length);
+      } else {
+        throw new Error('Invalid response format');
       }
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.error('❌ Failed to fetch categories:', error);
       setAuthError('Failed to load support categories');
+      setCategories([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -116,7 +134,7 @@ const SupportWidget = () => {
     setAuthError('');
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/support/request', {
+      const response = await fetch('http://localhost:5000/api/support/request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +174,7 @@ const SupportWidget = () => {
 
   const fetchMessages = async (requestId) => {
     try {
-      const response = await fetch(`/api/support/request/${requestId}`, {
+      const response = await fetch(`http://localhost:5000/api/support/request/${requestId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('authToken')}`
         }
@@ -183,7 +201,7 @@ const SupportWidget = () => {
         });
       } else {
         // Send via HTTP
-        const response = await fetch(`/api/support/request/${currentRequest._id}/message`, {
+        const response = await fetch(`http://localhost:5000/api/support/request/${currentRequest._id}/message`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
