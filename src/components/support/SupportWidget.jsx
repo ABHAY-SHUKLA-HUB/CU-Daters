@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, MessageCircle, Send, Loader, AlertCircle } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
+import { getStoredAuthState } from '../../utils/authStorage';
 import './SupportWidget.css';
 
 const SupportWidget = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, token: contextToken } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1); // 1: categories, 2: message, 3: chat
   const [categories, setCategories] = useState([]);
@@ -66,7 +67,12 @@ const SupportWidget = () => {
 
   const connectToSocket = () => {
     try {
-      const token = localStorage.getItem('authToken');
+      // Get token from context first, then fallback to storage
+      let token = contextToken;
+      if (!token) {
+        const stored = getStoredAuthState();
+        token = stored?.token;
+      }
       
       if (!token) {
         setAuthError('Please login to use support chat');
@@ -91,7 +97,6 @@ const SupportWidget = () => {
         console.error('❌ Connection error:', error);
         if (error?.message?.includes('token')) {
           setAuthError('Authentication failed. Please refresh and login again.');
-          localStorage.removeItem('authToken');
         }
       });
 
@@ -133,7 +138,21 @@ const SupportWidget = () => {
     setIsLoading(true);
     setAuthError('');
     try {
-      const token = localStorage.getItem('authToken');
+      // Get token from context first, then fallback to storage
+      let token = contextToken;
+      if (!token) {
+        const stored = getStoredAuthState();
+        token = stored?.token;
+      }
+      
+      if (!token) {
+        setAuthError('No authentication token found. Please refresh and login again.');
+        return;
+      }
+
+      console.log('🔐 Creating support request with token:', token.substring(0, 20) + '...');
+      console.log('📝 Category:', selectedCategory, 'Message:', message.trim().substring(0, 50));
+
       const response = await fetch('http://localhost:5000/api/support/request', {
         method: 'POST',
         headers: {
@@ -147,14 +166,23 @@ const SupportWidget = () => {
       });
 
       const data = await response.json();
+      console.log('📩 Response status:', response.status);
+      console.log('📩 Response data:', data);
       
-      if (response.status === 401) {
-        setAuthError('Your session expired. Please login again.');
-        localStorage.removeItem('authToken');
+      if (response.status === 401 || response.status === 403) {
+        console.error('❌ Auth error 401/403:', data.message);
+        setAuthError(data.message || 'Session expired. Please refresh and login again.');
+        return;
+      }
+
+      if (!response.ok) {
+        console.error('❌ HTTP Error:', response.status, data);
+        setAuthError(data.message || `Error: ${response.status}`);
         return;
       }
 
       if (data.success) {
+        console.log('✅ Support request created successfully!');
         setCurrentRequest(data.data);
         setRequestStatus('pending');
         setStep(3);
@@ -165,8 +193,8 @@ const SupportWidget = () => {
         setAuthError(data.message || 'Failed to create support request');
       }
     } catch (error) {
-      console.error('Failed to create request:', error);
-      setAuthError('Failed to create support request');
+      console.error('❌ Failed to create request:', error);
+      setAuthError('Network error: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -174,9 +202,16 @@ const SupportWidget = () => {
 
   const fetchMessages = async (requestId) => {
     try {
+      // Get token from context first, then fallback to storage
+      let token = contextToken;
+      if (!token) {
+        const stored = getStoredAuthState();
+        token = stored?.token;
+      }
+
       const response = await fetch(`http://localhost:5000/api/support/request/${requestId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`
+          Authorization: `Bearer ${token}`
         }
       });
 
@@ -201,11 +236,18 @@ const SupportWidget = () => {
         });
       } else {
         // Send via HTTP
+        // Get token from context first, then fallback to storage
+        let token = contextToken;
+        if (!token) {
+          const stored = getStoredAuthState();
+          token = stored?.token;
+        }
+
         const response = await fetch(`http://localhost:5000/api/support/request/${currentRequest._id}/message`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({ message: inputMessage.trim() })
         });
