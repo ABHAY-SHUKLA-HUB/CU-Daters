@@ -1604,7 +1604,7 @@ export default function ChatPage() {
                       </div>
                     ) : null}
 
-                    <div className="relative isolate">
+                    <div className="relative isolate flex-1 min-h-0">
                       <MessageList
                         conversationId={selectedConversationId}
                         messages={messages}

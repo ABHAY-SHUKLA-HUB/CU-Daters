@@ -5,6 +5,7 @@ import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ThemeSettingsPanel from '../components/ThemeSettingsPanel';
+import AdminSupportDashboard from '../components/admin/AdminSupportDashboard';
 import { PremiumSurface, StatCard, StatusChip } from '../components/ui/PremiumPrimitives';
 import {
   Activity,
@@ -1663,7 +1664,15 @@ export default function AdminPortal() {
                 {!loading && renderSection === 'reports' ? <ReportsPanel reports={filteredReports} onResolve={handleResolveReport} onOpenDetail={openDetailDrawer} /> : null}
                 {!loading && renderSection === 'moderation' ? <ModerationPanel photos={moderationPhotos} onApproveProfile={handleApprovalAction} onOpenDetail={openDetailDrawer} /> : null}
                 {!loading && renderSection === 'colleges' ? <CollegesPanel colleges={colleges} onCreateCollege={handleCreateCollege} onUpdateCollege={handleUpdateCollege} /> : null}
-                {!loading && renderSection === 'support' ? <SupportPanel tickets={filteredSupportTickets} settings={settings} onUpdateSetting={handleUpdateSetting} onNotify={notify} onUpdateTicket={handleUpdateSupportTicket} /> : null}
+                {!loading && renderSection === 'support' ? (
+                  <div className="space-y-6">
+                    <div className="bg-white rounded-lg shadow-sm p-6">
+                      <h3 className="text-xl font-bold text-softBrown mb-4">💬 Live Chat Support Requests</h3>
+                      <AdminSupportDashboard />
+                    </div>
+                    <SupportPanel tickets={filteredSupportTickets} settings={settings} onUpdateSetting={handleUpdateSetting} onNotify={notify} onUpdateTicket={handleUpdateSupportTicket} />
+                  </div>
+                ) : null}
                 {!loading && renderSection === 'analytics' ? <AnalyticsPanel analytics={analytics} dateRange={dateRange} /> : null}
                 {!loading && renderSection === 'settings' ? <SettingsPanel settings={settings} onUpdate={handleUpdateSetting} /> : null}
                 {!loading && renderSection === 'activity' ? <ActivityPanel logs={filteredActivity} /> : null}

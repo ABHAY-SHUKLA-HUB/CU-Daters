@@ -16,6 +16,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import connectDB from './config/database.js';
 import { globalErrorHandler, notFoundHandler, jsonErrorHandler } from './utils/errorHandler.js';
 import { getDbReconnectState, markDbReconnectStart, markDbReconnectEnd } from './utils/dbState.js';
+import { startSupportAutoRejectInterval } from './utils/supportAutoReject.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -29,8 +30,10 @@ import discoveryRoutes from './routes/discovery.js';
 import safetyRoutes from './routes/safety.js';
 import securityRoutes from './routes/security.js';
 import profileAccessRoutes from './routes/profileAccess.js';
+import supportRoutes from './routes/support.js';
 import registerChatSocket from './socket/chatSocket.js';
 import { registerNotificationSocket } from './socket/notificationSocket.js';
+import { registerSupportSocket } from './socket/supportSocket.js';
 
 // ===== VALIDATE ENVIRONMENT VARIABLES =====
 const validateEnvVars = () => {
@@ -356,6 +359,7 @@ app.use('/api/discovery', discoveryRoutes);
 app.use('/api/safety', safetyRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/profile-access', profileAccessRoutes);
+app.use('/api/support', supportRoutes);
 
 // ===== ROOT ROUTE =====
 app.get('/', (req, res) => {
@@ -389,6 +393,7 @@ const io = new SocketIOServer(httpServer, {
 
 registerChatSocket(io);
 registerNotificationSocket(io);
+registerSupportSocket(io);
 
 // Attach io to app for use in routes
 app.locals.io = io;
@@ -417,8 +422,12 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`✓ Environment: ${process.env.NODE_ENV}`);
   console.log(`✓ Database URL: ${process.env.MONGODB_URI ? '✅ Set' : '❌ NOT SET'}`);
   console.log(`✓ Socket.io: enabled`);
+  console.log(`✓ Support chat: enabled`);
   console.log(`✓ Public URL: https://datee.onrender.com`);
   console.log(`${'='.repeat(50)}\n`);
+
+  // Start support request auto-reject interval
+  startSupportAutoRejectInterval();
 });
 
 export default app;

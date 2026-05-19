@@ -1425,48 +1425,346 @@ router.put('/colleges/:collegeId', requirePermission('admin.colleges.write'), ve
 });
 
 // ===== SUPPORT / OPS =====
-router.get('/support/tickets', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+
+// Get all support requests with filters
+router.get('/support/requests', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
   try {
-    const { status, priority } = req.query;
+    const { status, category, page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
     const filter = {};
     if (status) filter.status = status;
-    if (priority) filter.priority = priority;
+    if (category) filter.category = category;
 
-    const tickets = await SupportTicket.find(filter)
-      .populate('user_id', 'name email')
-      .populate('assigned_to', 'name email')
-      .sort({ updated_at: -1 })
-      .limit(200)
+    const [requests, total] = await Promise.all([
+      SupportTicket.find(filter)
+        .populate('user_id', 'name email profile_picture')
+        .populate('admin_id', 'name email')
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      SupportTicket.countDocuments(filter)
+    ]);
+
+    const requestIds = requests.map(r => r._id);
+    const messages = await SupportMessage.find({ support_ticket_id: { $in: requestIds } })
+      .sort({ created_at: -1 })
       .lean();
 
-    return res.json(successResponse('Support tickets fetched', { data: tickets }));
+    const messagesByTicket = new Map();
+    messages.forEach(msg => {
+      const key = msg.support_ticket_id.toString();
+      if (!messagesByTicket.has(key)) {
+        messagesByTicket.set(key, 0);
+      }
+      messagesByTicket.set(key, messagesByTicket.get(key) + 1);
+    });
+
+    const enrichedRequests = requests.map(req => ({
+      ...req,
+      messageCount: messagesByTicket.get(req._id.toString()) || 0,
+      autoRejectTime: req.created_at ? new Date(req.created_at.getTime() + 5 * 60 * 1000) : null
+    }));
+
+    return res.json(successResponse('Support requests fetched', {
+      data: enrichedRequests,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      pages: Math.ceil(total / parseInt(limit))
+    }));
   } catch (error) {
-    console.error('❌ Support Ticket Fetch Error:', error);
-    return res.status(500).json(errorResponse('Failed to fetch support tickets'));
+    console.error('❌ Support Requests Fetch Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch support requests'));
   }
 });
 
-router.put('/support/tickets/:ticketId', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), verifyAdminPin, async (req, res) => {
+// Get single support request with all messages
+router.get('/support/request/:requestId', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
   try {
-    const ticket = await SupportTicket.findByIdAndUpdate(req.params.ticketId, req.body, { new: true, runValidators: true });
-    if (!ticket) {
-      return res.status(404).json(errorResponse('Support ticket not found'));
+    const supportRequest = await SupportTicket.findById(req.params.requestId)
+      .populate('user_id', 'name email profile_picture status')
+      .populate('admin_id', 'name email');
+
+    if (!supportRequest) {
+      return res.status(404).json(errorResponse('Support request not found'));
+    }
+
+    const messages = await SupportMessage.find({ support_ticket_id: req.params.requestId })
+      .sort({ created_at: 1 })
+      .lean();
+
+    res.json(successResponse('Support request fetched', {
+      request: supportRequest,
+      messages
+    }));
+  } catch (error) {
+    console.error('❌ Support Request Fetch Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch support request'));
+  }
+});
+
+// Accept support request
+router.post('/support/request/:requestId/accept', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const supportRequest = await SupportTicket.findById(req.params.requestId);
+    if (!supportRequest) {
+      return res.status(404).json(errorResponse('Support request not found'));
+    }
+
+    if (supportRequest.status !== 'pending') {
+      return res.status(400).json(errorResponse('Support request is not pending'));
+    }
+
+    supportRequest.status = 'accepted';
+    supportRequest.admin_id = req.user._id;
+    supportRequest.accepted_at = new Date();
+    supportRequest.updated_at = new Date();
+    await supportRequest.save();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'support_request_accepted',
+      description: `Support request ${supportRequest._id} accepted`,
+      target_type: 'support_request',
+      target_id: supportRequest._id.toString(),
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    res.json(successResponse('Support request accepted', {
+      request: supportRequest
+    }));
+  } catch (error) {
+    console.error('❌ Accept Support Request Error:', error);
+    return res.status(500).json(errorResponse('Failed to accept support request'));
+  }
+});
+
+// Reject support request
+router.post('/support/request/:requestId/reject', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json(errorResponse('Rejection reason is required'));
+    }
+
+    const supportRequest = await SupportTicket.findById(req.params.requestId);
+    if (!supportRequest) {
+      return res.status(404).json(errorResponse('Support request not found'));
+    }
+
+    if (supportRequest.status !== 'pending' && supportRequest.status !== 'accepted') {
+      return res.status(400).json(errorResponse('Support request cannot be rejected in current status'));
+    }
+
+    supportRequest.status = 'rejected';
+    supportRequest.rejection_reason = reason;
+    supportRequest.rejected_at = new Date();
+    supportRequest.updated_at = new Date();
+    await supportRequest.save();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'support_request_rejected',
+      description: `Support request ${supportRequest._id} rejected. Reason: ${reason}`,
+      target_type: 'support_request',
+      target_id: supportRequest._id.toString(),
+      metadata: { reason },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    res.json(successResponse('Support request rejected', {
+      request: supportRequest
+    }));
+  } catch (error) {
+    console.error('❌ Reject Support Request Error:', error);
+    return res.status(500).json(errorResponse('Failed to reject support request'));
+  }
+});
+
+// Close support request
+router.post('/support/request/:requestId/close', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const { notes } = req.body;
+
+    const supportRequest = await SupportTicket.findById(req.params.requestId);
+    if (!supportRequest) {
+      return res.status(404).json(errorResponse('Support request not found'));
+    }
+
+    if (supportRequest.status !== 'accepted') {
+      return res.status(400).json(errorResponse('Only accepted requests can be closed'));
+    }
+
+    supportRequest.status = 'closed';
+    supportRequest.resolution_note = notes || '';
+    supportRequest.closed_at = new Date();
+    supportRequest.updated_at = new Date();
+    await supportRequest.save();
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'support_request_closed',
+      description: `Support request ${supportRequest._id} closed`,
+      target_type: 'support_request',
+      target_id: supportRequest._id.toString(),
+      metadata: { notes },
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    res.json(successResponse('Support request closed', {
+      request: supportRequest
+    }));
+  } catch (error) {
+    console.error('❌ Close Support Request Error:', error);
+    return res.status(500).json(errorResponse('Failed to close support request'));
+  }
+});
+
+// Admin send message in support request
+router.post('/support/request/:requestId/message', requirePermission('admin.support.manage'), verifyAdminRole([...MODERATION_ROLES, ...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const { message } = req.body;
+    const { requestId } = req.params;
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0 || message.trim().length > 2000) {
+      return res.status(400).json(errorResponse('Message must be between 1 and 2000 characters'));
+    }
+
+    const supportRequest = await SupportTicket.findById(requestId);
+    if (!supportRequest) {
+      return res.status(404).json(errorResponse('Support request not found'));
+    }
+
+    if (supportRequest.status !== 'accepted') {
+      return res.status(400).json(errorResponse('Support request is not active'));
+    }
+
+    const supportMessage = await SupportMessage.create({
+      support_ticket_id: requestId,
+      sender_id: req.user._id,
+      sender_type: 'admin',
+      message: message.trim()
+    });
+
+    supportRequest.updated_at = new Date();
+    await supportRequest.save();
+
+    res.status(201).json(successResponse('Message sent', {
+      message: supportMessage
+    }));
+  } catch (error) {
+    console.error('❌ Send Support Message Error:', error);
+    return res.status(500).json(errorResponse('Failed to send message'));
+  }
+});
+
+// Get support categories
+router.get('/support/categories', requirePermission('admin.support.manage'), verifyAdminRole([...SUPPORT_ROLES]), async (req, res) => {
+  try {
+    const SupportCategory = mongoose.model('SupportCategory');
+    const categories = await SupportCategory.find({})
+      .sort({ order: 1 })
+      .lean();
+
+    res.json(successResponse('Support categories fetched', { categories }));
+  } catch (error) {
+    console.error('❌ Support Categories Fetch Error:', error);
+    return res.status(500).json(errorResponse('Failed to fetch support categories'));
+  }
+});
+
+// Create support category
+router.post('/support/categories', requirePermission('admin.support.manage'), verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
+  try {
+    const { name, description, icon, order = 0 } = req.body;
+
+    if (!name) {
+      return res.status(400).json(errorResponse('Category name is required'));
+    }
+
+    const SupportCategory = mongoose.model('SupportCategory');
+    const category = await SupportCategory.create({
+      name,
+      description: description || '',
+      icon: icon || '',
+      order: order || 0,
+      active: true
+    });
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'support_category_created',
+      description: `Support category "${name}" created`,
+      target_type: 'support_category',
+      target_id: category._id.toString(),
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    res.status(201).json(successResponse('Support category created', category));
+  } catch (error) {
+    console.error('❌ Create Support Category Error:', error);
+    return res.status(500).json(errorResponse('Failed to create support category'));
+  }
+});
+
+// Update support category
+router.put('/support/categories/:categoryId', requirePermission('admin.support.manage'), verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
+  try {
+    const SupportCategory = mongoose.model('SupportCategory');
+    const category = await SupportCategory.findByIdAndUpdate(req.params.categoryId, req.body, { new: true });
+
+    if (!category) {
+      return res.status(404).json(errorResponse('Support category not found'));
     }
 
     await logActivity({
       admin_id: req.user._id,
-      action: 'admin_support_update',
-      description: `Support ticket ${ticket._id} updated`,
-      target_type: 'support_ticket',
-      target_id: ticket._id.toString(),
-      metadata: req.body,
-      ...getClientInfo(req)
+      action: 'support_category_updated',
+      description: `Support category "${category.name}" updated`,
+      target_type: 'support_category',
+      target_id: category._id.toString(),
+      ...getClientInfo(req),
+      status: 'success'
     });
 
-    return res.json(successResponse('Support ticket updated', ticket));
+    res.json(successResponse('Support category updated', category));
   } catch (error) {
-    console.error('❌ Support Ticket Update Error:', error);
-    return res.status(500).json(errorResponse('Failed to update support ticket'));
+    console.error('❌ Update Support Category Error:', error);
+    return res.status(500).json(errorResponse('Failed to update support category'));
+  }
+});
+
+// Delete support category
+router.delete('/support/categories/:categoryId', requirePermission('admin.support.manage'), verifyAdminRole(SUPER_ROLES), verifyAdminPin, async (req, res) => {
+  try {
+    const SupportCategory = mongoose.model('SupportCategory');
+    const category = await SupportCategory.findByIdAndUpdate(req.params.categoryId, { active: false });
+
+    if (!category) {
+      return res.status(404).json(errorResponse('Support category not found'));
+    }
+
+    await logActivity({
+      admin_id: req.user._id,
+      action: 'support_category_deleted',
+      description: `Support category "${category.name}" disabled`,
+      target_type: 'support_category',
+      target_id: category._id.toString(),
+      ...getClientInfo(req),
+      status: 'success'
+    });
+
+    res.json(successResponse('Support category deleted'));
+  } catch (error) {
+    console.error('❌ Delete Support Category Error:', error);
+    return res.status(500).json(errorResponse('Failed to delete support category'));
   }
 });
 
