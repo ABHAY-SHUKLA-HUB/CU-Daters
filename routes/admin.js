@@ -11,6 +11,7 @@ import Message from '../models/Message.js';
 import Report from '../models/Report.js';
 import College from '../models/College.js';
 import SupportTicket from '../models/SupportTicket.js';
+import SupportMessage from '../models/SupportMessage.js';
 import AppSetting from '../models/AppSetting.js';
 import Like from '../models/Like.js';
 import AdminSession from '../models/AdminSession.js';
@@ -1476,7 +1477,7 @@ router.get('/support/requests', requirePermission('admin.support.manage'), verif
     }));
   } catch (error) {
     console.error('❌ Support Requests Fetch Error:', error);
-    return res.status(500).json(errorResponse('Failed to fetch support requests'));
+    return res.status(500).json(errorResponse('Failed to fetch support requests: ' + error.message));
   }
 });
 

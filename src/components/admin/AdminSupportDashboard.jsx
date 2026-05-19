@@ -18,7 +18,7 @@ const AdminSupportDashboard = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(
         `/api/admin/support/requests?status=${filter}&page=${page}&limit=20`,
         {
@@ -55,7 +55,7 @@ const AdminSupportDashboard = () => {
 
   const handleAccept = async (requestId) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`/api/admin/support/request/${requestId}/accept`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
@@ -76,7 +76,7 @@ const AdminSupportDashboard = () => {
     if (!reason) return;
 
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`/api/admin/support/request/${requestId}/reject`, {
         method: 'POST',
         headers: {
