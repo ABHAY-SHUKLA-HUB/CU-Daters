@@ -711,35 +711,35 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
   }
 
   await user.save();
-  console.log(`✓ User profile completed: ${user._id} (${email})`);
+  console.log(`✓ User account created instantly: ${user._id} (${email})`);
 
-  // Send registration confirmation email (separate from OTP)
-  try {
-    await sendRegistrationConfirmationEmail(emailLower, user.name, user.college);
-    console.log(`📧 Registration confirmation email sent to: ${emailLower}`);
-  } catch (error) {
-    console.error(`❌ Failed to send registration confirmation email: ${error.message}`);
-    // Don't fail the signup if email fails - just log it
-  }
-
-  // Log activity
-  await logActivity({
-    user_id: user._id,
-    action: 'signup_complete',
-    description: `User completed profile signup with email ${email}`,
-    ...getClientInfo(req),
-    status: 'success'
-  });
-
-  // Generate token
+  // Generate token BEFORE background jobs (user needs it immediately)
   const token = generateToken(user._id);
 
+  // SEND RESPONSE IMMEDIATELY - don't wait for email or logging!
   res.status(201).json(
     successResponse('Profile completed successfully. Awaiting admin approval.', {
       token,
       user: sanitizeUser(user)
     })
   );
+
+  // === BACKGROUND JOBS (don't block response) ===
+  // Send registration confirmation email in background
+  sendRegistrationConfirmationEmail(emailLower, user.name, user.college)
+    .then(() => console.log(`📧 Registration email sent to: ${emailLower}`))
+    .catch(error => console.error(`❌ Failed to send email: ${error.message}`));
+
+  // Log activity in background
+  logActivity({
+    user_id: user._id,
+    action: 'signup_complete',
+    description: `User completed profile signup with email ${email}`,
+    ...getClientInfo(req),
+    status: 'success'
+  })
+    .then(() => console.log(`📝 Activity logged for user: ${user._id}`))
+    .catch(error => console.error(`❌ Failed to log activity: ${error.message}`));
 }));
 
 // ===== UPLOAD SIGNUP IMAGES (Background - After Account Creation) =====

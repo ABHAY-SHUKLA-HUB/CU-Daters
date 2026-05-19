@@ -387,16 +387,16 @@ export default function Signup() {
           setAuth({ token: resolvedToken, user: userData });
         }
 
-        // STEP 2: Redirect immediately (account is created!)
-        console.log('✅ Account created! Redirecting...');
-        setTimeout(() => {
-          navigate('/pending-approval');
-        }, 500);
+        // STEP 2: Redirect IMMEDIATELY - account is created!
+        console.log('✅ Account created! Redirecting to pending-approval...');
+        navigate('/pending-approval');
 
-        // STEP 3: Upload images in background (non-blocking)
-        setTimeout(() => {
+        // STEP 3: Upload images in background (non-blocking, no await, no setTimeout)
+        // Fire and forget - user is already logged in
+        if (formData.livePhoto || formData.idCard) {
+          console.log('🖼️ Uploading images in background (fire and forget)...');
           uploadImagesInBackground(userData._id, resolvedToken);
-        }, 1000);
+        }
       }
     } catch (err) {
       let errorMsg = 'Registration failed. Please try again.';
