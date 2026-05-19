@@ -3,7 +3,7 @@ import SupportTicket from '../models/SupportTicket.js';
 import SupportMessage from '../models/SupportMessage.js';
 import SupportCategory from '../models/SupportCategory.js';
 import User from '../models/User.js';
-import { verifyFirebaseOrJwtAuth } from '../middleware/authFirebaseOrJwt.js';
+import { verifyJwtOnly } from '../middleware/authFirebaseOrJwt.js';
 import { asyncHandler } from '../utils/errorHandler.js';
 import { successResponse, errorResponse } from '../utils/validation.js';
 import rateLimit from 'express-rate-limit';
@@ -32,7 +32,7 @@ router.get(
 // ===== CREATE SUPPORT REQUEST =====
 router.post(
   '/request',
-  verifyFirebaseOrJwtAuth,
+  verifyJwtOnly,
   supportLimiter,
   asyncHandler(async (req, res) => {
     const { category, message } = req.body;
@@ -93,7 +93,7 @@ router.post(
 // ===== GET MY SUPPORT REQUESTS =====
 router.get(
   '/my-requests',
-  verifyFirebaseOrJwtAuth,
+  verifyJwtOnly,
   asyncHandler(async (req, res) => {
     const userId = req.user._id;
 
@@ -127,7 +127,7 @@ router.get(
 // ===== GET SINGLE SUPPORT REQUEST =====
 router.get(
   '/request/:requestId',
-  verifyFirebaseOrJwtAuth,
+  verifyJwtOnly,
   asyncHandler(async (req, res) => {
     const { requestId } = req.params;
     const userId = req.user._id;
@@ -159,7 +159,7 @@ router.get(
 // ===== SEND MESSAGE IN SUPPORT REQUEST =====
 router.post(
   '/request/:requestId/message',
-  verifyFirebaseOrJwtAuth,
+  verifyJwtOnly,
   asyncHandler(async (req, res) => {
     const { requestId } = req.params;
     const { message } = req.body;

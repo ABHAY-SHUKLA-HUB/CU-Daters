@@ -103,4 +103,41 @@ export const verifyFirebaseOrJwtAuth = async (req, res, next) => {
   }
 };
 
+// Simple JWT-only auth (for endpoints that just need JWT, no Firebase)
+export const verifyJwtOnly = async (req, res, next) => {
+  try {
+    const token = getBearerToken(req.headers.authorization);
+
+    if (!token) {
+      console.log('❌ No token provided');
+      return res.status(401).json({ success: false, message: 'No authentication token provided' });
+    }
+
+    console.log(`🔐 Verifying JWT token: ${token.substring(0, 20)}...`);
+    
+    const decodedJwt = verifyToken(token);
+    if (!decodedJwt) {
+      console.log('❌ Invalid or expired token');
+      return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    }
+
+    console.log(`✅ JWT verified for userId: ${decodedJwt.userId}`);
+
+    const user = await User.findById(decodedJwt.userId);
+    if (!user) {
+      console.log(`❌ User not found for id: ${decodedJwt.userId}`);
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    console.log(`✅ User resolved: ${user.email}`);
+    req.user = user;
+    req.userId = user._id;
+    req.authProvider = 'jwt';
+    next();
+  } catch (error) {
+    console.error('❌ [JWT Auth Error]:', error.message);
+    res.status(500).json({ success: false, message: 'Authentication error: ' + error.message });
+  }
+};
+
 export default verifyFirebaseOrJwtAuth;
