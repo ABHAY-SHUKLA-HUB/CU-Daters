@@ -579,8 +579,7 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
     throw new AppError('Experience/Year is required', 400);
   }
   if (!bio || bio.length < 20) throw new AppError('Bio must be at least 20 characters', 400);
-  if (!selfiePayload) throw new AppError('Live selfie is required', 400);
-  if (!idProofPayload) throw new AppError('ID proof image is required', 400);
+  // NOTE: Images are now OPTIONAL in initial signup (uploaded in background)
 
   const emailLower = email.toLowerCase().trim();
 
@@ -645,45 +644,35 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
   user.status = 'pending'; // Always pending until admin approves
   user.updated_at = new Date();
 
-  const selfieDocument = await saveVerificationMediaFromDataUrl({
-    userId: user._id,
-    documentType: 'selfie',
-    dataUrl: selfiePayload
-  });
-  const idProofDocument = await saveVerificationMediaFromDataUrl({
-    userId: user._id,
-    documentType: 'id-proof',
-    dataUrl: idProofPayload
-  });
-
-  const existingSubmission = await VerificationSubmission.findOne({ userId: user._id });
-  let submission;
-
-  if (existingSubmission) {
-    existingSubmission.status = 'pending';
-    existingSubmission.idProofType = normalizedIdProofType;
-    existingSubmission.documents = {
-      selfie: {
-        ...selfieDocument,
-        originalName: 'live-selfie'
-      },
-      idProof: {
-        ...idProofDocument,
-        originalName: normalizedIdProofType
-      }
-    };
-    existingSubmission.reviewNotes = '';
-    existingSubmission.rejectionReason = '';
-    existingSubmission.reviewedAt = undefined;
-    existingSubmission.reviewedBy = undefined;
-    existingSubmission.history.push({ action: 'resubmitted', note: 'User re-submitted verification documents' });
-    submission = await existingSubmission.save();
-  } else {
-    submission = await VerificationSubmission.create({
+  // Process images ONLY if provided (for backward compatibility with image uploads)
+  let selfieDocument = null;
+  let idProofDocument = null;
+  
+  if (selfiePayload) {
+    selfieDocument = await saveVerificationMediaFromDataUrl({
       userId: user._id,
-      status: 'pending',
-      idProofType: normalizedIdProofType,
-      documents: {
+      documentType: 'selfie',
+      dataUrl: selfiePayload
+    });
+  }
+  
+  if (idProofPayload) {
+    idProofDocument = await saveVerificationMediaFromDataUrl({
+      userId: user._id,
+      documentType: 'id-proof',
+      dataUrl: idProofPayload
+    });
+  }
+
+  // Only create verification submission if images were provided
+  const existingSubmission = await VerificationSubmission.findOne({ userId: user._id });
+  let submission = null;
+  
+  if (selfieDocument || idProofDocument) {
+    if (existingSubmission) {
+      existingSubmission.status = 'pending';
+      existingSubmission.idProofType = normalizedIdProofType;
+      existingSubmission.documents = {
         selfie: {
           ...selfieDocument,
           originalName: 'live-selfie'
@@ -692,12 +681,34 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
           ...idProofDocument,
           originalName: normalizedIdProofType
         }
-      },
-      history: [{ action: 'submitted', note: 'Initial verification submitted' }]
-    });
-  }
+      };
+      existingSubmission.reviewNotes = '';
+      existingSubmission.rejectionReason = '';
+      existingSubmission.reviewedAt = undefined;
+      existingSubmission.reviewedBy = undefined;
+      existingSubmission.history.push({ action: 'resubmitted', note: 'User re-submitted verification documents' });
+      submission = await existingSubmission.save();
+    } else {
+      submission = await VerificationSubmission.create({
+        userId: user._id,
+        status: 'pending',
+        idProofType: normalizedIdProofType,
+        documents: {
+          selfie: {
+            ...selfieDocument,
+            originalName: 'live-selfie'
+          },
+          idProof: {
+            ...idProofDocument,
+            originalName: normalizedIdProofType
+          }
+        },
+        history: [{ action: 'submitted', note: 'Initial verification submitted' }]
+      });
+    }
 
-  user.verification_submission = submission._id;
+    user.verification_submission = submission._id;
+  }
 
   await user.save();
   console.log(`✓ User profile completed: ${user._id} (${email})`);
@@ -729,6 +740,85 @@ router.post('/signup', asyncHandler(async (req, res, _next) => {
       user: sanitizeUser(user)
     })
   );
+}));
+
+// ===== UPLOAD SIGNUP IMAGES (Background - After Account Creation) =====
+router.post('/signup/images', verifyFirebaseOrJwtAuth, asyncHandler(async (req, res, _next) => {
+  console.log('\n========== UPLOAD SIGNUP IMAGES (Background) ==========');
+  
+  const { liveSelfie, idProofFile, idProofType } = req.body;
+  const userId = req.user._id;
+
+  // Find user
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const normalizedIdProofType = normalizeIdProofType(idProofType || 'government_id');
+  let selfieDocument, idProofDocument;
+
+  try {
+    // Upload images if provided
+    if (liveSelfie) {
+      selfieDocument = await saveVerificationMediaFromDataUrl({
+        userId,
+        documentType: 'selfie',
+        dataUrl: liveSelfie
+      });
+      console.log(`✅ Selfie uploaded for user: ${userId}`);
+    }
+
+    if (idProofFile) {
+      idProofDocument = await saveVerificationMediaFromDataUrl({
+        userId,
+        documentType: 'id-proof',
+        dataUrl: idProofFile
+      });
+      console.log(`✅ ID proof uploaded for user: ${userId}`);
+    }
+
+    // Update verification submission if images were uploaded
+    if (selfieDocument || idProofDocument) {
+      const submission = await VerificationSubmission.findOne({ userId });
+      
+      if (submission) {
+        if (selfieDocument) {
+          submission.documents.selfie = {
+            ...selfieDocument,
+            originalName: 'live-selfie'
+          };
+        }
+        if (idProofDocument) {
+          submission.documents.idProof = {
+            ...idProofDocument,
+            originalName: normalizedIdProofType
+          };
+        }
+        submission.idProofType = normalizedIdProofType;
+        await submission.save();
+        console.log(`✅ Verification submission updated for user: ${userId}`);
+      }
+    }
+
+    res.status(200).json(
+      successResponse('Images uploaded successfully in background', {
+        uploaded: {
+          selfie: !!selfieDocument,
+          idProof: !!idProofDocument
+        }
+      })
+    );
+  } catch (error) {
+    console.error(`❌ Background image upload error for user ${userId}:`, error.message);
+    // Don't fail - account is already created
+    res.status(200).json(
+      successResponse('Account created. Image upload will be retried', {
+        error: error.message,
+        retryLater: true
+      })
+    );
+  }
 }));
 
 // ===== LOGIN =====

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 import { useAuth } from '../context/AuthContext';
 import { validateCollegeEmailDomain } from '../../utils/validation';
+import { compressImage, getImageSize, formatFileSize } from '../utils/imageCompression';
 
 export default function Signup() {
   const [step, setStep] = useState(1); // 1=Basic, 2=Profile, 3=Photos (OTP system removed)
@@ -70,7 +71,14 @@ export default function Signup() {
       const context = canvasRef.current.getContext('2d');
       context.drawImage(videoRef.current, 0, 0, 320, 240);
       const dataUrl = canvasRef.current.toDataURL('image/png');
-      setFormData(prev => ({ ...prev, livePhoto: dataUrl }));
+      
+      // Compress immediately
+      compressImage(dataUrl, 0.75, 600).then(compressed => {
+        setFormData(prev => ({ ...prev, livePhoto: compressed }));
+        const size = getImageSize(compressed);
+        console.log(`📷 Selfie compressed: ${formatFileSize(size)}`);
+      });
+      
       setPhotoTaken(true);
       const stream = videoRef.current.srcObject;
       if (stream) {
@@ -91,10 +99,21 @@ export default function Signup() {
     if (file) {
       setIdUploading(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, idCard: reader.result }));
-        setIdCardPreview(reader.result);
-        setIdUploading(false);
+      reader.onloadend = async () => {
+        try {
+          // Compress ID card image
+          const compressed = await compressImage(reader.result, 0.8, 800);
+          setFormData(prev => ({ ...prev, idCard: compressed }));
+          setIdCardPreview(compressed);
+          const size = getImageSize(compressed);
+          console.log(`📄 ID card compressed: ${formatFileSize(size)}`);
+        } catch (error) {
+          console.error('Compression error:', error);
+          setFormData(prev => ({ ...prev, idCard: reader.result }));
+          setIdCardPreview(reader.result);
+        } finally {
+          setIdUploading(false);
+        }
       };
       reader.onerror = () => {
         setIdUploading(false);
@@ -326,19 +345,21 @@ export default function Signup() {
   // Complete profile and submit photos
   const handleSubmit = async () => {
     if (step === 3) {
+      // NOTE: Photos are now OPTIONAL - user can create account without them
+      // Photos will be uploaded in background if provided
       const newErrors = {};
-      if (!formData.livePhoto) newErrors.livePhoto = 'Live photo required';
-      if (!formData.idCard) newErrors.idCard = 'ID card image required';
       setErrors(newErrors);
-      if (Object.keys(newErrors).length > 0) return;
     }
 
     setLoading(true);
     setError('');
 
     try {
-      const response = await axios.post(`${AUTH_API_BASE}/signup`, {
-        // Basic info (OTP removed - include here for direct signup)
+      // STEP 1: Create account WITHOUT images (FAST - 2-3 seconds)
+      console.log('📝 Creating account (without images)...');
+      
+      const accountResponse = await axios.post(`${AUTH_API_BASE}/signup`, {
+        // Basic info
         name: formData.name.trim(),
         email: formData.collegeEmail.toLowerCase().trim(),
         phone: formData.phone,
@@ -349,30 +370,39 @@ export default function Signup() {
         fieldOfWork: formData.fieldOfWork,
         experienceYears: Number(formData.experienceYears),
         bio: formData.bio,
-        liveSelfie: formData.livePhoto,
-        idProofFile: formData.idCard,
+        // Send compressed image sizes only (not actual images in initial request)
+        liveSelfie: null,
+        idProofFile: null,
         idProofType: formData.idProofType
       }, {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 90000
+        timeout: 30000 // 30 sec timeout for account creation (much faster)
       });
 
-      if (response.data.success || response.status === 201) {
-        const resolvedToken = response.data.data?.token || response.data.data?.authToken || '';
-        const userData = response.data.data?.user || response.data.user;
+      if (accountResponse.data.success || accountResponse.status === 201) {
+        const resolvedToken = accountResponse.data.data?.token || accountResponse.data.data?.authToken || '';
+        const userData = accountResponse.data.data?.user || accountResponse.data.user;
+        
         if (userData && resolvedToken) {
           setAuth({ token: resolvedToken, user: userData });
         }
 
+        // STEP 2: Redirect immediately (account is created!)
+        console.log('✅ Account created! Redirecting...');
         setTimeout(() => {
           navigate('/pending-approval');
         }, 500);
+
+        // STEP 3: Upload images in background (non-blocking)
+        setTimeout(() => {
+          uploadImagesInBackground(userData._id, resolvedToken);
+        }, 1000);
       }
     } catch (err) {
       let errorMsg = 'Registration failed. Please try again.';
 
       if (err.code === 'ECONNABORTED') {
-        errorMsg = '⏳ Server is slow (Render free tier waking up). Please wait 60 seconds and try again.';
+        errorMsg = '⏳ Request timeout. Please try again.';
       } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
         errorMsg = 'Cannot connect to server. Backend might be down.';
       } else if (err.response?.status === 413) {
@@ -386,8 +416,33 @@ export default function Signup() {
       }
 
       setError(errorMsg);
-    } finally {
       setLoading(false);
+    }
+  };
+
+  // Background image upload (doesn't block user)
+  const uploadImagesInBackground = async (userId, token) => {
+    try {
+      console.log('🖼️ Uploading images in background...');
+      
+      const imageData = {
+        liveSelfie: formData.livePhoto,
+        idProofFile: formData.idCard,
+        idProofType: formData.idProofType
+      };
+
+      await axios.post(`${AUTH_API_BASE}/signup/images`, imageData, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        timeout: 60000 // 60 sec timeout for image upload
+      });
+
+      console.log('✅ Images uploaded successfully in background');
+    } catch (error) {
+      console.error('⚠️ Background image upload failed:', error);
+      // Don't show error to user - account is already created
     }
   };
 
