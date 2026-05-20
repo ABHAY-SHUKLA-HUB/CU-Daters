@@ -81,12 +81,18 @@ router.post(
       message: message.trim()
     });
 
-    res.status(201).json(successResponse('Support request created', {
-      request_id: supportTicket._id,
-      status: supportTicket.status,
-      category: supportTicket.category,
-      created_at: supportTicket.created_at
-    }));
+    res.status(201).json({
+      success: true,
+      message: 'Support request created',
+      data: {
+        _id: supportTicket._id,
+        request_id: supportTicket._id,
+        status: supportTicket.status,
+        category: supportTicket.category,
+        created_at: supportTicket.created_at,
+        messages: []
+      }
+    });
   })
 );
 
@@ -149,10 +155,14 @@ router.get(
       .sort({ created_at: 1 })
       .lean();
 
-    res.json(successResponse('Support request fetched', {
-      request: supportTicket,
-      messages
-    }));
+    res.json({
+      success: true,
+      message: 'Support request fetched',
+      data: {
+        ...supportTicket.toObject(),
+        messages
+      }
+    });
   })
 );
 
@@ -197,6 +207,96 @@ router.post(
     res.status(201).json(successResponse('Message sent', {
       message: supportMessage
     }));
+  })
+);
+
+// ===== ADMIN: GET ALL PENDING SUPPORT REQUESTS =====
+router.get(
+  '/admin/requests',
+  verifyJwtOnly,
+  asyncHandler(async (req, res) => {
+    const user = req.user;
+    
+    // Check if user is admin
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return res.status(403).json(errorResponse('Only admins can access this'));
+    }
+
+    const { status = 'pending' } = req.query;
+    
+    const filter = status === 'all' ? {} : { status };
+    const requests = await SupportTicket.find(filter)
+      .populate('user_id', 'name email username profilePicture')
+      .sort({ created_at: -1 })
+      .lean();
+
+    const requestIds = requests.map(r => r._id);
+    const messages = await SupportMessage.find({ support_ticket_id: { $in: requestIds } })
+      .sort({ created_at: 1 })
+      .lean();
+
+    const messagesByTicket = new Map();
+    messages.forEach(msg => {
+      const key = msg.support_ticket_id.toString();
+      if (!messagesByTicket.has(key)) {
+        messagesByTicket.set(key, []);
+      }
+      messagesByTicket.get(key).push(msg);
+    });
+
+    const enrichedRequests = requests.map(req => ({
+      requestId: req._id.toString(),
+      userId: req.user_id._id.toString(),
+      userName: req.user_id.name || 'Anonymous',
+      userEmail: req.user_id.email,
+      userUsername: req.user_id.username,
+      category: req.category,
+      description: req.description,
+      status: req.status,
+      priority: req.priority,
+      createdAt: req.created_at,
+      messages: messagesByTicket.get(req._id.toString()) || []
+    }));
+
+    res.json({
+      success: true,
+      message: 'Support requests fetched',
+      data: { requests: enrichedRequests }
+    });
+  })
+);
+
+// ===== ADMIN: CLOSE SUPPORT REQUEST =====
+router.put(
+  '/admin/request/:requestId/close',
+  verifyJwtOnly,
+  asyncHandler(async (req, res) => {
+    const user = req.user;
+    
+    // Check if user is admin
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return res.status(403).json(errorResponse('Only admins can close requests'));
+    }
+
+    const { requestId } = req.params;
+    const { closeReason = 'Resolved' } = req.body;
+
+    const supportTicket = await SupportTicket.findById(requestId);
+    if (!supportTicket) {
+      return res.status(404).json(errorResponse('Support request not found'));
+    }
+
+    supportTicket.status = 'closed';
+    supportTicket.closed_at = new Date();
+    supportTicket.closed_by = user._id;
+    supportTicket.close_reason = closeReason;
+    await supportTicket.save();
+
+    res.json({
+      success: true,
+      message: 'Support request closed',
+      data: { request: supportTicket }
+    });
   })
 );
 

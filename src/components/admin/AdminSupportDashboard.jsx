@@ -1,218 +1,446 @@
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, Check, X, MessageSquare, Clock } from 'lucide-react';
-import AdminSupportChat from './AdminSupportChat';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Send, Phone, CheckCircle, XCircle, Settings, Search, Bell, Clock, AlertCircle } from 'lucide-react';
+import { io } from 'socket.io-client';
+import { useAuth } from '../../context/AuthContext';
+import { getStoredAuthState } from '../../utils/authStorage';
 import './AdminSupportDashboard.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const AdminSupportDashboard = () => {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [filter, setFilter] = useState('pending');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const { user, token: contextToken } = useAuth();
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [socket, setSocket] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [typingUsers, setTypingUsers] = useState(new Set());
+  const [filter, setFilter] = useState('all'); // all, pending, active, resolved
+  const messagesEndRef = useRef(null);
 
+  // Auto-scroll to bottom
   useEffect(() => {
-    fetchRequests();
-  }, [filter, page]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  const fetchRequests = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(
-        `/api/admin/support/requests?status=${filter}&page=${page}&limit=20`,
+  // Initialize socket
+  useEffect(() => {
+    if (!contextToken) return;
+
+    const adminSocket = io(`${API_BASE_URL}/support`, {
+      auth: { token: contextToken },
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5
+    });
+
+    adminSocket.on('connect', () => {
+      fetchConversations();
+    });
+
+    adminSocket.on('new_support_request', (data) => {
+      setConversations(prev => [
         {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+          _id: data.requestId,
+          user_id: data.userId,
+          userName: data.userName,
+          userEmail: data.userEmail,
+          category: data.category,
+          status: 'pending',
+          description: data.description,
+          priority: data.priority,
+          aiMessages: 0,
+          messages: [],
+          created_at: new Date().toISOString(),
+          hasUnread: true
+        },
+        ...prev
+      ]);
+      setUnreadCount(prev => prev + 1);
+    });
 
-      const data = await response.json();
-      if (data.success) {
-        setRequests(data.data.data || []);
-        setTotalPages(data.data.pages || 1);
+    adminSocket.on('support_message', (data) => {
+      if (selectedConversation && selectedConversation._id === data.requestId) {
+        setMessages(prev => [...prev, data]);
       }
-    } catch (error) {
-      console.error('Failed to fetch requests:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setConversations(prev =>
+        prev.map(conv =>
+          conv._id === data.requestId
+            ? { ...conv, hasUnread: true, lastMessage: data.message, lastMessageTime: new Date() }
+            : conv
+        )
+      );
+    });
 
-  const getTimeUntilAutoReject = (createdAt) => {
-    const created = new Date(createdAt);
-    const now = new Date();
-    const timeElapsed = Math.round((now - created) / 1000); // seconds
-    const timeRemaining = 300 - timeElapsed; // 5 minutes = 300 seconds
+    adminSocket.on('support_typing_start', (data) => {
+      if (selectedConversation && selectedConversation._id === data.requestId) {
+        setTypingUsers(prev => new Set([...prev, data.userId]));
+      }
+    });
 
-    if (timeRemaining <= 0) {
-      return 'Auto-rejecting soon...';
-    }
+    adminSocket.on('support_typing_stop', (data) => {
+      if (selectedConversation && selectedConversation._id === data.requestId) {
+        setTypingUsers(prev => {
+          const updated = new Set(prev);
+          updated.delete(data.userId);
+          return updated;
+        });
+      }
+    });
 
-    const minutes = Math.floor(timeRemaining / 60);
-    const seconds = timeRemaining % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
+    adminSocket.on('disconnect', () => {
+      // Handle disconnection
+    });
 
-  const handleAccept = async (requestId) => {
+    setSocket(adminSocket);
+    return () => adminSocket.disconnect();
+  }, [contextToken]);
+
+  const fetchConversations = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/admin/support/request/${requestId}/accept`, {
-        method: 'POST',
+      setIsLoading(true);
+      let token = contextToken;
+      if (!token) {
+        const stored = getStoredAuthState();
+        token = stored?.token;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/support/requests`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        fetchRequests();
-        alert('Request accepted!');
+      const data = await response.json();
+      if (data.success) {
+        setConversations(data.data.requests || []);
       }
     } catch (error) {
-      console.error('Failed to accept request:', error);
-      alert('Failed to accept request');
+      // Handle error silently
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleReject = async (requestId) => {
-    const reason = prompt('Please provide a rejection reason:');
-    if (!reason) return;
-
+  const handleSelectConversation = async (conversation) => {
+    setSelectedConversation(conversation);
+    setMessages([]);
+    
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/admin/support/request/${requestId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ reason })
+      let token = contextToken;
+      if (!token) {
+        const stored = getStoredAuthState();
+        token = stored?.token;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/support/request/${conversation._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        fetchRequests();
-        alert('Request rejected');
+      const data = await response.json();
+      if (data.success) {
+        setMessages(data.data.messages || []);
       }
+
+      // Mark as read
+      if (socket) {
+        socket.emit('mark_support_messages_read', { requestId: conversation._id });
+      }
+
+      // Update conversation
+      setConversations(prev =>
+        prev.map(conv =>
+          conv._id === conversation._id ? { ...conv, hasUnread: false } : conv
+        )
+      );
     } catch (error) {
-      console.error('Failed to reject request:', error);
-      alert('Failed to reject request');
+      // Handle error silently
     }
   };
+
+  const handleSendMessage = () => {
+    if (!inputMessage.trim() || !selectedConversation || !socket) return;
+
+    socket.emit('send_admin_message', {
+      requestId: selectedConversation._id,
+      message: inputMessage.trim()
+    });
+
+    setInputMessage('');
+  };
+
+  const handleAcceptRequest = () => {
+    if (!selectedConversation || !socket) return;
+
+    socket.emit('accept_support_request', {
+      requestId: selectedConversation._id
+    });
+
+    setSelectedConversation(prev => ({ ...prev, status: 'accepted' }));
+  };
+
+  const handleResolveRequest = () => {
+    if (!selectedConversation || !socket) return;
+
+    socket.emit('resolve_support_request', {
+      requestId: selectedConversation._id
+    });
+
+    setSelectedConversation(prev => ({ ...prev, status: 'resolved' }));
+  };
+
+  const handleCloseRequest = () => {
+    if (!selectedConversation || !socket) return;
+
+    socket.emit('close_support_request', {
+      requestId: selectedConversation._id
+    });
+
+    setConversations(prev => prev.filter(c => c._id !== selectedConversation._id));
+    setSelectedConversation(null);
+  };
+
+  const filteredConversations = conversations.filter(conv => {
+    const matchesFilter = filter === 'all' || conv.status === filter;
+    const matchesSearch = !searchQuery ||
+      conv.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conv.userEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conv.category.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    return (
+      <div className="admin-support-container access-denied">
+        <div className="access-denied-card">
+          <AlertCircle size={64} />
+          <h2>Access Denied</h2>
+          <p>Only admin users can access the support dashboard.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-support-container">
-      <div className="support-header">
-        <h2>Support Requests</h2>
-        <div className="support-filters">
-          {['pending', 'accepted', 'rejected', 'closed'].map(status => (
+      {/* LEFT PANEL - CONVERSATIONS */}
+      <div className="admin-conversations-panel">
+        {/* Header */}
+        <div className="conversations-header">
+          <h2>Support Requests</h2>
+          <div className="header-actions">
+            {unreadCount > 0 && (
+              <span className="unread-badge">{unreadCount}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="conversations-search">
+          <Search size={18} />
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="conversations-filters">
+          {['all', 'pending', 'active', 'resolved'].map(status => (
             <button
               key={status}
-              onClick={() => {
-                setFilter(status);
-                setPage(1);
-              }}
+              onClick={() => setFilter(status)}
               className={`filter-btn ${filter === status ? 'active' : ''}`}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </button>
           ))}
         </div>
-      </div>
 
-      {loading ? (
-        <div className="loading">Loading requests...</div>
-      ) : (
-        <div className="support-requests-grid">
-          {requests.length === 0 ? (
-            <div className="no-requests">
-              <AlertCircle size={32} />
-              <p>No support requests found</p>
-            </div>
+        {/* Conversations List */}
+        <div className="conversations-list">
+          {isLoading ? (
+            <div className="loading-state">Loading...</div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="empty-state">No conversations</div>
           ) : (
-            requests.map(req => (
-              <div key={req._id} className="request-card">
-                <div className="request-header">
-                  <div className="request-info">
-                    <h3>{req.user_id?.name || 'Unknown User'}</h3>
-                    <p className="request-category">{req.category}</p>
-                  </div>
-                  <span className={`status-badge ${req.status}`}>
-                    {req.status}
-                  </span>
+            filteredConversations.map(conv => (
+              <div
+                key={conv._id}
+                onClick={() => handleSelectConversation(conv)}
+                className={`conversation-item ${selectedConversation?._id === conv._id ? 'active' : ''} ${conv.hasUnread ? 'unread' : ''}`}
+              >
+                {/* Avatar */}
+                <div className="conversation-avatar">
+                  {conv.userName.charAt(0).toUpperCase()}
                 </div>
 
-                <div className="request-body">
-                  <p className="request-message">{req.description}</p>
-                  <div className="request-meta">
-                    <span className="email">{req.user_id?.email}</span>
-                    {req.messageCount > 0 && (
-                      <span className="message-count">
-                        <MessageSquare size={14} />
-                        {req.messageCount} messages
-                      </span>
+                {/* Info */}
+                <div className="conversation-info">
+                  <div className="conversation-header-info">
+                    <span className="user-name">{conv.userName}</span>
+                    <span className={`status-badge ${conv.status}`}>{conv.status}</span>
+                  </div>
+                  <div className="conversation-category">{conv.category}</div>
+                  <div className="conversation-preview">
+                    {conv.lastMessage || conv.description}
+                  </div>
+                </div>
+
+                {/* Indicators */}
+                <div className="conversation-indicators">
+                  {conv.hasUnread && <div className="unread-dot"></div>}
+                  {conv.priority === 'urgent' && (
+                    <span className="priority-badge">🔴</span>
+                  )}
+                  <div className="status-indicator">
+                    {conv.aiMessages > 0 && (
+                      <span className="ai-badge">🤖</span>
                     )}
                   </div>
-                </div>
-
-                <div className="request-footer">
-                  {req.status === 'pending' && (
-                    <>
-                      <span className="auto-reject-timer">
-                        <Clock size={14} />
-                        {getTimeUntilAutoReject(req.created_at)}
-                      </span>
-                      <div className="action-buttons">
-                        <button
-                          onClick={() => handleAccept(req._id)}
-                          className="accept-btn"
-                        >
-                          <Check size={16} /> Accept
-                        </button>
-                        <button
-                          onClick={() => handleReject(req._id)}
-                          className="reject-btn"
-                        >
-                          <X size={16} /> Reject
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  {req.status === 'accepted' && (
-                    <button
-                      onClick={() => setSelectedRequest(req)}
-                      className="view-chat-btn"
-                    >
-                      <MessageSquare size={16} /> View Chat
-                    </button>
-                  )}
                 </div>
               </div>
             ))
           )}
         </div>
-      )}
+      </div>
 
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button
-            onClick={() => setPage(Math.max(1, page - 1))}
-            disabled={page === 1}
-          >
-            Previous
-          </button>
-          <span>{page} of {totalPages}</span>
-          <button
-            onClick={() => setPage(Math.min(totalPages, page + 1))}
-            disabled={page === totalPages}
-          >
-            Next
-          </button>
+      {/* RIGHT PANEL - CHAT */}
+      {selectedConversation ? (
+        <div className="admin-chat-panel">
+          {/* Chat Header */}
+          <div className="chat-header-admin">
+            <div className="chat-user-details">
+              <div className="user-avatar">
+                {selectedConversation.userName.charAt(0).toUpperCase()}
+              </div>
+              <div className="user-info">
+                <h3>{selectedConversation.userName}</h3>
+                <p>{selectedConversation.userEmail}</p>
+              </div>
+            </div>
+            <div className="chat-controls-header">
+              <span className={`status-badge ${selectedConversation.status}`}>
+                {selectedConversation.status.toUpperCase()}
+              </span>
+              <span className="category-tag">{selectedConversation.category}</span>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="admin-chat-messages">
+            {messages.length === 0 ? (
+              <div className="empty-chat">
+                <p>No messages yet</p>
+              </div>
+            ) : (
+              messages.map((msg, idx) => (
+                <div
+                  key={msg._id || idx}
+                  className={`admin-message-bubble ${msg.sender_type === 'admin' ? 'admin' : msg.sender_type === 'ai' ? 'ai' : 'user'}`}
+                >
+                  {msg.sender_type !== 'admin' && (
+                    <span className="message-sender">
+                      {msg.sender_name || 'User'}
+                    </span>
+                  )}
+                  <div className="message-content">
+                    {msg.message}
+                  </div>
+                  <span className="message-time">
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))
+            )}
+
+            {/* Typing Indicator */}
+            {typingUsers.size > 0 && (
+              <div className="admin-message-bubble user typing">
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Action Buttons */}
+          {selectedConversation.status === 'pending' && (
+            <div className="admin-action-buttons">
+              <button
+                onClick={handleAcceptRequest}
+                className="btn-action btn-accept"
+              >
+                <CheckCircle size={18} />
+                Accept Request
+              </button>
+              <button
+                onClick={handleCloseRequest}
+                className="btn-action btn-decline"
+              >
+                <XCircle size={18} />
+                Decline
+              </button>
+            </div>
+          )}
+
+          {selectedConversation.status === 'active' && (
+            <div className="admin-action-buttons">
+              <button
+                onClick={handleResolveRequest}
+                className="btn-action btn-resolve"
+              >
+                <CheckCircle size={18} />
+                Resolve Request
+              </button>
+              <button
+                onClick={handleCloseRequest}
+                className="btn-action btn-close"
+              >
+                <X size={18} />
+                Close Chat
+              </button>
+            </div>
+          )}
+
+          {/* Message Input */}
+          <div className="admin-input-area">
+            <div className="input-wrapper">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Type your response..."
+                className="message-input"
+                disabled={selectedConversation.status === 'resolved' || selectedConversation.status === 'closed'}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || selectedConversation.status === 'resolved' || selectedConversation.status === 'closed'}
+                className="btn-send"
+              >
+                <Send size={20} />
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-
-      {selectedRequest && (
-        <AdminSupportChat
-          request={selectedRequest}
-          onClose={() => setSelectedRequest(null)}
-          onUpdate={fetchRequests}
-        />
+      ) : (
+        <div className="admin-chat-empty">
+          <div className="empty-state-large">
+            <h3>Select a conversation</h3>
+            <p>Choose a support request from the list to start chatting</p>
+          </div>
+        </div>
       )}
     </div>
   );

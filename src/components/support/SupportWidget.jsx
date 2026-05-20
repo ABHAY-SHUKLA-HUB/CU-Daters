@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { getStoredAuthState } from '../../utils/authStorage';
 import './SupportWidget.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const SupportWidget = () => {
   const { isAuthenticated, user, token: contextToken } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +32,7 @@ const SupportWidget = () => {
       setIsLoading(true);
       setAuthError('');
       
-      const response = await fetch('http://localhost:5000/api/support/categories', {
+      const response = await fetch(`${API_BASE_URL}/api/support/categories`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -45,12 +47,10 @@ const SupportWidget = () => {
       
       if (data.success && data.data.categories) {
         setCategories(data.data.categories);
-        console.log('✅ Categories loaded:', data.data.categories.length);
       } else {
         throw new Error('Invalid response format');
       }
     } catch (error) {
-      console.error('❌ Failed to fetch categories:', error);
       setAuthError('Failed to load support categories');
       setCategories([]);
     } finally {
@@ -79,7 +79,7 @@ const SupportWidget = () => {
         return;
       }
 
-      const supportSocket = io('http://localhost:5000/support', {
+      const supportSocket = io(`${API_BASE_URL}/support`, {
         auth: { token },
         reconnection: true,
         reconnectionDelay: 1000,
@@ -88,38 +88,34 @@ const SupportWidget = () => {
       });
 
       supportSocket.on('connect', () => {
-        console.log('✅ Connected to support socket');
         setAuthError('');
         supportSocket.emit('join_support_request', { requestId: currentRequest._id });
       });
 
       supportSocket.on('connect_error', (error) => {
-        console.error('❌ Connection error:', error);
         if (error?.message?.includes('token')) {
           setAuthError('Authentication failed. Please refresh and login again.');
         }
       });
 
       supportSocket.on('support_message', (data) => {
-        console.log('📨 Received message:', data);
         setChatMessages(prev => [...prev, data]);
       });
 
       supportSocket.on('support_typing_indicator', (data) => {
-        console.log('✍️ Admin is typing...');
+        // Handle typing indicator
       });
 
       supportSocket.on('disconnect', () => {
-        console.log('⚠️ Disconnected from support socket');
+        // Handle disconnection
       });
 
       supportSocket.on('error', (error) => {
-        console.error('❌ Socket error:', error);
+        // Handle socket error
       });
 
       setSocket(supportSocket);
     } catch (error) {
-      console.error('Failed to connect to support socket:', error);
       setAuthError('Failed to connect to support chat');
     }
   };
@@ -150,10 +146,7 @@ const SupportWidget = () => {
         return;
       }
 
-      console.log('🔐 Creating support request with token:', token.substring(0, 20) + '...');
-      console.log('📝 Category:', selectedCategory, 'Message:', message.trim().substring(0, 50));
-
-      const response = await fetch('http://localhost:5000/api/support/request', {
+      const response = await fetch(`${API_BASE_URL}/api/support/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -166,23 +159,18 @@ const SupportWidget = () => {
       });
 
       const data = await response.json();
-      console.log('📩 Response status:', response.status);
-      console.log('📩 Response data:', data);
       
       if (response.status === 401 || response.status === 403) {
-        console.error('❌ Auth error 401/403:', data.message);
         setAuthError(data.message || 'Session expired. Please refresh and login again.');
         return;
       }
 
       if (!response.ok) {
-        console.error('❌ HTTP Error:', response.status, data);
         setAuthError(data.message || `Error: ${response.status}`);
         return;
       }
 
       if (data.success) {
-        console.log('✅ Support request created successfully!');
         setCurrentRequest(data.data);
         setRequestStatus('pending');
         setStep(3);
@@ -193,7 +181,6 @@ const SupportWidget = () => {
         setAuthError(data.message || 'Failed to create support request');
       }
     } catch (error) {
-      console.error('❌ Failed to create request:', error);
       setAuthError('Network error: ' + error.message);
     } finally {
       setIsLoading(false);
@@ -209,7 +196,7 @@ const SupportWidget = () => {
         token = stored?.token;
       }
 
-      const response = await fetch(`http://localhost:5000/api/support/request/${requestId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/support/request/${requestId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -220,7 +207,7 @@ const SupportWidget = () => {
         setChatMessages(data.data.messages || []);
       }
     } catch (error) {
-      console.error('Failed to fetch messages:', error);
+      // Handle fetch error
     }
   };
 
@@ -243,7 +230,7 @@ const SupportWidget = () => {
           token = stored?.token;
         }
 
-        const response = await fetch(`http://localhost:5000/api/support/request/${currentRequest._id}/message`, {
+        const response = await fetch(`${API_BASE_URL}/api/support/request/${currentRequest._id}/message`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -264,7 +251,7 @@ const SupportWidget = () => {
 
       setInputMessage('');
     } catch (error) {
-      console.error('Failed to send message:', error);
+      // Handle send error
     }
   };
 

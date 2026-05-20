@@ -1,229 +1,319 @@
-import React, { useState } from 'react';
-import useSupportContactConfig from '../hooks/useSupportContactConfig';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { MessageCircle, Users, Zap, Lock, Clock, Headphones, ChevronDown, ChevronUp, ArrowRight, Shield, Sparkles, Lightbulb, Award } from 'lucide-react';
+import SupportModal from '../components/support/SupportModal';
+import '../styles/Contact.css';
 
-export default function Contact() {
-  const contactConfig = useSupportContactConfig();
-  const supportEmail = contactConfig.supportEmail || 'support@seeudaters.in';
-  const escalationEmail = contactConfig.escalationEmail || supportEmail;
-  const adminEmail = escalationEmail;
-  const supportPhone = contactConfig.supportPhone || contactConfig.whatsapp || '+91 00000 00000';
-  const instagramHref = contactConfig.instagramId ? `https://instagram.com/${String(contactConfig.instagramId).replace(/^@/, '')}` : '#';
-  const telegramHref = contactConfig.telegramId ? `https://t.me/${String(contactConfig.telegramId).replace(/^@/, '')}` : '#';
-  const helpCenterHref = contactConfig.helpCenterUrl || '#';
+const Contact = () => {
+  const [showSupport, setShowSupport] = useState(false);
+  const [expandedFaq, setExpandedFaq] = useState(null);
+  const [particles, setParticles] = useState([]);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
-  });
+  // Generate animated particles
+  useEffect(() => {
+    const newParticles = Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 5,
+      duration: 15 + Math.random() * 10,
+    }));
+    setParticles(newParticles);
+  }, []);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert('Thank you for your message! We will get back to you soon.');
-    setFormData({ name: '', email: '', subject: '', message: '' });
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   };
+
+  const categories = [
+    { icon: '✓', title: 'Verification Help', desc: 'Get assistance with profile verification process' },
+    { icon: '🔑', title: 'Login Issues', desc: 'Recover access and security recovery options' },
+    { icon: '🚩', title: 'Report Fake Profiles', desc: 'Report suspicious or fake accounts instantly' },
+    { icon: '💳', title: 'Payment & Billing', desc: 'Subscription and payment support' },
+    { icon: '🐛', title: 'Technical Support', desc: 'Report app bugs and technical issues' },
+    { icon: '🔒', title: 'Safety & Privacy', desc: 'Security concerns and privacy questions' },
+  ];
+
+  const features = [
+    { icon: MessageCircle, title: 'Real-Time Chat', desc: 'Instant messaging with support agents' },
+    { icon: Zap, title: 'AI Assistant', desc: 'Intelligent responses in seconds' },
+    { icon: Users, title: 'Expert Support', desc: 'Dedicated human support team' },
+    { icon: Shield, title: 'Secure Chats', desc: 'Military-grade encryption' },
+    { icon: Clock, title: '<2 Min Response', desc: 'Average response time guaranteed' },
+    { icon: Award, title: '24/7 Support', desc: 'Always available for you' },
+  ];
+
+  const steps = [
+    { number: '1', title: 'Create Request', desc: 'Describe your issue' },
+    { number: '2', title: 'AI Joins', desc: 'Instant assistance' },
+    { number: '3', title: 'Team Accepts', desc: 'Human takes over' },
+    { number: '4', title: 'Issue Resolved', desc: 'Fast resolution' },
+  ];
+
+  const faqs = [
+    { question: 'How does the verification process work?', answer: 'Verification ensures all profiles are verified and authentic. Submit a valid ID and a selfie, and our team approves within 24 hours. This keeps our community safe and trustworthy.' },
+    { question: 'Why was my profile rejected?', answer: 'Profiles are rejected if photos don\'t match ID, violate community guidelines, contain inappropriate content, or fail safety checks. Contact support for specific feedback.' },
+    { question: 'How do I report fake or suspicious users?', answer: 'Visit their profile, tap the three dots menu, and select "Report". Our moderation team reviews every report within 2 hours and takes immediate action.' },
+    { question: 'How quickly will I get support?', answer: 'Our average response time is under 2 minutes. AI assistants provide instant help, while human agents handle complex issues. No waiting around!' },
+    { question: 'Is my support conversation completely private?', answer: 'Yes! All conversations are end-to-end encrypted with military-grade security. Only you and our support staff can see your messages.' },
+    { question: 'What payment methods do you accept?', answer: 'We accept all major credit/debit cards, UPI, net banking, and digital wallets. All transactions are secure and processed instantly.' },
+  ];
 
   return (
-    <div className="pt-20 pb-20">
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-creamyWhite to-warmCream py-16 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-darkBrown mb-6">
-            Get in <span className="gradient-text">Touch</span>
-          </h1>
-          <p className="text-xl text-softBrown max-w-2xl mx-auto">
-            Have questions? Want to report an issue? Found a bug? We'd love to hear from you!
-          </p>
+    <div className="contact-page">
+      {/* ========== HERO SECTION ========== */}
+      <section className="hero-section">
+        <div className="particles-container">
+          {particles.map(p => (
+            <motion.div
+              key={p.id}
+              className="particle"
+              style={{ left: `${p.left}%` }}
+              animate={{ y: [0, -400] }}
+              transition={{ duration: p.duration, delay: p.delay, repeat: Infinity }}
+            />
+          ))}
         </div>
-      </section>
 
-      {/* Contact Options */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8">
-          <div className="card text-center">
-            <div className="text-5xl mb-4">📧</div>
-            <h3 className="text-xl font-bold text-darkBrown mb-2">Email</h3>
-            <p className="text-softBrown mb-4">
-              For general inquiries and support
-            </p>
-            <a href={`mailto:${supportEmail}`} className="text-blushPink font-bold hover:underline">
-              {supportEmail}
-            </a>
-          </div>
+        <div className="hero-gradient"></div>
 
-          <div className="card text-center">
-            <div className="text-5xl mb-4">🚨</div>
-            <h3 className="text-xl font-bold text-darkBrown mb-2">Safety Issues</h3>
-            <p className="text-softBrown mb-4">
-              Report harassment, abuse, or fake profiles
-            </p>
-            <a href={`mailto:${escalationEmail}`} className="text-blushPink font-bold hover:underline">
-              {escalationEmail}
-            </a>
-          </div>
+        <motion.div className="hero-content" variants={containerVariants} initial="hidden" animate="visible">
+          <motion.h1 variants={itemVariants} className="hero-title">
+            Need Help? We're Here For You.
+          </motion.h1>
 
-          <div className="card text-center">
-            <div className="text-5xl mb-4">👨‍💼</div>
-            <h3 className="text-xl font-bold text-darkBrown mb-2">Admin Access</h3>
-            <p className="text-softBrown mb-4">
-              For verification or admin queries
-            </p>
-            <a href={`mailto:${adminEmail}`} className="text-blushPink font-bold hover:underline">
-              {adminEmail}
-            </a>
-          </div>
-        </div>
-      </section>
+          <motion.p variants={itemVariants} className="hero-subtitle">
+            Connect instantly with the SeeU Daters support team through our premium live support system.
+          </motion.p>
 
-      {/* Contact Form */}
-      <section className="py-16 px-4 bg-warmCream">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="section-title text-center">Send Us a Message</h2>
-          
-          <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-lg mt-8">
-            <div className="mb-6">
-              <label className="block text-darkBrown font-bold mb-2">Name *</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blushPink focus:outline-none"
-                placeholder="Your name"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-darkBrown font-bold mb-2">Email *</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blushPink focus:outline-none"
-                placeholder="your@email.com"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-darkBrown font-bold mb-2">Subject *</label>
-              <select
-                name="subject"
-                value={formData.subject}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blushPink focus:outline-none"
-              >
-                <option value="">Select Subject</option>
-                <option value="general">General Inquiry</option>
-                <option value="support">Support Request</option>
-                <option value="bug">Report Bug</option>
-                <option value="suggestion">Feature Suggestion</option>
-                <option value="business">Business Inquiry</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-darkBrown font-bold mb-2">Message *</label>
-              <textarea
-                name="message"
-                value={formData.message}
-                onChange={handleChange}
-                required
-                rows="6"
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blushPink focus:outline-none resize-none"
-                placeholder="Your message here..."
-              ></textarea>
-            </div>
-
-            <button type="submit" className="btn-primary w-full text-lg">
-              Send Message
+          <motion.div variants={itemVariants} className="hero-buttons">
+            <button className="btn-primary" onClick={() => setShowSupport(true)}>
+              <Zap size={20} /> Start Live Support
             </button>
-          </form>
-        </div>
+            <button className="btn-secondary">
+              Help Center <ArrowRight size={20} />
+            </button>
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="online-badge">
+            <span className="pulse-dot"></span>
+            12 Support Agents Online
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="stats-row">
+            <div className="stat-card">
+              <div className="stat-value">2 min</div>
+              <div className="stat-label">Avg Response</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">98%</div>
+              <div className="stat-label">Resolved</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">1.2K</div>
+              <div className="stat-label">Today Helped</div>
+            </div>
+          </motion.div>
+        </motion.div>
       </section>
 
-      {/* FAQ */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="section-title text-center">Frequently Asked Questions</h2>
+      {/* ========== SUPPORT CATEGORIES ========== */}
+      <section className="categories-section">
+        <motion.h2 variants={itemVariants} initial="hidden" whileInView="visible" className="section-title">
+          Get Help With Anything
+        </motion.h2>
 
-          <div className="space-y-6 mt-12">
-            {[
-              {
-                q: 'What is the response time for emails?',
-                a: 'We try to respond within 24-48 hours. Safety issues are prioritized and responded to within 12 hours.'
-              },
-              {
-                q: 'How do I report a fake profile?',
-                a: 'Use the Report button on any profile in the app. Our team reviews reports within 24 hours and takes action accordingly.'
-              },
-              {
-                q: 'Can I request a refund?',
-                a: `Refunds are available within 48 hours of purchase if you haven't used premium features. Contact ${supportEmail || 'support@seeu-daters.tech'} for assistance.`
-              },
-              {
-                q: 'How do I delete my account?',
-                a: 'Go to Settings > Account > Delete Account. Your account and all data will be permanently deleted within 30 days.'
-              },
-              {
-                q: 'I forgot my password. What do I do?',
-                a: 'Click "Forgot Password" on the login screen. We\'ll send a reset link to your registered email within minutes.'
-              },
-              {
-                q: 'How do I update my verification information?',
-                a: `Contact ${adminEmail || 'info@seeu-daters.tech'} with your verification details. Our admin team will review and update your profile.`
-              },
-              {
-                q: 'Is SeeU-Daters available on web?',
-                a: 'Yes. SeeU-Daters is available on web and also works great on mobile browsers.'
-              },
-              {
-                q: 'Is SeeU-Daters limited to one institution or group?',
-                a: 'No. SeeU-Daters is an independent platform open to people across different communities and backgrounds.'
-              },
-            ].map((item, idx) => (
-              <div key={idx} className="bg-creamyWhite p-6 rounded-lg border-l-4 border-blushPink">
-                <h4 className="font-bold text-darkBrown mb-2">Q: {item.q}</h4>
-                <p className="text-softBrown">A: {item.a}</p>
+        <motion.div
+          className="categories-grid"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+        >
+          {categories.map((cat, i) => (
+            <motion.div key={i} variants={itemVariants} className="category-card">
+              <div className="category-icon">{cat.icon}</div>
+              <h3>{cat.title}</h3>
+              <p>{cat.desc}</p>
+              <div className="card-border"></div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* ========== FEATURES SHOWCASE ========== */}
+      <section className="features-section">
+        <motion.h2 variants={itemVariants} initial="hidden" whileInView="visible" className="section-title">
+          Why Choose SeeU Support
+        </motion.h2>
+
+        <motion.div
+          className="features-grid"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+        >
+          {features.map((feat, i) => {
+            const Icon = feat.icon;
+            return (
+              <motion.div key={i} variants={itemVariants} className="feature-card">
+                <div className="feature-icon">
+                  <Icon size={32} />
+                </div>
+                <h3>{feat.title}</h3>
+                <p>{feat.desc}</p>
+                <div className="glow-effect"></div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </section>
+
+      {/* ========== HOW IT WORKS ========== */}
+      <section className="timeline-section">
+        <motion.h2 variants={itemVariants} initial="hidden" whileInView="visible" className="section-title">
+          How Support Works
+        </motion.h2>
+
+        <motion.div
+          className="timeline-container"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+        >
+          {steps.map((step, i) => (
+            <div key={i}>
+              <motion.div variants={itemVariants} className="timeline-step">
+                <div className="step-circle">{step.number}</div>
+                <h3>{step.title}</h3>
+                <p>{step.desc}</p>
+              </motion.div>
+
+              {i < steps.length - 1 && (
+                <motion.div
+                  className="timeline-connector"
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  transition={{ delay: i * 0.2 + 0.5 }}
+                  viewport={{ once: true }}
+                >
+                  <ArrowRight size={24} />
+                </motion.div>
+              )}
+            </div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* ========== SUPPORT PORTAL ========== */}
+      <section className="portal-section">
+        <motion.div
+          className="portal-card"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <div className="portal-glow"></div>
+          <div className="portal-content">
+            <MessageCircle className="portal-icon" size={48} />
+            <h2>Login to Access Live Support</h2>
+            <p>
+              Experience real-time support with our premium live chat system. Connect with our team instantly.
+            </p>
+
+            <div className="portal-features">
+              <div className="portal-feature">
+                <span className="check">✓</span>
+                <span>Secure End-to-End Encrypted</span>
               </div>
-            ))}
+              <div className="portal-feature">
+                <span className="check">✓</span>
+                <span>AI + Human Support</span>
+              </div>
+              <div className="portal-feature">
+                <span className="check">✓</span>
+                <span>Average 2-min Response</span>
+              </div>
+            </div>
+
+            <button className="btn-primary-large" onClick={() => setShowSupport(true)}>
+              Open Live Support
+            </button>
+
+            <p className="portal-hint">📝 Login required to start a conversation</p>
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* Social Media / Support */}
-      <section className="py-16 px-4 bg-softPink">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-darkBrown mb-8">Follow Us</h2>
-          <div className="flex justify-center gap-8">
-            <a href={`mailto:${supportEmail}`} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition" title={supportEmail}>
-              f
-            </a>
-            <a href={instagramHref} target={instagramHref === '#' ? undefined : '_blank'} rel={instagramHref === '#' ? undefined : 'noreferrer'} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition" title={contactConfig.instagramId || 'Instagram'}>
-              📷
-            </a>
-            <a href={helpCenterHref} target={helpCenterHref === '#' ? undefined : '_blank'} rel={helpCenterHref === '#' ? undefined : 'noreferrer'} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition" title="Help Center">
-              𝕏
-            </a>
-            <a href={telegramHref} target={telegramHref === '#' ? undefined : '_blank'} rel={telegramHref === '#' ? undefined : 'noreferrer'} className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl hover:bg-blushPink hover:text-white transition" title={contactConfig.telegramId || supportPhone}>
-              👥
-            </a>
-          </div>
-        </div>
+      {/* Support Modal */}
+      <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} />
+
+      {/* ========== FAQ SECTION ========== */}
+      <section className="faq-section">
+        <motion.h2 variants={itemVariants} initial="hidden" whileInView="visible" className="section-title">
+          Frequently Asked Questions
+        </motion.h2>
+
+        <motion.div
+          className="faq-container"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+        >
+          {faqs.map((faq, i) => (
+            <motion.div
+              key={i}
+              variants={itemVariants}
+              className={`faq-item ${expandedFaq === i ? 'expanded' : ''}`}
+            >
+              <button
+                className="faq-header"
+                onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+              >
+                <span>{faq.question}</span>
+                {expandedFaq === i ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+              </button>
+              <motion.div
+                className="faq-answer"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: expandedFaq === i ? 'auto' : 0, opacity: expandedFaq === i ? 1 : 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <p>{faq.answer}</p>
+              </motion.div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* ========== FOOTER CTA ========== */}
+      <section className="footer-cta-section">
+        <div className="cta-glow"></div>
+
+        <motion.div
+          className="cta-content"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <h2>Still Need Help?</h2>
+          <p>Our support team is ready to assist you right now.</p>
+          <button className="btn-primary-glow" onClick={() => setShowSupport(true)}>
+            <Headphones size={20} /> Connect With Support
+          </button>
+        </motion.div>
       </section>
     </div>
   );
-}
+};
+
+export default Contact;
 

@@ -3,6 +3,8 @@ import { X, Send, CheckCircle, Clock } from 'lucide-react';
 import { io } from 'socket.io-client';
 import './AdminSupportChat.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const AdminSupportChat = ({ request, onClose, onUpdate }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -41,7 +43,7 @@ const AdminSupportChat = ({ request, onClose, onUpdate }) => {
     try {
       const token = localStorage.getItem('authToken');
       
-      const supportSocket = io('http://localhost:5000/support', {
+      const supportSocket = io(`${API_BASE_URL}/support`, {
         auth: { token },
         reconnection: true,
         reconnectionDelay: 1000,

@@ -17,6 +17,7 @@ import connectDB from './config/database.js';
 import { globalErrorHandler, notFoundHandler, jsonErrorHandler } from './utils/errorHandler.js';
 import { getDbReconnectState, markDbReconnectStart, markDbReconnectEnd } from './utils/dbState.js';
 import { startSupportAutoRejectInterval } from './utils/supportAutoReject.js';
+import { initializeSupportCategories } from './utils/initSupportCategories.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -414,7 +415,7 @@ httpServer.on('error', (error) => {
   process.exit(1);
 });
 
-httpServer.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', async () => {
   console.log(`\n${'='.repeat(50)}`);
   console.log(`🚀 SeeU-Daters Backend Server`);
   console.log(`${'='.repeat(50)}`);
@@ -425,6 +426,9 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`✓ Support chat: enabled`);
   console.log(`✓ Public URL: https://datee.onrender.com`);
   console.log(`${'='.repeat(50)}\n`);
+
+  // Initialize support categories (idempotent - only creates if not exists)
+  await initializeSupportCategories();
 
   // Start support request auto-reject interval
   startSupportAutoRejectInterval();

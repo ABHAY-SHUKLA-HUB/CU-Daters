@@ -39,7 +39,6 @@ const RazorpayCheckoutPage = React.lazy(() => import('./pages/RazorpayCheckoutPa
 const PremiumPage = React.lazy(() => import('./pages/PremiumPage'));
 import AdminRouteGuard from './components/admin/AdminRouteGuard';
 import UserStatusGuard from './components/UserStatusGuard';
-import SupportWidget from './components/support/SupportWidget';
 import './index.css';
 
 const ADMIN_ROLES = ['admin', 'super_admin', 'moderator', 'finance_admin'];
@@ -146,7 +145,6 @@ function AppContent() {
       </main>
       {!hideGlobalChrome && <Footer />}
       {!hideGlobalChrome && <StickyCTA />}
-      <SupportWidget />
     </div>
   );
 }
